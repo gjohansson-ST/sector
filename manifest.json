@@ -1,0 +1,9 @@
+{
+    "domain": "sector_alarm",
+    "name": "Sector Alarm",
+    "documentation": "https://void.null",
+    "dependencies": [],
+    "codeowners": [],
+    "requirements": []
+}
+  
