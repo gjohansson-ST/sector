@@ -224,7 +224,7 @@ class SectorAlarmHub(object):
                 else:
                     loginfo = await response.json()
                     for users in loginfo:
-                        if users['User'] != "":
+                        if users['User'] != "" and "arm" in user['EventType']:
                             self._changed_by = users['User']
                             break
 
