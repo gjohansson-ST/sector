@@ -6,7 +6,7 @@ description: "Support for Sector Alarm integration with Homeassistant."
 date: 2020-04-29
 ---
 
-#NOT YET COMPLETED!
+# NOT YET COMPLETED!
 
 Integrates with Swedish Sector Alarm home alarm system
 
