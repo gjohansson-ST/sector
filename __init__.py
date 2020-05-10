@@ -65,7 +65,7 @@ async def async_setup(hass, config):
         async with session.post("https://mypagesapi.sectoralarm.net/api/Login/Login",
             headers=message_headers, json=json_data) as response:
             if response.status != 200:
-                    _LOGGER.exception("Failed to send Login: %d", response.status_code)
+                    _LOGGER.exception("Failed to send Login: %d", response.status)
 
             data_out = await response.json()
             AUTH_TOKEN = data_out['AuthorizationToken']
@@ -79,7 +79,7 @@ async def async_setup(hass, config):
         async with session.get("https://mypagesapi.sectoralarm.net/api/panel/getFullSystem",
             headers=message_headers) as response:
             if response.status != 200:
-                    _LOGGER.exception("Failed to get system: %d", response.status_code)
+                    _LOGGER.exception("Failed to get system: %d", response.status)
 
             firstrun = await response.json()
 
@@ -176,7 +176,7 @@ class SectorAlarmHub(object):
             async with session.post("https://mypagesapi.sectoralarm.net/api/Login/Login",
                 headers=message_headers, json=json_data) as response:
                 if response.status != 200:
-                    _LOGGER.exception("Failed to send Login: %d", response.status_code)
+                    _LOGGER.exception("Failed to send Login: %d", response.status)
 
                 data_out = await response.json()
                 AUTH_TOKEN = data_out['AuthorizationToken']
@@ -190,7 +190,7 @@ class SectorAlarmHub(object):
             async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetTemperatures?panelId={}".format(self.panel_id),
                 headers=message_headers) as response:
                 if response.status != 200:
-                    _LOGGER.exception("Failed to get system: %d", response.status_code)
+                    _LOGGER.exception("Failed to get system: %d", response.status)
                 else:
                     tempinfo = await response.json()
                     self._tempstatus = {
@@ -201,7 +201,7 @@ class SectorAlarmHub(object):
             async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetLockStatus?panelId={}".format(self.panel_id),
                 headers=message_headers) as response:
                 if response.status != 200:
-                    _LOGGER.exception("Failed to get system: %d", response.status_code)
+                    _LOGGER.exception("Failed to get system: %d", response.status)
                 else:
                     lockinfo = await response.json()
                     self._lockstatus = {
@@ -212,7 +212,7 @@ class SectorAlarmHub(object):
             async with session.get("https://mypagesapi.sectoralarm.net/api/panel/GetAlarmSystemStatus?panelId={}".format(self.panel_id),
                 headers=message_headers) as response:
                 if response.status != 200:
-                    _LOGGER.exception("Failed to get system: %d", response.status_code)
+                    _LOGGER.exception("Failed to get system: %d", response.status)
                 else:
                     alarminfo = await response.json()
                     self._alarmstatus = alarminfo['ArmedStatus']
@@ -220,7 +220,7 @@ class SectorAlarmHub(object):
             async with session.get("https://mypagesapi.sectoralarm.net/api/panel/GetLogs?panelId={}".format(self.panel_id),
                 headers=message_headers) as response:
                 if response.status != 200:
-                    _LOGGER.exception("Failed to get system: %d", response.status_code)
+                    _LOGGER.exception("Failed to get system: %d", response.status)
                 else:
                     loginfo = await response.json()
                     for users in loginfo:
