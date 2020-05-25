@@ -1,7 +1,6 @@
 import logging
-
+from datetime import timedelta
 from homeassistant.components.alarm_control_panel import AlarmControlPanel
-
 from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_AWAY,
     SUPPORT_ALARM_ARM_HOME,
@@ -19,13 +18,17 @@ DEPENDENCIES = ["sector"]
 
 _LOGGER = logging.getLogger(__name__)
 
+SCAN_INTERVAL = timedelta(seconds=10)
+
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
 
     sector_hub = hass.data[sector.DATA_SA]
     code = discovery_info[sector.CONF_CODE]
     code_format = discovery_info[sector.CONF_CODE_FORMAT]
 
-    async_add_entities([SectorAlarmPanel(sector_hub, code, code_format)])
+    async_add_entities([
+        SectorAlarmPanel(sector_hub, code, code_format)
+        ])
 
 
 class SectorAlarmPanel(AlarmControlPanel):
@@ -38,6 +41,8 @@ class SectorAlarmPanel(AlarmControlPanel):
         self._hub = hub
         self._code = code if code != "" else None
         self._code_format = code_format
+        self._state = STATE_ALARM_PENDING
+        self._changed_by = None
 
     @property
     def name(self):
@@ -47,7 +52,7 @@ class SectorAlarmPanel(AlarmControlPanel):
     @property
     def changed_by(self):
         """Return the last change triggered by."""
-        return self._hub.alarm_changed_by
+        return self._changed_by
 
     @property
     def supported_features(self) -> int:
@@ -57,21 +62,7 @@ class SectorAlarmPanel(AlarmControlPanel):
     @property
     def state(self):
         """Return the state of the sensor."""
-        state = self._hub.alarm_state
-
-        if state == "armed":
-            return STATE_ALARM_ARMED_AWAY
-
-        elif state == "partialarmed":
-            return STATE_ALARM_ARMED_HOME
-
-        elif state == "disarmed":
-            return STATE_ALARM_DISARMED
-
-        elif state == "pending":
-            return STATE_ALARM_PENDING
-
-        return "unknown"
+        return self._state
 
     @property
     def code_format(self):
@@ -114,6 +105,15 @@ class SectorAlarmPanel(AlarmControlPanel):
             _LOGGER.debug("Armed away Sector Alarm")
 
     async def async_update(self):
-        update = self._hub.async_update()
-        if update:
-            await update
+        if self._hub.alarm_state == 3:
+            self._state = STATE_ALARM_ARMED_AWAY
+        elif self._hub.alarm_state == 2:
+            self._state = STATE_ALARM_ARMED_HOME
+        elif self._hub.alarm_state == 1:
+            self._state = STATE_ALARM_DISARMED
+        else:
+            self._state = STATE_ALARM_PENDING
+
+        self._changed_by = self._hub.alarm_changed_by
+
+        return True
