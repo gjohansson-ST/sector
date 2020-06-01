@@ -1,6 +1,6 @@
 import logging
 from datetime import timedelta
-from homeassistant.components.alarm_control_panel import AlarmControlPanel
+from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
 from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_AWAY,
     SUPPORT_ALARM_ARM_HOME,
@@ -31,7 +31,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         ])
 
 
-class SectorAlarmPanel(AlarmControlPanel):
+class SectorAlarmPanel(AlarmControlPanelEntity):
     """
     Get the latest data from the Sector Alarm hub
     and arm/disarm alarm.
@@ -60,6 +60,11 @@ class SectorAlarmPanel(AlarmControlPanel):
         return SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY
 
     @property
+    def  code_arm_required(self):
+        """Return the list of supported features."""
+        return True
+
+    @property
     def state(self):
         """Return the state of the sensor."""
         return self._state
@@ -78,31 +83,39 @@ class SectorAlarmPanel(AlarmControlPanel):
 
     async def async_alarm_arm_home(self, code=None):
         """ Try to arm home. """
+        command = "partial"
         if not self._validate_code(code):
             return
 
         _LOGGER.debug("Trying to arm home Sector Alarm")
-        result = await self._hub.arm_home(code=code)
+        result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Armed home Sector Alarm")
+            return True
 
     async def async_alarm_disarm(self, code=None):
+
+        command = "disarm"
         if not self._validate_code(code):
             return
 
         _LOGGER.debug("Trying to disarm Sector Alarm")
-        result = await self._hub.disarm(code=code)
+        result = await self._hub.disarm(command, code=code)
         if result:
             _LOGGER.debug("Disarmed Sector Alarm")
+            return True
 
     async def async_alarm_arm_away(self, code=None):
+
+        command = "full"
         if not self._validate_code(code):
             return
 
         _LOGGER.debug("Trying to arm away Sector Alarm")
-        result = await self._hub.arm_away(code=code)
+        result = await self._hub.arm_away(command, code=code)
         if result:
             _LOGGER.debug("Armed away Sector Alarm")
+            return True
 
     async def async_update(self):
         if self._hub.alarm_state == 3:

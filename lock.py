@@ -1,7 +1,7 @@
 import logging
 import asyncio
 from datetime import timedelta
-from homeassistant.components.lock import LockDevice
+from homeassistant.components.lock import LockEntity
 from homeassistant.const import (ATTR_CODE, STATE_LOCKED, STATE_UNKNOWN,
                                  STATE_UNLOCKED)
 
@@ -26,7 +26,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             SectorAlarmLock(sector_hub, code, code_format, lock)
             for lock in locks)
 
-class SectorAlarmLock(LockDevice):
+class SectorAlarmLock(LockEntity):
     """Representation of a Sector Alarm lock."""
 
     def __init__(self, hub, code, code_format, serial):
@@ -39,6 +39,11 @@ class SectorAlarmLock(LockDevice):
     def name(self):
         """Return the serial of the lock."""
         return self._serial
+
+    @property
+    def changed_by(self):
+        """Return the serial of the lock."""
+        return None
 
     @property
     def state(self):
@@ -80,18 +85,25 @@ class SectorAlarmLock(LockDevice):
         state = self._hub.lock_state[self._serial]
         return state == STATE_LOCKED
 
-    def unlock(self, **kwargs):
+    async def unlock(self, **kwargs):
         """Send unlock command."""
-        state = self._hub.lock_state[self._serial]
-        if state == STATE_UNLOCKED:
-            return
+        COMMAND = "unlock"
+        state = await self._hub.triggerlock(self._serial, self._code, COMMAND)
+        if state:
+            return True
 
+        #state = self._hub.lock_state[self._serial]
+        #if state == STATE_UNLOCKED:
+        #    return
         #await self._hub.unlock(self._serial, code=self._code)
 
-    def lock(self, **kwargs):
+    async def lock(self, **kwargs):
         """Send lock command."""
-        state = self._hub.lock_state[self._serial]
-        if state == STATE_LOCKED:
-            return
-
+        COMMAND = "unlock"
+        state = await self._hub.triggerlock(self._serial, self._code, COMMAND)
+        if state:
+            return True
+        #state = self._hub.lock_state[self._serial]
+        #if state == STATE_LOCKED:
+        #    return
         #await self._hub.lock(self._serial, code=self._code)

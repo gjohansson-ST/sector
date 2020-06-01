@@ -167,6 +167,76 @@ class SectorAlarmHub(object):
 
         return panel["PanelDisplayName"]
 
+
+    async def triggerlock(self, lock, code, command):
+        AUTH_TOKEN = self.authtoken
+        PANEL_ID = self.panel_id
+        LOCKSERIAL = lock
+        LOCKCODE = code
+        COMMAND = command
+        URL = ""
+        async with aiohttp.ClientSession() as session2:
+            message_headers = {
+                "Authorization": AUTH_TOKEN,
+                "API-Version":"6",
+                "Platform":"iOS",
+                "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
+                "Version":"2.0.20",
+                "Connection":"keep-alive",
+                "Content-Type":"application/json"
+            }
+            message_json = {
+                "LockSerial": LOCKSERIAL,
+                "PanelCode": LOCKCODE,
+                "PanelId": PANEL_ID,
+                "Platform": "app"
+            }
+            if COMMAND == "unlock":
+                URL = "https://mypagesapi.sectoralarm.net/api/Panel/Unlock"
+            else:
+                URL = "https://mypagesapi.sectoralarm.net/api/Panel/Lock"
+
+            async with session2.post(URL, headers=message_headers, json=message_json) as response:
+                if response.status != 200:
+                    _LOGGER.debug("Sector: Failed to lock door: %d", response.status)
+                    return False
+                return True
+
+    async def triggeralarm(self, command, code):
+        AUTH_TOKEN = self.authtoken
+        PANEL_ID = self.panel_id
+        LOCKSERIAL = lock
+        LOCKCODE = code
+        COMMAND = command
+        URL = ""
+        async with aiohttp.ClientSession() as session2:
+            message_headers = {
+                "Authorization": AUTH_TOKEN,
+                "API-Version":"6",
+                "Platform":"iOS",
+                "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
+                "Version":"2.0.20",
+                "Connection":"keep-alive",
+                "Content-Type":"application/json"
+            }
+            message_json = {
+                "PanelCode": LOCKCODE,
+                "PanelId": PANEL_ID,
+                "Platform": "app"
+            }
+            if COMMAND == "full":
+                URL = "https://mypagesapi.sectoralarm.net/api/Panel/Arm"
+            elif COMMAND == "partial":
+                URL = "https://mypagesapi.sectoralarm.net/api/Panel/PartialArm"
+            else:
+                URL = "https://mypagesapi.sectoralarm.net/api/Panel/Disarm"
+            async with session2.post(URL, headers=message_headers, json=message_json) as response:
+                if response.status != 200:
+                    _LOGGER.debug("Sector: Failed to trigger alarm: %d", response.status)
+                    return False
+                return True
+
+
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     async def async_update(self):
         AUTH_TOKEN = self.authtoken
@@ -218,7 +288,7 @@ class SectorAlarmHub(object):
                             "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
                             "Version":"2.0.20",
                             "Connection":"keep-alive",
-                            "Content-Type":"application/json",
+                            "Content-Type":"application/json"
                         }
                 _LOGGER.debug("Sector: AUTH_TOKEN still valid: %s", AUTH_TOKEN)
 
@@ -268,7 +338,7 @@ class SectorAlarmHub(object):
                     for users in loginfo:
                         if users['User'] != "" and "arm" in users['EventType']:
                             self._changed_by = users['User']
-                            _LOGGER.debug("Sector: Last changed fetch: %s", json.dumps(self._changed_by))
+                            #_LOGGER.debug("Sector: Last changed fetch: %s", json.dumps(self._changed_by))
                             break
                         else:
                             self._changed_by = "unknown"
