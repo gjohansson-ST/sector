@@ -197,7 +197,7 @@ class SectorAlarmHub(object):
                 URL = "https://mypagesapi.sectoralarm.net/api/Panel/Lock"
 
             async with session2.post(URL, headers=message_headers, json=message_json) as response:
-                if response.status != 200:
+                if response.status != 200 and response.status !=204:
                     _LOGGER.debug("Sector: Failed to lock door: %d", response.status)
                     return False
                 return True
@@ -231,7 +231,7 @@ class SectorAlarmHub(object):
             else:
                 URL = "https://mypagesapi.sectoralarm.net/api/Panel/Disarm"
             async with session2.post(URL, headers=message_headers, json=message_json) as response:
-                if response.status != 200:
+                if response.status != 200 and response.status != 204:
                     _LOGGER.debug("Sector: Failed to trigger alarm: %d", response.status)
                     return False
                 return True

@@ -34,6 +34,7 @@ class SectorAlarmLock(LockEntity):
         self._serial = serial
         self._code = code
         self._code_format = code_format
+        self._state = STATE_UNKNOWN
 
     @property
     def name(self):
@@ -48,14 +49,7 @@ class SectorAlarmLock(LockEntity):
     @property
     def state(self):
         """Return the state of the lock."""
-        state = self._hub.lock_state[self._serial]
-
-        if state == 'lock':
-            return STATE_LOCKED
-        elif state == 'unlock':
-            return STATE_UNLOCKED
-
-        return STATE_UNKNOWN
+        return self._state
 
     @property
     def available(self):
@@ -68,9 +62,13 @@ class SectorAlarmLock(LockEntity):
         return self._code_format
 
     async def async_update(self):
-        update = self._hub.async_update()
-        if update:
-            await update
+        state = self._hub.lock_state[self._serial]
+        if state == 'lock':
+            self._state = STATE_LOCKED
+        elif state == 'unlock':
+            self._state = STATE_UNLOCKED
+        else:
+            self._state = STATE_UNKNOWN
 
     def _validate_code(self, code):
         """Validate given code."""
@@ -82,28 +80,26 @@ class SectorAlarmLock(LockEntity):
     @property
     def is_locked(self):
         """Return true if lock is locked."""
-        state = self._hub.lock_state[self._serial]
-        return state == STATE_LOCKED
+        return self._state == STATE_LOCKED
 
     async def unlock(self, **kwargs):
         """Send unlock command."""
         COMMAND = "unlock"
+        if not self._validate_code(code):
+            return
         state = await self._hub.triggerlock(self._serial, self._code, COMMAND)
         if state:
+            self._state = STATE_UNLOCKED
             return True
-
-        #state = self._hub.lock_state[self._serial]
-        #if state == STATE_UNLOCKED:
-        #    return
-        #await self._hub.unlock(self._serial, code=self._code)
+        return False
 
     async def lock(self, **kwargs):
         """Send lock command."""
         COMMAND = "unlock"
+        if not self._validate_code(code):
+            return
         state = await self._hub.triggerlock(self._serial, self._code, COMMAND)
         if state:
+            self._state = STATE_LOCKED
             return True
-        #state = self._hub.lock_state[self._serial]
-        #if state == STATE_LOCKED:
-        #    return
-        #await self._hub.lock(self._serial, code=self._code)
+        return False

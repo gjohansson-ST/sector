@@ -91,7 +91,9 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
         result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Armed home Sector Alarm")
+            self._state = STATE_ALARM_ARMED_HOME
             return True
+        return False
 
     async def async_alarm_disarm(self, code=None):
 
@@ -103,7 +105,9 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
         result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Disarmed Sector Alarm")
+            self._state = STATE_ALARM_DISARMED
             return True
+        return False
 
     async def async_alarm_arm_away(self, code=None):
 
@@ -115,7 +119,9 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
         result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Armed away Sector Alarm")
+            self._state = STATE_ALARM_ARMED_AWAY
             return True
+        return False
 
     async def async_update(self):
         if self._hub.alarm_state == 3:

@@ -10,7 +10,7 @@ DEPENDENCIES = ["sector"]
 
 _LOGGER = logging.getLogger(__name__)
 
-SCAN_INTERVAL = timedelta(seconds=10)
+SCAN_INTERVAL = timedelta(seconds=60)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
 
@@ -31,6 +31,7 @@ class SectorAlarmTemperatureSensor(Entity):
         """Initialize the sensor."""
         self._hub = hub
         self._name = name
+        self._state = None
 
     @property
     def name(self):
@@ -44,15 +45,13 @@ class SectorAlarmTemperatureSensor(Entity):
 
     async def async_update(self):
         """ Update temperature """
-        update = self._hub.async_update()
-        if update:
-            await update
+        state = self._hub.temp_state[self._name]
+        self._state = state
 
     @property
     def state(self):
         """Return the state of the sensor."""
-        state = self._hub.temp_state[self._name]
-        return state
+        return self._state
 
     @property
     def device_state_attributes(self):
