@@ -1,4 +1,5 @@
 [![Sector Alarm](https://github.com/gjohansson-ST/sector/blob/master/logos/logo.png)](https://www.sectoralarm.se/)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 # Integratation to Sector Alarm
 ---
 title: "Sector Alarm"
