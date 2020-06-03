@@ -1,3 +1,4 @@
+[![Sector Alarm](https://github.com/gjohansson-ST/sector/blob/master/logos/logo.png)](https://www.sectoralarm.se/)
 # Integratation to Sector Alarm
 ---
 title: "Sector Alarm"
