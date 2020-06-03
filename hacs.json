@@ -1,6 +1,6 @@
 {
   "name": "Sector Alarm",
-  "render_readme": True,
+  "render_readme": true,
   "domains": ["sensor", "lock", "alarm_control_panel"],
   "iot_class": "Cloud Polling"
 }
