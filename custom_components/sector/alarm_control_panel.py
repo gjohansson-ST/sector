@@ -100,7 +100,7 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
             return
 
         _LOGGER.debug("Trying to disarm Sector Alarm")
-        result = await self._hub.disarm(command, code=code)
+        result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Disarmed Sector Alarm")
             return True
@@ -112,7 +112,7 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
             return
 
         _LOGGER.debug("Trying to arm away Sector Alarm")
-        result = await self._hub.arm_away(command, code=code)
+        result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Armed away Sector Alarm")
             return True
