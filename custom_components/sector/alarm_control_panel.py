@@ -124,6 +124,7 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
         return False
 
     async def async_update(self):
+        update = await self._hub.async_update()
         if self._hub.alarm_state == 3:
             self._state = STATE_ALARM_ARMED_AWAY
         elif self._hub.alarm_state == 2:

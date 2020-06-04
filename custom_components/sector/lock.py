@@ -62,6 +62,7 @@ class SectorAlarmLock(LockEntity):
         return self._code_format
 
     async def async_update(self):
+        update = await self._hub.async_update()
         state = self._hub.lock_state[self._serial]
         if state == 'lock':
             self._state = STATE_LOCKED
@@ -69,6 +70,7 @@ class SectorAlarmLock(LockEntity):
             self._state = STATE_UNLOCKED
         else:
             self._state = STATE_UNKNOWN
+        return True
 
     def _validate_code(self, code):
         """Validate given code."""

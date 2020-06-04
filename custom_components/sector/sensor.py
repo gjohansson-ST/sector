@@ -45,8 +45,10 @@ class SectorAlarmTemperatureSensor(Entity):
 
     async def async_update(self):
         """ Update temperature """
+        update = await self._hub.async_update()
         state = self._hub.temp_state[self._name]
         self._state = state
+        return True
 
     @property
     def state(self):
