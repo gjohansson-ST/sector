@@ -3,7 +3,7 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 [![download_badge](https://img.shields.io/github/downloads/gjohansson-ST/sector/total?style=for-the-badge)](https://github.com/gjohansson-ST/sector)
 [![size_badge](https://img.shields.io/github/repo-size/gjohansson-ST/sector?style=for-the-badge)](https://github.com/gjohansson-ST/sector)
-[![issues_badge](https://img.shields.io/github/issues/gjohansson-ST/sector?style=for-the-badge)](https://github.com/gjohansson-ST/sector)
+[![version_badge](https://img.shields.io/github/v/release/gjohansson-ST/sector?sort=semver&style=for-the-badge)](https://github.com/gjohansson-ST/sector)
 
 
 # Integratation to Sector Alarm
