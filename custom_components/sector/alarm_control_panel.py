@@ -32,10 +32,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
 
 class SectorAlarmPanel(AlarmControlPanelEntity):
-    """
-    Get the latest data from the Sector Alarm hub
-    and arm/disarm alarm.
-    """
 
     def __init__(self, hub, code, code_format):
         self._hub = hub
@@ -46,43 +42,35 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
 
     @property
     def name(self):
-        """Return the name of the sensor."""
         return "Sector Alarm {}".format(self._hub.alarm_id)
 
     @property
     def changed_by(self):
-        """Return the last change triggered by."""
         return self._changed_by
 
     @property
     def supported_features(self) -> int:
-        """Return the list of supported features."""
         return SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY
 
     @property
     def  code_arm_required(self):
-        """Return the list of supported features."""
         return True
 
     @property
     def state(self):
-        """Return the state of the sensor."""
         return self._state
 
     @property
     def code_format(self):
-        """Regex for code format or None if no code is required."""
         return self._code_format if self._code_format != "" else None
 
     def _validate_code(self, code):
-        """Validate given code."""
         check = self._code is None or code == self._code
         if not check:
             _LOGGER.warning("Invalid code given")
         return check
 
     async def async_alarm_arm_home(self, code=None):
-        """ Try to arm home. """
         command = "partial"
         if not self._validate_code(code):
             return

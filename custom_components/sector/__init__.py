@@ -1,4 +1,4 @@
-"""SECTOR ALARM"""
+"""SECTOR ALARM INTEGRATION FOR HOME ASSISTANT"""
 import logging
 import json
 import asyncio
@@ -9,6 +9,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import Throttle
 from homeassistant.helpers import discovery
+from homeassistant.exceptions import PlatformNotReady
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 async def async_setup(hass, config):
-    """Set Sector Alarm sensors"""
+
     firstrun = {}
     USERID = config[DOMAIN][CONF_USERID]
     PASSWORD = config[DOMAIN][CONF_PASSWORD]
@@ -85,6 +86,7 @@ async def async_setup(hass, config):
             headers=message_headers) as response:
             if response.status != 200:
                 _LOGGER.debug("Sector: Failed to get Full system: %d", response.status)
+                raise PlatformNotReady
 
             firstrun = await response.json()
 
@@ -95,36 +97,48 @@ async def async_setup(hass, config):
     await sector_data.async_update()
     hass.data[DATA_SA] = sector_data
 
-    hass.async_create_task(
-            discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
-        )
-
-    hass.async_create_task(
-            discovery.async_load_platform(
-                hass, 'lock', DOMAIN, {
-                    CONF_CODE_FORMAT: config[DOMAIN][CONF_CODE_FORMAT],
-                    CONF_CODE: config[DOMAIN][CONF_CODE]
-                }, config))
-
-    hass.async_create_task(
-            discovery.async_load_platform(
-                hass,
-                "alarm_control_panel",
-                DOMAIN,
-                {
-                    CONF_CODE_FORMAT: config[DOMAIN][CONF_CODE_FORMAT],
-                    CONF_CODE: config[DOMAIN][CONF_CODE],
-                },
-                config,
+    if FULLSYSTEMINFO['Temperatures'] is None:
+        _LOGGER.debug("Sector: No Temp devices found")
+    else:
+        _LOGGER.debug("Sector: Found Temp devices")
+        _LOGGER.debug(firstrun['Temperatures'])
+        hass.async_create_task(
+                discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
             )
-        )
 
+    if FULLSYSTEMINFO['Locks'] is None:
+        _LOGGER.debug("Sector: No Lock devices found")
+    else:
+        _LOGGER.debug("Sector: Found Lock devices")
+        _LOGGER.debug(firstrun['Locks'])
+        hass.async_create_task(
+                discovery.async_load_platform(
+                    hass, 'lock', DOMAIN, {
+                        CONF_CODE_FORMAT: config[DOMAIN][CONF_CODE_FORMAT],
+                        CONF_CODE: config[DOMAIN][CONF_CODE]
+                    }, config))
 
-    # Return boolean to indicate that initialization was successfully.
+    if FULLSYSTEMINFO['Panel'] is None:
+        _LOGGER.debug("Sector: Platform not ready")
+        raise PlatformNotReady
+    else:
+        _LOGGER.debug("Sector: Found Alarm Panel")
+        hass.async_create_task(
+                discovery.async_load_platform(
+                    hass,
+                    "alarm_control_panel",
+                    DOMAIN,
+                    {
+                        CONF_CODE_FORMAT: config[DOMAIN][CONF_CODE_FORMAT],
+                        CONF_CODE: config[DOMAIN][CONF_CODE],
+                    },
+                    config,
+                )
+            )
+
     return True
 
 class SectorAlarmHub(object):
-    """Implementation of Sector Alarm sensor"""
 
     def __init__(self, fullsysteminfo, panel_id, userid, password, authtoken):
 
@@ -139,12 +153,11 @@ class SectorAlarmHub(object):
         self.password = password
         self.authtoken = authtoken
 
-
     async def get_thermometers(self):
         temps = self.fullsysteminfo['Temperatures']
 
         if temps is None:
-            _LOGGER.debug("Sector Alarm failed to fetch temperature sensors")
+            _LOGGER.debug("Sector: failed to fetch temperature sensors")
             return None
 
         return (temp["Label"] for temp in temps)
@@ -153,7 +166,7 @@ class SectorAlarmHub(object):
         locks = self.fullsysteminfo['Locks']
 
         if locks is None:
-            _LOGGER.debug("Sector Alarm failed to fetch locks")
+            _LOGGER.debug("Sector: failed to fetch locks")
             return None
 
         return (lock["Serial"] for lock in locks)
@@ -162,7 +175,7 @@ class SectorAlarmHub(object):
         panel = self.fullsysteminfo['Panel']
 
         if panel is None:
-            _LOGGER.debug("Sector Alarm failed to fetch panel")
+            _LOGGER.debug("Sector: failed to fetch panel")
             return None
 
         return panel["PanelDisplayName"]
@@ -292,31 +305,39 @@ class SectorAlarmHub(object):
                         }
                 _LOGGER.debug("Sector: AUTH_TOKEN still valid: %s", AUTH_TOKEN)
 
-            async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetTemperatures?panelId={}".format(self.panel_id),
-                headers=message_headers) as response:
-                if response.status != 200:
-                    _LOGGER.debug("Sector: Failed to get temperature update: %d", response.status)
-                    return False
-                else:
-                    tempinfo = await response.json()
-                    self._tempstatus = {
-                        temperature["Label"]: temperature["Temprature"]
-                        for temperature in tempinfo
-                    }
-                    _LOGGER.debug("Sector: Tempstatus fetch: %s", json.dumps(self._tempstatus))
+            temps = self.fullsysteminfo['Temperatures']
+            if temps is None:
+                _LOGGER.debug("Sector: No update temps")
+            else:
+                async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetTemperatures?panelId={}".format(self.panel_id),
+                    headers=message_headers) as response:
+                    if response.status != 200:
+                        _LOGGER.debug("Sector: Failed to get temperature update: %d", response.status)
+                        return False
+                    else:
+                        tempinfo = await response.json()
+                        self._tempstatus = {
+                            temperature["Label"]: temperature["Temprature"]
+                            for temperature in tempinfo
+                        }
+                        _LOGGER.debug("Sector: Tempstatus fetch: %s", json.dumps(self._tempstatus))
 
-            async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetLockStatus?panelId={}".format(self.panel_id),
-                headers=message_headers) as response:
-                if response.status != 200:
-                    _LOGGER.debug("Sector: Failed to get locks update: %d", response.status)
-                    return False
-                else:
-                    lockinfo = await response.json()
-                    self._lockstatus = {
-                        lock["Serial"]: lock["Status"]
-                        for lock in lockinfo
-                    }
-                    _LOGGER.debug("Sector: Lockstatus fetch: %s", json.dumps(self._lockstatus))
+            locks = self.fullsysteminfo['Locks']
+            if locks is None:
+                _LOGGER.debug("Sector: No update locks")
+            else:
+                async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetLockStatus?panelId={}".format(self.panel_id),
+                    headers=message_headers) as response:
+                    if response.status != 200:
+                        _LOGGER.debug("Sector: Failed to get locks update: %d", response.status)
+                        return False
+                    else:
+                        lockinfo = await response.json()
+                        self._lockstatus = {
+                            lock["Serial"]: lock["Status"]
+                            for lock in lockinfo
+                        }
+                        _LOGGER.debug("Sector: Lockstatus fetch: %s", json.dumps(self._lockstatus))
 
             async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetPanelStatus?panelId={}".format(self.panel_id),
                 headers=message_headers) as response:

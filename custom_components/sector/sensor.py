@@ -3,6 +3,7 @@ import asyncio
 from datetime import timedelta
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.helpers.entity import Entity
+from homeassistant.const import DEVICE_CLASS_TEMPERATURE
 
 import custom_components.sector as sector
 
@@ -23,40 +24,44 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             SectorAlarmTemperatureSensor(sector_hub, thermometer)
             for thermometer in thermometers
         )
+    else:
+        return False
+
+    return True
 
 class SectorAlarmTemperatureSensor(Entity):
-    """Representation of a Sector Alarm Temperature Sensor."""
 
     def __init__(self, hub, name):
-        """Initialize the sensor."""
         self._hub = hub
         self._name = name
         self._state = None
+        self._uom = TEMP_CELSIUS
+        self._deviceclass = DEVICE_CLASS_TEMPERATURE
 
     @property
     def name(self):
-        """Return the name of the sensor."""
         return self._name
 
     @property
     def unit_of_measurement(self):
-        """Return the unit of measurement."""
-        return TEMP_CELSIUS
+        return self._uom
 
     async def async_update(self):
-        """ Update temperature """
         update = await self._hub.async_update()
         state = self._hub.temp_state[self._name]
         self._state = state
         return True
 
     @property
+    def device_class(self):
+        return self._deviceclass
+
+
+    @property
     def state(self):
-        """Return the state of the sensor."""
         return self._state
 
     @property
     def device_state_attributes(self):
-        """ Return the state attributes. """
         state = self._hub.temp_state[self._name]
         return {"Temperature": state}

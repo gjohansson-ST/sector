@@ -25,9 +25,12 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         async_add_entities(
             SectorAlarmLock(sector_hub, code, code_format, lock)
             for lock in locks)
+    else:
+        return False
+
+    return True
 
 class SectorAlarmLock(LockEntity):
-    """Representation of a Sector Alarm lock."""
 
     def __init__(self, hub, code, code_format, serial):
         self._hub = hub
@@ -38,27 +41,22 @@ class SectorAlarmLock(LockEntity):
 
     @property
     def name(self):
-        """Return the serial of the lock."""
         return self._serial
 
     @property
     def changed_by(self):
-        """Return the serial of the lock."""
         return None
 
     @property
     def state(self):
-        """Return the state of the lock."""
         return self._state
 
     @property
     def available(self):
-        """Return True if entity is available."""
         return True
 
     @property
     def code_format(self):
-        """Return the required six digit code."""
         return self._code_format
 
     async def async_update(self):
@@ -73,7 +71,6 @@ class SectorAlarmLock(LockEntity):
         return True
 
     def _validate_code(self, code):
-        """Validate given code."""
         check = self._code is None or code == self._code
         if not check:
             _LOGGER.warning("Invalid code given")
@@ -81,11 +78,9 @@ class SectorAlarmLock(LockEntity):
 
     @property
     def is_locked(self):
-        """Return true if lock is locked."""
         return self._state == STATE_LOCKED
 
     async def unlock(self, **kwargs):
-        """Send unlock command."""
         COMMAND = "unlock"
         if not self._validate_code(code):
             return
@@ -93,10 +88,10 @@ class SectorAlarmLock(LockEntity):
         if state:
             self._state = STATE_UNLOCKED
             return True
+
         return False
 
     async def lock(self, **kwargs):
-        """Send lock command."""
         COMMAND = "unlock"
         if not self._validate_code(code):
             return
@@ -104,4 +99,5 @@ class SectorAlarmLock(LockEntity):
         if state:
             self._state = STATE_LOCKED
             return True
+
         return False
