@@ -97,7 +97,7 @@ async def async_setup(hass, config):
     await sector_data.async_update()
     hass.data[DATA_SA] = sector_data
 
-    if FULLSYSTEMINFO['Temperatures'] is None:
+    if FULLSYSTEMINFO['Temperatures'] is None or FULLSYSTEMINFO['Temperatures'] == []:
         _LOGGER.debug("Sector: No Temp devices found")
     else:
         _LOGGER.debug("Sector: Found Temp devices")
@@ -106,7 +106,7 @@ async def async_setup(hass, config):
                 discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
             )
 
-    if FULLSYSTEMINFO['Locks'] is None:
+    if FULLSYSTEMINFO['Locks'] is None or FULLSYSTEMINFO['Locks'] == []:
         _LOGGER.debug("Sector: No Lock devices found")
     else:
         _LOGGER.debug("Sector: Found Lock devices")
@@ -118,7 +118,7 @@ async def async_setup(hass, config):
                         CONF_CODE: config[DOMAIN][CONF_CODE]
                     }, config))
 
-    if FULLSYSTEMINFO['Panel'] is None:
+    if FULLSYSTEMINFO['Panel'] is None or FULLSYSTEMINFO['Panel'] == []:
         _LOGGER.debug("Sector: Platform not ready")
         raise PlatformNotReady
     else:
@@ -156,7 +156,7 @@ class SectorAlarmHub(object):
     async def get_thermometers(self):
         temps = self.fullsysteminfo['Temperatures']
 
-        if temps is None:
+        if temps is None or temps == []:
             _LOGGER.debug("Sector: failed to fetch temperature sensors")
             return None
 
@@ -165,7 +165,7 @@ class SectorAlarmHub(object):
     async def get_locks(self):
         locks = self.fullsysteminfo['Locks']
 
-        if locks is None:
+        if locks is None or locks == []:
             _LOGGER.debug("Sector: failed to fetch locks")
             return None
 
@@ -174,7 +174,7 @@ class SectorAlarmHub(object):
     async def get_panel(self):
         panel = self.fullsysteminfo['Panel']
 
-        if panel is None:
+        if panel is None or panel == []:
             _LOGGER.debug("Sector: failed to fetch panel")
             return None
 
@@ -306,7 +306,7 @@ class SectorAlarmHub(object):
                 _LOGGER.debug("Sector: AUTH_TOKEN still valid: %s", AUTH_TOKEN)
 
             temps = self.fullsysteminfo['Temperatures']
-            if temps is None:
+            if temps is None or temps == []:
                 _LOGGER.debug("Sector: No update temps")
             else:
                 async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetTemperatures?panelId={}".format(self.panel_id),
@@ -323,7 +323,7 @@ class SectorAlarmHub(object):
                         _LOGGER.debug("Sector: Tempstatus fetch: %s", json.dumps(self._tempstatus))
 
             locks = self.fullsysteminfo['Locks']
-            if locks is None:
+            if locks is None or locks == []:
                 _LOGGER.debug("Sector: No update locks")
             else:
                 async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetLockStatus?panelId={}".format(self.panel_id),
