@@ -141,12 +141,10 @@ async def async_setup(hass, config):
 class SectorAlarmHub(object):
 
     def __init__(self, fullsysteminfo, panel_id, userid, password, authtoken):
-
         self._lockstatus = {}
         self._tempstatus = {}
         self._alarmstatus = None
         self._changed_by = None
-
         self.fullsysteminfo = fullsysteminfo
         self.panel_id = panel_id
         self.userid = userid

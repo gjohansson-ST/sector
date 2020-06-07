@@ -84,7 +84,6 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
         return False
 
     async def async_alarm_disarm(self, code=None):
-
         command = "disarm"
         if not self._validate_code(code):
             return
@@ -98,7 +97,6 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
         return False
 
     async def async_alarm_arm_away(self, code=None):
-
         command = "full"
         if not self._validate_code(code):
             return
