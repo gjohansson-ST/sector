@@ -23,7 +23,7 @@ Currently supporting alarm, doorlock and temperature sensors
 ## Installation
 
 Option1:
-Use [HACS(https://hacs.xyz/)] to install
+Use [HACS](https://hacs.xyz/) to install
 
 Option2:
 Create a new folder under `custom_components` called `sector`. Upload the `***.py`-files to the newly created folder. Then update your configuration as per below before restarting your Home Assistant.
