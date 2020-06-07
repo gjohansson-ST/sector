@@ -28,7 +28,7 @@ Use [HACS](https://hacs.xyz/) to install
 Option2:
 Create a new folder under `custom_components` called `sector`. Upload the `***.py`-files to the newly created folder. Then update your configuration as per below before restarting your Home Assistant.
 
-##Activate integration in HA
+## Activate integration in HA
 
 To start Sector Alarm in your installation, add the following to your `configuration.yaml` file:
 
