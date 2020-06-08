@@ -216,7 +216,6 @@ class SectorAlarmHub(object):
     async def triggeralarm(self, command, code):
         AUTH_TOKEN = self.authtoken
         PANEL_ID = self.panel_id
-        LOCKSERIAL = lock
         LOCKCODE = code
         COMMAND = command
         URL = ""
