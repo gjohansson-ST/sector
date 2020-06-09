@@ -13,7 +13,7 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2020-06-06
+**Last update:** 2020-06-09
 
 ---
 
@@ -35,9 +35,11 @@ To start Sector Alarm in your installation, add the following to your `configura
 ```yaml
 # Configuration.yaml entry
 sector:
-  userid: !secret sector_alarm_email
-  password: !secret sector_alarm_pwd
-  code: !secret sector_alarm_code
+  userid: !secret sector_alarm_email   #email registered with Sector Alarm
+  password: !secret sector_alarm_pwd   #password registered with Sector Alarm
+  code: !secret sector_alarm_code      #Alarm code neccessary to open/close lock and arm/disarm alarmpanel
+  temp: true                           #true/false to activate temperature sensors, default is true (if exist in SA system)
+  lock: true                           #true/false to activate lock, default is true (if exist in SA system)
 ```
 
 ```yaml
@@ -46,4 +48,6 @@ sector:
   userid: email@gmail.com
   password: VerySecretPassword
   code: "123456"
+  temp: true
+  lock: true
 ```

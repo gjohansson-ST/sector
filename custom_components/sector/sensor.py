@@ -31,9 +31,9 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
 class SectorAlarmTemperatureSensor(Entity):
 
-    def __init__(self, hub, name):
+    def __init__(self, hub, serial):
         self._hub = hub
-        self._name = name
+        self._serial = serial
         self._state = None
         self._uom = TEMP_CELSIUS
         self._deviceclass = DEVICE_CLASS_TEMPERATURE

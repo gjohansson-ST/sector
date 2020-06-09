@@ -24,6 +24,8 @@ CONF_USERID = "userid"
 CONF_PASSWORD = "password"
 CONF_CODE_FORMAT = "code_format"
 CONF_CODE = "code"
+CONF_TEMP = "temp"
+CONF_LOCK = "lock"
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -33,6 +35,8 @@ CONFIG_SCHEMA = vol.Schema(
             vol.Required(CONF_PASSWORD): cv.string,
             vol.Optional(CONF_CODE, default=""): cv.string,
             vol.Optional(CONF_CODE_FORMAT, default="^\\d{4,6}$"): cv.string,
+            vol.Optional(CONF_TEMP, default=True): cv.boolean,
+            vol.Optional(CONF_LOCK, default=True): cv.boolean,
         }
         )
     },
@@ -44,6 +48,8 @@ async def async_setup(hass, config):
     firstrun = {}
     USERID = config[DOMAIN][CONF_USERID]
     PASSWORD = config[DOMAIN][CONF_PASSWORD]
+    sector_lock = config[DOMAIN][CONF_LOCK]
+    sector_temp = config[DOMAIN][CONF_TEMP]
 
     AUTH_TOKEN = ""
     FULLSYSTEMINFO = {}
@@ -97,7 +103,7 @@ async def async_setup(hass, config):
     await sector_data.async_update()
     hass.data[DATA_SA] = sector_data
 
-    if FULLSYSTEMINFO['Temperatures'] is None or FULLSYSTEMINFO['Temperatures'] == []:
+    if FULLSYSTEMINFO['Temperatures'] is None or FULLSYSTEMINFO['Temperatures'] == [] or sector_temp == False:
         _LOGGER.debug("Sector: No Temp devices found")
     else:
         _LOGGER.debug("Sector: Found Temp devices")
@@ -106,7 +112,7 @@ async def async_setup(hass, config):
                 discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
             )
 
-    if FULLSYSTEMINFO['Locks'] is None or FULLSYSTEMINFO['Locks'] == []:
+    if FULLSYSTEMINFO['Locks'] is None or FULLSYSTEMINFO['Locks'] == [] or sector_lock == False:
         _LOGGER.debug("Sector: No Lock devices found")
     else:
         _LOGGER.debug("Sector: Found Lock devices")
@@ -158,7 +164,7 @@ class SectorAlarmHub(object):
             _LOGGER.debug("Sector: failed to fetch temperature sensors")
             return None
 
-        return (temp["Label"] for temp in temps)
+        return (temp["SerialNo"] for temp in temps)
 
     async def get_locks(self):
         locks = self.fullsysteminfo['Locks']
@@ -196,6 +202,9 @@ class SectorAlarmHub(object):
                 "Connection":"keep-alive",
                 "Content-Type":"application/json"
             }
+            _LOGGER.debug("Sector: LOCKSERIAL: %s", LOCKSERIAL)
+            _LOGGER.debug("Sector: LOCKCODE: %s", LOCKCODE)
+            _LOGGER.debug("Sector: PANEL_ID: %s", PANEL_ID)
             message_json = {
                 "LockSerial": LOCKSERIAL,
                 "PanelCode": LOCKCODE,
@@ -206,12 +215,14 @@ class SectorAlarmHub(object):
                 URL = "https://mypagesapi.sectoralarm.net/api/Panel/Unlock"
             else:
                 URL = "https://mypagesapi.sectoralarm.net/api/Panel/Lock"
-
+            _LOGGER.debug("Sector: init command is %s", COMMAND)
             async with session2.post(URL, headers=message_headers, json=message_json) as response:
                 if response.status != 200 and response.status !=204:
                     _LOGGER.debug("Sector: Failed to lock door: %d", response.status)
                     return False
-                return True
+                _LOGGER.debug("Sector: response.status: %d", response.status)
+                _LOGGER.debug("Sector: response.headers is %s", response.headers)
+            return True
 
     async def triggeralarm(self, command, code):
         AUTH_TOKEN = self.authtoken
@@ -244,7 +255,14 @@ class SectorAlarmHub(object):
                 if response.status != 200 and response.status != 204:
                     _LOGGER.debug("Sector: Failed to trigger alarm: %d", response.status)
                     return False
-                return True
+
+            if COMMAND == "full":
+                self._alarmstatus = 3
+            elif COMMAND == "partial":
+                self._alarmstatus = 2
+            else:
+                self._alarmstatus = 1
+            return True
 
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
@@ -303,7 +321,7 @@ class SectorAlarmHub(object):
                 _LOGGER.debug("Sector: AUTH_TOKEN still valid: %s", AUTH_TOKEN)
 
             temps = self.fullsysteminfo['Temperatures']
-            if temps is None or temps == []:
+            if temps is None or temps == [] or CONF_TEMP == False:
                 _LOGGER.debug("Sector: No update temps")
             else:
                 async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetTemperatures?panelId={}".format(self.panel_id),
@@ -314,13 +332,13 @@ class SectorAlarmHub(object):
                     else:
                         tempinfo = await response.json()
                         self._tempstatus = {
-                            temperature["Label"]: temperature["Temprature"]
+                            temperature["SerialNo"]: temperature["Temprature"]
                             for temperature in tempinfo
                         }
                         _LOGGER.debug("Sector: Tempstatus fetch: %s", json.dumps(self._tempstatus))
 
             locks = self.fullsysteminfo['Locks']
-            if locks is None or locks == []:
+            if locks is None or locks == [] or CONF_LOCK == False:
                 _LOGGER.debug("Sector: No update locks")
             else:
                 async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetLockStatus?panelId={}".format(self.panel_id),

@@ -70,34 +70,44 @@ class SectorAlarmLock(LockEntity):
             self._state = STATE_UNKNOWN
         return True
 
-    def _validate_code(self, code):
-        check = self._code is None or code == self._code
-        if not check:
-            _LOGGER.warning("Invalid code given")
-        return check
-
     @property
     def is_locked(self):
         return self._state == STATE_LOCKED
 
     async def unlock(self, **kwargs):
-        COMMAND = "unlock"
-        if not self._validate_code(code):
-            return
-        state = await self._hub.triggerlock(self._serial, self._code, COMMAND)
+        command = "unlock"
+        _LOGGER.debug("Sector: command is %s", command)
+        _LOGGER.debug("Sector: self._code is %s", self._code)
+        code = kwargs.get(ATTR_CODE, self._code)
+        _LOGGER.debug("Sector: code is %s", code)
+        if code is None:
+            _LOGGER.debug("Sector: No code supplied")
+            return False
+
+        state = await self._hub.triggerlock(self._serial, code, command)
+        _LOGGER.debug("Sector: state is %s", state)
         if state:
             self._state = STATE_UNLOCKED
+            _LOGGER.debug("Sector: self._state is %s", self._state)
             return True
 
         return False
 
     async def lock(self, **kwargs):
-        COMMAND = "unlock"
-        if not self._validate_code(code):
-            return
-        state = await self._hub.triggerlock(self._serial, self._code, COMMAND)
+        command = "lock"
+        _LOGGER.debug("Sector: command is %s", command)
+        _LOGGER.debug("Sector: self._code is %s", self._code)
+        code = kwargs.get(ATTR_CODE, self._code)
+        _LOGGER.debug("Sector: code is %s", code)
+        if code is None:
+            _LOGGER.debug("Sector: No code supplied")
+            return False
+
+        state = await self._hub.triggerlock(self._serial, code, command)
+        _LOGGER.debug("Sector: state is %s", state)
         if state:
             self._state = STATE_LOCKED
+            _LOGGER.debug("Sector: self._state is %s", self._state)
             return True
 
         return False
