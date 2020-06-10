@@ -8,6 +8,7 @@ from homeassistant.const import DEVICE_CLASS_TEMPERATURE
 import custom_components.sector as sector
 
 DEPENDENCIES = ["sector"]
+DOMAIN = "sector"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,28 +20,53 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     thermometers = await sector_hub.get_thermometers()
 
-    if thermometers is not None:
-        async_add_entities(
-            SectorAlarmTemperatureSensor(sector_hub, thermometer)
-            for thermometer in thermometers
-        )
+    tempsensors = []
+    for sensor in thermometers:
+        name = await sector_hub.get_name(sensor, "temp")
+        _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, sensor)
+        tempsensors.append(SectorAlarmTemperatureSensor(sector_hub, sensor, name))
+
+    if tempsensors is not None and tempsensors != []:
+            async_add_entities(tempsensors)
     else:
         return False
 
     return True
 
-class SectorAlarmTemperatureSensor(Entity):
+class SectorAlarmTemperatureDevice(Entity):
 
-    def __init__(self, hub, serial):
+    @property
+    def device_info(self):
+        """Return device information about HACS."""
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Sector Alarm",
+            "model": "Temperature",
+            "sw_version": "master",
+            "via_device_id": (DOMAIN, "sa_panel_"+str(self._hub.alarm_id)),
+        }
+
+class SectorAlarmTemperatureSensor(SectorAlarmTemperatureDevice):
+
+    def __init__(self, hub, sensor, name):
         self._hub = hub
-        self._serial = serial
+        self._serial = sensor
+        self._name = name
         self._state = None
         self._uom = TEMP_CELSIUS
         self._deviceclass = DEVICE_CLASS_TEMPERATURE
 
     @property
+    def unique_id(self):
+        """Return a unique ID to use for this sensor."""
+        return (
+            "sa_temp_"+str(self._serial)
+        )
+
+    @property
     def name(self):
-        return self._name
+        return "Sector "+str(self._name)+" "+str(self._serial)
 
     @property
     def unit_of_measurement(self):
@@ -48,7 +74,7 @@ class SectorAlarmTemperatureSensor(Entity):
 
     async def async_update(self):
         update = await self._hub.async_update()
-        state = self._hub.temp_state[self._name]
+        state = self._hub.temp_state[self._serial]
         self._state = state
         return True
 
@@ -63,5 +89,9 @@ class SectorAlarmTemperatureSensor(Entity):
 
     @property
     def device_state_attributes(self):
-        state = self._hub.temp_state[self._name]
-        return {"Temperature": state}
+        state = self._hub.temp_state[self._serial]
+        return {
+        "Temperature": state,
+        "Serial No": self._serial,
+        "Name": self._name
+        }

@@ -15,6 +15,7 @@ from homeassistant.const import (
 import custom_components.sector as sector
 
 DEPENDENCIES = ["sector"]
+DOMAIN = "sector"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +32,20 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         ])
 
 
-class SectorAlarmPanel(AlarmControlPanelEntity):
+class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
+
+    @property
+    def device_info(self):
+        """Return device information about HACS."""
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": self.name,
+            "manufacturer": "Sector Alarm",
+            "model": "Alarmpanel",
+            "sw_version": "master",
+        }
+
+class SectorAlarmPanel(SectorAlarmAlarmDevice):
 
     def __init__(self, hub, code, code_format):
         self._hub = hub
@@ -39,10 +53,19 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
         self._code_format = code_format
         self._state = STATE_ALARM_PENDING
         self._changed_by = None
+        self._displayname = self._hub.alarm_displayname
+        self._isonline = self._hub.alarm_isonline
+
+    @property
+    def unique_id(self):
+        """Return a unique ID to use for this sensor."""
+        return (
+            "sa_panel_"+str(self._hub.alarm_id)
+        )
 
     @property
     def name(self):
-        return "Sector Alarm {}".format(self._hub.alarm_id)
+        return "Sector Alarmpanel {}".format(self._hub.alarm_id)
 
     @property
     def changed_by(self):
@@ -63,6 +86,13 @@ class SectorAlarmPanel(AlarmControlPanelEntity):
     @property
     def code_format(self):
         return self._code_format if self._code_format != "" else None
+
+    @property
+    def device_state_attributes(self):
+        return {
+            "Display name": self._displayname,
+            "Is Online": self._isonline
+        }
 
     def _validate_code(self, code):
         check = self._code is None or code == self._code

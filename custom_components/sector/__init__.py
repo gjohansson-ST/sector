@@ -166,6 +166,40 @@ class SectorAlarmHub(object):
 
         return (temp["SerialNo"] for temp in temps)
 
+    async def get_name(self, serial, command):
+        _LOGGER.debug("Sector: command is: %s", command)
+        _LOGGER.debug("Sector: serial is: %s", serial)
+        if command == "temp":
+            names = self.fullsysteminfo['Temperatures']
+        elif command == "lock":
+            names = self.fullsysteminfo['Locks']
+        else:
+            return None
+
+        for name in names:
+            if command == "temp":
+                if name["SerialNo"] == serial:
+                    _LOGGER.debug("Sector: Returning label: %s", name["Label"])
+                    return name["Label"]
+            elif command =="lock":
+                if name["Serial"] == serial:
+                    _LOGGER.debug("Sector: Returning label: %s", name["Label"])
+                    return name["Label"]
+            else:
+                _LOGGER.debug("Sector: get_name no command, return Not found")
+                return "Not found"
+
+    async def get_autolock(self, serial):
+        _LOGGER.debug("Sector: serial is: %s", serial)
+        autolocks = self.fullsysteminfo['Locks']
+
+        for autolock in autolocks:
+            if autolock["Serial"] == serial:
+                _LOGGER.debug("Sector: Returning AutoLockEnabled: %s", autolock["AutoLockEnabled"])
+                return autolock["AutoLockEnabled"]
+
+        return "Not found"
+
     async def get_locks(self):
         locks = self.fullsysteminfo['Locks']
 
@@ -401,3 +435,11 @@ class SectorAlarmHub(object):
     @property
     def alarm_id(self):
         return self.fullsysteminfo['Panel']['PanelId']
+
+    @property
+    def alarm_displayname(self):
+        return self.fullsysteminfo['Panel']['PanelDisplayName']
+
+    @property
+    def alarm_isonline(self):
+        return self.fullsysteminfo['Panel']['IsOnline']
