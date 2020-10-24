@@ -1,0 +1,37 @@
+{
+    "config": {
+        "abort": {
+            "single_instance_allowed": "Only a single configuration is allowed."
+        },
+        "error": {
+            "auth_error": "Username and/or password is incorrect."
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "userid": "E-mail address",
+                    "password": "Password",
+                    "code": "Code to arm/disarm alarm or open/close doorlock.",
+                    "code_format": "Default 4-6 digits. Don't change.",
+                    "temp": "Enable Temp sensors",
+                    "lock": "Enable dorrlocks"
+                },
+                "description": "Integration with Sector Alarm.",
+                "title": "Sector Alarm"
+            }
+        },
+        "title": "HACS"
+    },
+    "options": {
+        "step": {
+            "user": {
+                "data": {
+                    "code": "Code to arm/disarm alarm or open/close doorlock.",
+                    "code_format": "Default 4-6 digits. Don't change.",
+                    "temp": "Enable Temp sensors",
+                    "lock": "Enable dorrlocks"
+                }
+            }
+        }
+    }
+}
