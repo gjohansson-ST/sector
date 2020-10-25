@@ -16,6 +16,15 @@ import custom_components.sector as sector
 
 DEPENDENCIES = ["sector"]
 DOMAIN = "sector"
+DEFAULT_NAME = "sector"
+DATA_SA = "sector"
+
+CONF_USERID = "userid"
+CONF_PASSWORD = "password"
+CONF_CODE_FORMAT = "code_format"
+CONF_CODE = "code"
+CONF_TEMP = "temp"
+CONF_LOCK = "lock"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,6 +35,16 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     sector_hub = hass.data[sector.DATA_SA]
     code = discovery_info[sector.CONF_CODE]
     code_format = discovery_info[sector.CONF_CODE_FORMAT]
+
+    async_add_entities([
+        SectorAlarmPanel(sector_hub, code, code_format)
+        ])
+
+async def async_setup_entry(hass, entry, async_add_entities):
+
+    sector_hub = hass.data[DATA_SA]
+    code = entry.data[CONF_CODE]
+    code_format = entry.data[CONF_CODE_FORMAT]
 
     async_add_entities([
         SectorAlarmPanel(sector_hub, code, code_format)
@@ -42,7 +61,7 @@ class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
             "manufacturer": "Sector Alarm",
             "model": "Alarmpanel",
             "sw_version": "master",
-            "via_device": (DOMAIN, "sa_"+str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, "sa_hub_"+str(self._hub.alarm_id)),
         }
 
 class SectorAlarmPanel(SectorAlarmAlarmDevice):

@@ -10,8 +10,8 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 API_URL = "https://mypagesapi.sectoralarm.net/api"
 DOMAIN = "sector"
-
-_LOGGER = logging.getLogger(__name__)
+DEFAULT_NAME = "sector"
+DATA_SA = "sector"
 
 CONF_USERID = "userid"
 CONF_PASSWORD = "password"
@@ -20,6 +20,8 @@ CONF_CODE = "code"
 CONF_TEMP = "temp"
 CONF_LOCK = "lock"
 
+_LOGGER = logging.getLogger(__name__)
+
 DATA_SCHEMA = vol.Schema(
     {
     vol.Required(CONF_USERID): str,
@@ -27,13 +29,14 @@ DATA_SCHEMA = vol.Schema(
     vol.Optional(CONF_CODE, default=""): str,
     vol.Optional(CONF_CODE_FORMAT, default="^\\d{4,6}$"): str,
     vol.Optional(CONF_TEMP, default=True): bool,
-    vol.Optional(CONF_LOCK, default=True): bool}
+    vol.Optional(CONF_LOCK, default=True): bool
+    }
 )
 
 async def validate_input(hass: core.HomeAssistant, userid, password):
     """Validate the user input allows us to connect."""
     for entry in hass.config_entries.async_entries(DOMAIN):
-        if entry.data["account_id"] == account_id:
+        if entry.data["userid"] == userid:
             raise AlreadyConfigured
 
     websession = async_get_clientsession(hass)
@@ -53,14 +56,16 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
                 },
             )
 
-    if login.status != 200:
+    token_data = await login.json()
+    if token_data is None or token_data == "":
         _LOGGER.error("Failed to login to retrieve token: %d", response.status)
         raise CannotConnect
+    access_token = token_data['AuthorizationToken']
 
     response = await websession.get(
-                f"{API_URL}/Login/Login",
+                f"{API_URL}/Panel/getFullSystem",
                 headers = {
-                    "Authorization": login["AuthorizationToken"],
+                    "Authorization": access_token,
                     "API-Version":"6",
                     "Platform":"iOS",
                     "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
@@ -70,11 +75,12 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
                 },
             )
 
-    if response.status != 200:
-        _LOGGER.error("Failed to login to retrieve token: %d", response.status)
+    panel_data = await response.json()
+    if response.status != 200 or panel_data is None or panel_data == "":
+        _LOGGER.error("Failed to login to retrieve Panel ID: %d", response.status)
         raise CannotConnect
 
-    return response["Panel"]["PanelId"]
+    return panel_data["Panel"]["PanelId"]
 
 class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Sector integration."""
@@ -90,13 +96,20 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 userid = user_input[CONF_USERID].replace(" ", "")
                 password = user_input[CONF_PASSWORD].replace(" ", "")
-                panel_id = await validate_input(self.hass, account_id, password)
+                panel_id = await validate_input(self.hass, userid, password)
                 unique_id = "sa_"+panel_id
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
 
                 return self.async_create_entry(
-                    title=unique_id, data={"unique_id": unique_id},
+                    title=unique_id, data={
+                    CONF_USERID: userid,
+                    CONF_PASSWORD: password,
+                    CONF_CODE: user_input[CONF_CODE].replace(" ", ""),
+                    CONF_CODE_FORMAT: user_input[CONF_CODE_FORMAT].replace(" ", ""),
+                    CONF_TEMP: user_input[CONF_TEMP],
+                    CONF_LOCK: user_input[CONF_LOCK],
+                    },
                 )
                 _LOGGER.info("Login succesful. Config entry created.")
 
@@ -107,52 +120,6 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user", data_schema=DATA_SCHEMA, errors=errors,
-        )
-
-class SectorOptionsFlow(config_entries.OptionsFlow):
-    """ Handle the Options Flow for Sector integration"""
-
-    def __init__(self, config_entry):
-        """Initialize Hue options flow."""
-        self.config_entry = config_entry
-
-    async def async_step_init(self, user_input=None):
-        """Manage the options."""
-        errors = {}
-
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional(
-                        CONF_CODE,
-                        default=self.config_entry.options.get(
-                            CONF_CODE, ""
-                        ),
-                    ): str,
-                    vol.Optional(
-                        CONF_CODE_FORMAT,
-                        default=self.config_entry.options.get(
-                            CONF_CODE_FORMAT, ""
-                        ),
-                    ): str,
-                    vol.Optional(
-                        CONF_TEMP,
-                        default=self.config_entry.options.get(
-                            CONF_TEMP, True
-                        ),
-                    ): bool,
-                    vol.Optional(
-                        CONF_LOCK,
-                        default=self.config_entry.options.get(
-                            CONF_LOCK, True
-                        ),
-                    ): bool,
-                }
-            ),
         )
 
 class CannotConnect(exceptions.HomeAssistantError):

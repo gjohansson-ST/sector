@@ -9,6 +9,15 @@ import custom_components.sector as sector
 
 DEPENDENCIES = ["sector"]
 DOMAIN = "sector"
+DEFAULT_NAME = "sector"
+DATA_SA = "sector"
+
+CONF_USERID = "userid"
+CONF_PASSWORD = "password"
+CONF_CODE_FORMAT = "code_format"
+CONF_CODE = "code"
+CONF_TEMP = "temp"
+CONF_LOCK = "lock"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,6 +26,25 @@ SCAN_INTERVAL = timedelta(seconds=10)
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
 
     sector_hub = hass.data[sector.DATA_SA]
+
+    thermometers = await sector_hub.get_thermometers()
+
+    tempsensors = []
+    for sensor in thermometers:
+        name = await sector_hub.get_name(sensor, "temp")
+        _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, sensor)
+        tempsensors.append(SectorAlarmTemperatureSensor(sector_hub, sensor, name))
+
+    if tempsensors is not None and tempsensors != []:
+            async_add_entities(tempsensors)
+    else:
+        return False
+
+    return True
+
+async def async_setup_entry(hass, entry, async_add_entities):
+
+    sector_hub = hass.data[DATA_SA]
 
     thermometers = await sector_hub.get_thermometers()
 
@@ -44,7 +72,7 @@ class SectorAlarmTemperatureDevice(Entity):
             "manufacturer": "Sector Alarm",
             "model": "Temperature",
             "sw_version": "master",
-            "via_device": (DOMAIN, "sa_"+str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, "sa_hub_"+str(self._hub.alarm_id)),
         }
 
 class SectorAlarmTemperatureSensor(SectorAlarmTemperatureDevice):

@@ -18,7 +18,6 @@ from homeassistant.helpers import device_registry as dr
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "sector"
-
 DEFAULT_NAME = "sector"
 DATA_SA = "sector"
 
@@ -49,6 +48,10 @@ API_URL = "https://mypagesapi.sectoralarm.net/api"
 
 async def async_setup(hass, config):
 
+    conf = config.get(DOMAIN)
+    if conf is None:
+        return True
+
     userid = config[DOMAIN][CONF_USERID]
     password = config[DOMAIN][CONF_PASSWORD]
     sector_lock = config[DOMAIN][CONF_LOCK]
@@ -59,18 +62,6 @@ async def async_setup(hass, config):
     )
     await sector_data.async_update(force_update=True)
     hass.data[DATA_SA] = sector_data
-
-    """
-    device_registry = await dr.async_get_registry(hass)
-    device_registry.async_get_or_create(
-        config_entry_id="sa_"+sector_data.alarm_id,
-        identifiers={(DOMAIN, "sa_"+sector_data.alarm_id)},
-        manufacturer="Sector Alarm",
-        name="SA Hub",
-        model="Hub",
-        sw_version="master",
-    )
-    """
 
     panel_data = await sector_data.get_panel()
     if panel_data is None or panel_data == []:
@@ -111,6 +102,74 @@ async def async_setup(hass, config):
                     }, config))
 
     return True
+
+async def async_setup_entry(hass, entry):
+    """ Setup from config entries """
+
+    userid = entry.data[CONF_USERID]
+    password = entry.data[CONF_PASSWORD]
+    sector_lock = entry.data[CONF_LOCK]
+    sector_temp = entry.data[CONF_TEMP]
+
+    sector_data = SectorAlarmHub(
+    sector_lock, sector_temp, userid, password, websession=async_get_clientsession(hass)
+    )
+    await sector_data.async_update(force_update=True)
+    hass.data[DATA_SA] = sector_data
+
+    device_registry = await dr.async_get_registry(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, "sa_hub_"+str(sector_data.alarm_id))},
+        manufacturer="Sector Alarm",
+        name="Sector Hub",
+        model="Hub",
+        sw_version="master",
+    )
+
+    panel_data = await sector_data.get_panel()
+    if panel_data is None or panel_data == []:
+        _LOGGER.error("Platform not ready")
+        raise PlatformNotReady
+        return False
+    else:
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(entry, "alarm_control_panel")
+            )
+
+    temp_data = await sector_data.get_thermometers()
+    if temp_data is None or temp_data == [] or sector_temp == False:
+        _LOGGER.debug("Temp not configured")
+    else:
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(entry, "sensor")
+            )
+
+    lock_data = await sector_data.get_locks()
+    if lock_data is None or lock_data == [] or sector_lock == False:
+        _LOGGER.debug("Lock not configured")
+    else:
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(entry, "lock")
+            )
+
+    return True
+
+async def async_unload_entry(hass, entry):
+    """Unload a config entry."""
+    unload_alarm = await hass.config_entries.async_forward_entry_unload(
+        entry, "alarm_control_panel"
+    )
+    unload_sensor = await hass.config_entries.async_forward_entry_unload(
+        entry, "sensor"
+    )
+    unload_lock = await hass.config_entries.async_forward_entry_unload(
+        entry, "lock"
+    )
+    if unload_lock == True and unload_alarm == True and unload_sensor == True:
+        return True
+    else:
+        return False
 
 class SectorAlarmHub(object):
     """ Sector connectivity hub """

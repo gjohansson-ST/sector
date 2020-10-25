@@ -9,6 +9,15 @@ import custom_components.sector as sector
 
 DEPENDENCIES = ['sector']
 DOMAIN = "sector"
+DEFAULT_NAME = "sector"
+DATA_SA = "sector"
+
+CONF_USERID = "userid"
+CONF_PASSWORD = "password"
+CONF_CODE_FORMAT = "code_format"
+CONF_CODE = "code"
+CONF_TEMP = "temp"
+CONF_LOCK = "lock"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,6 +28,29 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     sector_hub = hass.data[sector.DATA_SA]
     code = discovery_info[sector.CONF_CODE]
     code_format = discovery_info[sector.CONF_CODE_FORMAT]
+
+    locks = await sector_hub.get_locks()
+
+    lockdevices = []
+    for lock in locks:
+        name = await sector_hub.get_name(lock, "lock")
+        autolock = await sector_hub.get_autolock(lock)
+        _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, lock)
+        _LOGGER.debug("Sector: Fetched Autlock %s for serial %s", autolock, lock)
+        lockdevices.append(SectorAlarmLock(sector_hub, code, code_format, lock, name, autolock))
+
+    if lockdevices is not None and lockdevices != []:
+        async_add_entities(lockdevices)
+    else:
+        return False
+
+    return True
+
+async def async_setup_entry(hass, entry, async_add_entities):
+
+    sector_hub = hass.data[DATA_SA]
+    code = entry.data[CONF_CODE]
+    code_format = entry.data[CONF_CODE_FORMAT]
 
     locks = await sector_hub.get_locks()
 
@@ -48,7 +80,7 @@ class SectorAlarmLockDevice(LockEntity):
             "manufacturer": "Sector Alarm",
             "model": "Lock",
             "sw_version": "master",
-            "via_device": (DOMAIN, "sa_"+str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, "sa_hub_"+str(self._hub.alarm_id)),
         }
 
 class SectorAlarmLock(SectorAlarmLockDevice):
