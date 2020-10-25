@@ -22,13 +22,23 @@ Currently supporting alarm, doorlock and temperature sensors
 
 ## Installation
 
-Option1:
+### Option 1
+
 Use [HACS](https://hacs.xyz/) to install
 
-Option2:
+### Option 2
+
 Create a new folder under `custom_components` called `sector`. Upload the `***.py`-files to the newly created folder. Then update your configuration as per below before restarting your Home Assistant.
 
 ## Activate integration in HA
+
+### Option 1
+
+After installation go to "Integrations" page in HA, press + and search for Sector
+Follow onscreen information to type username, password, code etc.
+No restart needed
+
+### Option 2
 
 To start Sector Alarm in your installation, add the following to your `configuration.yaml` file:
 
@@ -51,4 +61,4 @@ sector:
   temp: true
   lock: true
 ```
-
+Dont forget to restart after changing your config file
