@@ -13,12 +13,14 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2020-06-10
+**Last update:** 2020-10-25
 
 ---
 
 Integrates with Swedish Sector Alarm home alarm system (most likely works in all countries serviced by Sector Alarm).
 Currently supporting alarm, doorlock and temperature sensors
+
+**From version v.0.2.0 this integration supports config_flow, see details below for installation and activation details!**
 
 ## Installation
 
