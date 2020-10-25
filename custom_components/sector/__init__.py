@@ -3,13 +3,17 @@ import logging
 import json
 import asyncio
 import aiohttp
+import async_timeout
 from datetime import datetime, timedelta
 import voluptuous as vol
+from homeassistant import exceptions
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import Throttle
 from homeassistant.helpers import discovery
 from homeassistant.exceptions import PlatformNotReady
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import device_registry as dr
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,8 +21,6 @@ DOMAIN = "sector"
 
 DEFAULT_NAME = "sector"
 DATA_SA = "sector"
-
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=60)
 
 CONF_USERID = "userid"
 CONF_PASSWORD = "password"
@@ -43,92 +45,39 @@ CONFIG_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
+API_URL = "https://mypagesapi.sectoralarm.net/api"
+
 async def async_setup(hass, config):
 
-    firstrun = {}
-    USERID = config[DOMAIN][CONF_USERID]
-    PASSWORD = config[DOMAIN][CONF_PASSWORD]
+    userid = config[DOMAIN][CONF_USERID]
+    password = config[DOMAIN][CONF_PASSWORD]
     sector_lock = config[DOMAIN][CONF_LOCK]
     sector_temp = config[DOMAIN][CONF_TEMP]
 
-    AUTH_TOKEN = ""
-    FULLSYSTEMINFO = {}
-    PANELID = ""
-
-    message_headers = {
-        "API-Version":"6",
-        "Platform":"iOS",
-        "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-        "Version":"2.0.20",
-        "Connection":"keep-alive",
-        "Content-Type":"application/json"
-    }
-
-    json_data = {
-        "UserId": USERID,
-        "Password": PASSWORD
-    }
-    async with aiohttp.ClientSession() as session:
-        async with session.post("https://mypagesapi.sectoralarm.net/api/Login/Login",
-            headers=message_headers, json=json_data) as response:
-            if response.status != 200:
-                    _LOGGER.debug("Sector: Failed to send Login: %d", response.status)
-
-            data_out = await response.json()
-            AUTH_TOKEN = data_out['AuthorizationToken']
-            _LOGGER.debug("Sector: AUTH: %s", AUTH_TOKEN)
-
-            message_headers = {
-                "Authorization": AUTH_TOKEN,
-                "API-Version":"6",
-                "Platform":"iOS",
-                "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-                "Version":"2.0.20",
-                "Connection":"keep-alive",
-                "Content-Type":"application/json"
-            }
-
-        async with session.get("https://mypagesapi.sectoralarm.net/api/panel/getFullSystem",
-            headers=message_headers) as response:
-            if response.status != 200:
-                _LOGGER.debug("Sector: Failed to get Full system: %d", response.status)
-                raise PlatformNotReady
-
-            firstrun = await response.json()
-
-    PANELID = firstrun['Panel']['PanelId']
-    FULLSYSTEMINFO = firstrun
-
-    sector_data = SectorAlarmHub(FULLSYSTEMINFO, PANELID, USERID, PASSWORD, AUTH_TOKEN)
-    await sector_data.async_update()
+    sector_data = SectorAlarmHub(
+    sector_lock, sector_temp, userid, password, websession=async_get_clientsession(hass)
+    )
+    await sector_data.async_update(force_update=True)
     hass.data[DATA_SA] = sector_data
 
-    if FULLSYSTEMINFO['Temperatures'] is None or FULLSYSTEMINFO['Temperatures'] == [] or sector_temp == False:
-        _LOGGER.debug("Sector: No Temp devices found")
-    else:
-        _LOGGER.debug("Sector: Found Temp devices")
-        _LOGGER.debug(firstrun['Temperatures'])
-        hass.async_create_task(
-                discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
-            )
+    """
+    device_registry = await dr.async_get_registry(hass)
+    device_registry.async_get_or_create(
+        config_entry_id="sa_"+sector_data.alarm_id,
+        identifiers={(DOMAIN, "sa_"+sector_data.alarm_id)},
+        manufacturer="Sector Alarm",
+        name="SA Hub",
+        model="Hub",
+        sw_version="master",
+    )
+    """
 
-    if FULLSYSTEMINFO['Locks'] is None or FULLSYSTEMINFO['Locks'] == [] or sector_lock == False:
-        _LOGGER.debug("Sector: No Lock devices found")
-    else:
-        _LOGGER.debug("Sector: Found Lock devices")
-        _LOGGER.debug(firstrun['Locks'])
-        hass.async_create_task(
-                discovery.async_load_platform(
-                    hass, 'lock', DOMAIN, {
-                        CONF_CODE_FORMAT: config[DOMAIN][CONF_CODE_FORMAT],
-                        CONF_CODE: config[DOMAIN][CONF_CODE]
-                    }, config))
-
-    if FULLSYSTEMINFO['Panel'] is None or FULLSYSTEMINFO['Panel'] == []:
-        _LOGGER.debug("Sector: Platform not ready")
+    panel_data = await sector_data.get_panel()
+    if panel_data is None or panel_data == []:
+        _LOGGER.error("Platform not ready")
         raise PlatformNotReady
+        return False
     else:
-        _LOGGER.debug("Sector: Found Alarm Panel")
         hass.async_create_task(
                 discovery.async_load_platform(
                     hass,
@@ -142,279 +91,283 @@ async def async_setup(hass, config):
                 )
             )
 
+    temp_data = await sector_data.get_thermometers()
+    if temp_data is None or temp_data == [] or sector_temp == False:
+        _LOGGER.debug("Temp not configured")
+    else:
+        hass.async_create_task(
+                discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
+            )
+
+    lock_data = await sector_data.get_locks()
+    if lock_data is None or lock_data == [] or sector_lock == False:
+        _LOGGER.debug("Lock not configured")
+    else:
+        hass.async_create_task(
+                discovery.async_load_platform(
+                    hass, 'lock', DOMAIN, {
+                        CONF_CODE_FORMAT: config[DOMAIN][CONF_CODE_FORMAT],
+                        CONF_CODE: config[DOMAIN][CONF_CODE]
+                    }, config))
+
     return True
 
 class SectorAlarmHub(object):
+    """ Sector connectivity hub """
 
-    def __init__(self, fullsysteminfo, panel_id, userid, password, authtoken):
+    def __init__(self, sector_lock, sector_temp, userid, password, websession):
         self._lockstatus = {}
         self._tempstatus = {}
+        self._lockdata = None
+        self._tempdata = None
         self._alarmstatus = None
         self._changed_by = None
-        self.fullsysteminfo = fullsysteminfo
-        self.panel_id = panel_id
-        self.userid = userid
-        self.password = password
-        self.authtoken = authtoken
+        self.websession = websession
+        self._sector_temp = sector_temp
+        self._sector_lock = sector_lock
+        self._userid = userid
+        self._password = password
+        self._access_token = None
+        self._last_updated = datetime.utcnow() - timedelta(hours=2)
+        self._timeout = 15
+        self._panel = []
+        self._temps = []
+        self._locks = []
+        self._panel_id = None
 
     async def get_thermometers(self):
-        temps = self.fullsysteminfo['Temperatures']
+        temps = self._temps
 
         if temps is None or temps == []:
-            _LOGGER.debug("Sector: failed to fetch temperature sensors")
+            _LOGGER.debug("Failed to fetch temperature sensors")
             return None
 
         return (temp["SerialNo"] for temp in temps)
 
     async def get_name(self, serial, command):
-        _LOGGER.debug("Sector: command is: %s", command)
-        _LOGGER.debug("Sector: serial is: %s", serial)
+        _LOGGER.debug("Command is: %s", command)
+        _LOGGER.debug("Serial is: %s", serial)
         if command == "temp":
-            names = self.fullsysteminfo['Temperatures']
+            names = self._temps
         elif command == "lock":
-            names = self.fullsysteminfo['Locks']
+            names = self._locks
         else:
             return None
 
         for name in names:
             if command == "temp":
                 if name["SerialNo"] == serial:
-                    _LOGGER.debug("Sector: Returning label: %s", name["Label"])
+                    _LOGGER.debug("Returning label: %s", name["Label"])
                     return name["Label"]
             elif command =="lock":
                 if name["Serial"] == serial:
-                    _LOGGER.debug("Sector: Returning label: %s", name["Label"])
+                    _LOGGER.debug("Returning label: %s", name["Label"])
                     return name["Label"]
             else:
-                _LOGGER.debug("Sector: get_name no command, return Not found")
+                _LOGGER.debug("Get_name no command, return Not found")
                 return "Not found"
 
     async def get_autolock(self, serial):
-        _LOGGER.debug("Sector: serial is: %s", serial)
-        autolocks = self.fullsysteminfo['Locks']
+        _LOGGER.debug("Serial is: %s", serial)
+        autolocks = self._locks
 
         for autolock in autolocks:
             if autolock["Serial"] == serial:
-                _LOGGER.debug("Sector: Returning AutoLockEnabled: %s", autolock["AutoLockEnabled"])
+                _LOGGER.debug("Returning AutoLockEnabled: %s", autolock["AutoLockEnabled"])
                 return autolock["AutoLockEnabled"]
 
         return "Not found"
 
     async def get_locks(self):
-        locks = self.fullsysteminfo['Locks']
+        locks = self._locks
 
         if locks is None or locks == []:
-            _LOGGER.debug("Sector: failed to fetch locks")
+            _LOGGER.debug("Failed to fetch locks")
             return None
 
         return (lock["Serial"] for lock in locks)
 
     async def get_panel(self):
-        panel = self.fullsysteminfo['Panel']
+        panel = self._panel
 
         if panel is None or panel == []:
-            _LOGGER.debug("Sector: failed to fetch panel")
+            _LOGGER.debug("Failed to fetch panel")
             return None
 
         return panel["PanelDisplayName"]
 
 
     async def triggerlock(self, lock, code, command):
-        AUTH_TOKEN = self.authtoken
-        PANEL_ID = self.panel_id
-        LOCKSERIAL = lock
-        LOCKCODE = code
-        COMMAND = command
-        URL = ""
-        async with aiohttp.ClientSession() as session2:
-            message_headers = {
-                "Authorization": AUTH_TOKEN,
-                "API-Version":"6",
-                "Platform":"iOS",
-                "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-                "Version":"2.0.20",
-                "Connection":"keep-alive",
-                "Content-Type":"application/json"
-            }
-            _LOGGER.debug("Sector: LOCKSERIAL: %s", LOCKSERIAL)
-            _LOGGER.debug("Sector: LOCKCODE: %s", LOCKCODE)
-            _LOGGER.debug("Sector: PANEL_ID: %s", PANEL_ID)
-            message_json = {
-                "LockSerial": LOCKSERIAL,
-                "PanelCode": LOCKCODE,
-                "PanelId": PANEL_ID,
+
+        message_json = {
+                "LockSerial": lock,
+                "PanelCode": code,
+                "PanelId": self._panel_id,
                 "Platform": "app"
             }
-            if COMMAND == "unlock":
-                URL = "https://mypagesapi.sectoralarm.net/api/Panel/Unlock"
-            else:
-                URL = "https://mypagesapi.sectoralarm.net/api/Panel/Lock"
-            _LOGGER.debug("Sector: init command is %s", COMMAND)
-            async with session2.post(URL, headers=message_headers, json=message_json) as response:
-                if response.status != 200 and response.status !=204:
-                    _LOGGER.debug("Sector: Failed to lock door: %d", response.status)
-                    return False
-                _LOGGER.debug("Sector: response.status: %d", response.status)
-                _LOGGER.debug("Sector: response.headers is %s", response.headers)
-            return True
+
+        if command == "unlock":
+            response = await self._request(API_URL + "/Panel/Unlock", json_data=message_json)
+        else:
+            response = await self._request(API_URL + "/Panel/Lock", json_data=message_json)
+
+        await self.async_update(force_update=True)
+        return True
 
     async def triggeralarm(self, command, code):
-        AUTH_TOKEN = self.authtoken
-        PANEL_ID = self.panel_id
-        LOCKCODE = code
-        COMMAND = command
-        URL = ""
-        async with aiohttp.ClientSession() as session2:
-            message_headers = {
-                "Authorization": AUTH_TOKEN,
-                "API-Version":"6",
-                "Platform":"iOS",
-                "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-                "Version":"2.0.20",
-                "Connection":"keep-alive",
-                "Content-Type":"application/json"
-            }
-            message_json = {
-                "PanelCode": LOCKCODE,
-                "PanelId": PANEL_ID,
+
+        message_json = {
+                "PanelCode": code,
+                "PanelId": self._panel_id,
                 "Platform": "app"
             }
-            if COMMAND == "full":
-                URL = "https://mypagesapi.sectoralarm.net/api/Panel/Arm"
-            elif COMMAND == "partial":
-                URL = "https://mypagesapi.sectoralarm.net/api/Panel/PartialArm"
-            else:
-                URL = "https://mypagesapi.sectoralarm.net/api/Panel/Disarm"
-            async with session2.post(URL, headers=message_headers, json=message_json) as response:
-                if response.status != 200 and response.status != 204:
-                    _LOGGER.debug("Sector: Failed to trigger alarm: %d", response.status)
-                    return False
 
-            if COMMAND == "full":
-                self._alarmstatus = 3
-            elif COMMAND == "partial":
-                self._alarmstatus = 2
-            else:
-                self._alarmstatus = 1
-            return True
+        if command == "full":
+            response = await self._request(API_URL + "/Panel/Arm", json_data=message_json)
+        elif command == "partial":
+            response = await self._request(API_URL + "/Panel/PartialArm", json_data=message_json)
+        else:
+            response = await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
 
+        await self.async_update(force_update=True)
+        return True
 
-    @Throttle(MIN_TIME_BETWEEN_UPDATES)
-    async def async_update(self):
-        AUTH_TOKEN = self.authtoken
-        async with aiohttp.ClientSession() as session:
-            message_headers = {
-                "Authorization": AUTH_TOKEN,
-                "API-Version":"6",
-                "Platform":"iOS",
-                "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-                "Version":"2.0.20",
-                "Connection":"keep-alive",
-                "Content-Type":"application/json",
-            }
+    async def async_update(self, force_update=False):
+        """ Fetch updates """
 
-            async with session.get("https://mypagesapi.sectoralarm.net/api/panel/getFullSystem",
-                headers=message_headers) as response:
-                if response.status != 200:
-                    _LOGGER.debug("Sector: Failed to get full system in async_update, run login: %d", response.status)
-                    message_headers = {
+        now = datetime.utcnow()
+        if (
+            now - self._last_updated < timedelta(seconds=60)
+            and not force_update
+        ):
+            return
+        self._last_updated = now
+        await self.fetch_info()
+
+        temps = self._tempdata
+        if temps is not None and temps != [] and self._sector_temp == True:
+            self._tempstatus = {
+                            temperature["SerialNo"]: temperature["Temprature"]
+                            for temperature in temps
+                        }
+
+        locks = self._lockdata
+        if locks is not None and locks != [] and self._sector_lock == True:
+            self._lockstatus = {
+                            lock["Serial"]: lock["Status"]
+                            for lock in locks
+                        }
+
+        return True
+
+    async def fetch_info(self):
+        """ Fetch info from API """
+        response = await self._request(API_URL + "/Panel/getFullSystem")
+        if response is None:
+            return
+        json_data = await response.json()
+        if json_data is None:
+            return
+
+        self._panel = json_data["Panel"]
+        self._panel_id = json_data["Panel"]["PanelId"]
+        self._temps = json_data["Temperatures"]
+        self._locks = json_data["Locks"]
+
+        response = await self._request(API_URL + "/Panel/GetPanelStatus?panelId={}".format(self._panel_id))
+        json_data = await response.json()
+        self._alarmstatus = json_data["Status"]
+        _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
+
+        if self._temps != [] and self._sector_temp == True:
+            response = await self._request(API_URL + "/Panel/GetTemperatures?panelId={}".format(self._panel_id))
+            json_data = await response.json()
+            if json_data is not None:
+                self._tempdata = json_data
+            _LOGGER.debug("self._tempdata = %s", self._tempdata)
+
+        if self._locks != [] and self._sector_lock == True:
+            response = await self._request(API_URL + "/Panel/GetLockStatus?panelId={}".format(self._panel_id))
+            json_data = await response.json()
+            if json_data is not None:
+                self._lockdata = json_data
+            _LOGGER.debug("self._lockdata = %s", self._lockdata)
+
+        response = await self._request(API_URL + "/Panel/GetLogs?panelId={}".format(self._panel_id))
+        json_data = await response.json()
+        if json_data is not None:
+            for users in json_data:
+                if users['User'] != "" and "arm" in users['EventType']:
+                    self._changed_by = users['User']
+                    break
+                else:
+                    self._changed_by = "unknown"
+            _LOGGER.debug("self._changed_by = %s", self._changed_by)
+
+    async def _request(self, url, json_data=None, retry=3):
+        if self._access_token is None:
+            response = await self.websession.post(
+                f"{API_URL}/Login/Login",
+                headers={
                         "API-Version":"6",
                         "Platform":"iOS",
                         "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
                         "Version":"2.0.20",
                         "Connection":"keep-alive",
-                        "Content-Type":"application/json"
-                    }
+                        "Content-Type":"application/json",
+                    },
+                json={
+                    "UserId": self._userid,
+                    "Password": self._password,
+                },
+            )
+            token_data = await response.json()
+            if token_data is None or token_data == "":
+                _LOGGER.error("Error connecting to Sector")
+                raise CannotConnect
+            self._access_token = token_data['AuthorizationToken']
+        headers = {
+                    "Authorization": self._access_token,
+                    "API-Version":"6",
+                    "Platform":"iOS",
+                    "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
+                    "Version":"2.0.20",
+                    "Connection":"keep-alive",
+                    "Content-Type":"application/json",
+                }
 
-                    json_data = {
-                        "UserId": self.userid,
-                        "Password": self.password
-                    }
-                    async with session.post("https://mypagesapi.sectoralarm.net/api/Login/Login",
-                        headers=message_headers, json=json_data) as response:
-                        if response.status != 200:
-                            _LOGGER.debug("Sector: Failed to send Login: %d", response.status)
-                            return False
-                        data_out = await response.json()
-                        #return data_out
-                        dateTimeObj = datetime.now()
-                        timestampStr = dateTimeObj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
-                        _LOGGER.debug("Sector: SECTOR ALARM LOGIN RUN %s", timestampStr)
-                        #returndata = await async_login()
-                        AUTH_TOKEN = data_out['AuthorizationToken']
-                        self.authtoken = data_out['AuthorizationToken']
-                        message_headers = {
-                            "Authorization": AUTH_TOKEN,
-                            "API-Version":"6",
-                            "Platform":"iOS",
-                            "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-                            "Version":"2.0.20",
-                            "Connection":"keep-alive",
-                            "Content-Type":"application/json"
-                        }
-                _LOGGER.debug("Sector: AUTH_TOKEN still valid: %s", AUTH_TOKEN)
-
-            temps = self.fullsysteminfo['Temperatures']
-            if temps is None or temps == [] or CONF_TEMP == False:
-                _LOGGER.debug("Sector: No update temps")
-            else:
-                async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetTemperatures?panelId={}".format(self.panel_id),
-                    headers=message_headers) as response:
-                    if response.status != 200:
-                        _LOGGER.debug("Sector: Failed to get temperature update: %d", response.status)
-                        return False
-                    else:
-                        tempinfo = await response.json()
-                        self._tempstatus = {
-                            temperature["SerialNo"]: temperature["Temprature"]
-                            for temperature in tempinfo
-                        }
-                        _LOGGER.debug("Sector: Tempstatus fetch: %s", json.dumps(self._tempstatus))
-
-            locks = self.fullsysteminfo['Locks']
-            if locks is None or locks == [] or CONF_LOCK == False:
-                _LOGGER.debug("Sector: No update locks")
-            else:
-                async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetLockStatus?panelId={}".format(self.panel_id),
-                    headers=message_headers) as response:
-                    if response.status != 200:
-                        _LOGGER.debug("Sector: Failed to get locks update: %d", response.status)
-                        return False
-                    else:
-                        lockinfo = await response.json()
-                        self._lockstatus = {
-                            lock["Serial"]: lock["Status"]
-                            for lock in lockinfo
-                        }
-                        _LOGGER.debug("Sector: Lockstatus fetch: %s", json.dumps(self._lockstatus))
-
-            async with session.get("https://mypagesapi.sectoralarm.net/api/Panel/GetPanelStatus?panelId={}".format(self.panel_id),
-                headers=message_headers) as response:
-                if response.status != 200:
-                    _LOGGER.debug("Sector: Failed to get panel update: %d", response.status)
-                    return False
+        try:
+            with async_timeout.timeout(self._timeout):
+                if json_data:
+                    response = await self.websession.post(
+                        url, json=json_data, headers=headers
+                    )
                 else:
-                    alarminfo = await response.json()
-                    self._alarmstatus = alarminfo['Status']
-                    _LOGGER.debug("Sector: Alarmstatus fetch: %s", json.dumps(self._alarmstatus))
+                    response = await self.websession.get(url, headers=headers)
+            if response.status != 200:
+                self._access_token = None
+                if retry > 0:
+                    await asyncio.sleep(1)
+                    return await self._request(url, json_data, retry=retry - 1)
+                _LOGGER.error(
+                    "Error connecting to Sector, response: %s %s", response.status, response.reason
+                )
 
-            async with session.get("https://mypagesapi.sectoralarm.net/api/panel/GetLogs?panelId={}".format(self.panel_id),
-                headers=message_headers) as response:
-                if response.status != 200:
-                    _LOGGER.debug("Sector: Failed to get logs update: %d", response.status)
-                    return False
-                else:
-                    loginfo = await response.json()
-                    for users in loginfo:
-                        if users['User'] != "" and "arm" in users['EventType']:
-                            self._changed_by = users['User']
-                            #_LOGGER.debug("Sector: Last changed fetch: %s", json.dumps(self._changed_by))
-                            break
-                        else:
-                            self._changed_by = "unknown"
-                    _LOGGER.debug("Sector: Last changed fetch: %s", json.dumps(self._changed_by))
-
-        return True
+                return None
+        except aiohttp.ClientError as err:
+            self._access_token = None
+            if retry > 0:
+                return await self._request(url, json_data, retry=retry - 1)
+            _LOGGER.error("Error connecting to Sector: %s ", err, exc_info=True)
+            raise
+        except asyncio.TimeoutError:
+            self._access_token = None
+            if retry > 0:
+                return await self._request(url, json_data, retry=retry - 1)
+            _LOGGER.error("Timed out when connecting to Sector")
+            raise
+        _LOGGER.debug("request response = %s", response)
+        return response
 
     @property
     def alarm_state(self):
@@ -434,12 +387,15 @@ class SectorAlarmHub(object):
 
     @property
     def alarm_id(self):
-        return self.fullsysteminfo['Panel']['PanelId']
+        return self._panel['PanelId']
 
     @property
     def alarm_displayname(self):
-        return self.fullsysteminfo['Panel']['PanelDisplayName']
+        return self._panel['PanelDisplayName']
 
     @property
     def alarm_isonline(self):
-        return self.fullsysteminfo['Panel']['IsOnline']
+        return self._panel['IsOnline']
+
+class CannotConnect(exceptions.HomeAssistantError):
+    """Error to indicate we cannot connect."""

@@ -12,7 +12,7 @@ DOMAIN = "sector"
 
 _LOGGER = logging.getLogger(__name__)
 
-SCAN_INTERVAL = timedelta(seconds=60)
+SCAN_INTERVAL = timedelta(seconds=10)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
 
@@ -44,7 +44,7 @@ class SectorAlarmTemperatureDevice(Entity):
             "manufacturer": "Sector Alarm",
             "model": "Temperature",
             "sw_version": "master",
-            "via_device_id": (DOMAIN, "sa_panel_"+str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, "sa_"+str(self._hub.alarm_id)),
         }
 
 class SectorAlarmTemperatureSensor(SectorAlarmTemperatureDevice):

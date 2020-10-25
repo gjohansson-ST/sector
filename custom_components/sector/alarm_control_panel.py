@@ -31,7 +31,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         SectorAlarmPanel(sector_hub, code, code_format)
         ])
 
-
 class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
 
     @property
@@ -43,6 +42,7 @@ class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
             "manufacturer": "Sector Alarm",
             "model": "Alarmpanel",
             "sw_version": "master",
+            "via_device": (DOMAIN, "sa_"+str(self._hub.alarm_id)),
         }
 
 class SectorAlarmPanel(SectorAlarmAlarmDevice):

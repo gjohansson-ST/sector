@@ -48,7 +48,7 @@ class SectorAlarmLockDevice(LockEntity):
             "manufacturer": "Sector Alarm",
             "model": "Lock",
             "sw_version": "master",
-            "via_device_id": (DOMAIN, "sa_panel_"+str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, "sa_"+str(self._hub.alarm_id)),
         }
 
 class SectorAlarmLock(SectorAlarmLockDevice):
