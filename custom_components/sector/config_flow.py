@@ -23,7 +23,7 @@ CONF_LOCK = "lock"
 DATA_SCHEMA = vol.Schema(
     {
     vol.Required(CONF_USERID): str,
-    vol.Required(CONF_PASSWORD): str
+    vol.Required(CONF_PASSWORD): str,
     vol.Optional(CONF_CODE, default=""): str,
     vol.Optional(CONF_CODE_FORMAT, default="^\\d{4,6}$"): str,
     vol.Optional(CONF_TEMP, default=True): bool,

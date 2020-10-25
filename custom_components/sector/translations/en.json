@@ -31,7 +31,9 @@
                     "code_format": "Default 4-6 digits. Don't change.",
                     "temp": "Enable Temp sensors",
                     "lock": "Enable dorrlocks"
-                }
+                },
+                "description": "Integration with Sector Alarm.",
+                "title": "Sector Alarm Options"
             }
         }
     }

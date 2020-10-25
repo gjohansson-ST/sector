@@ -4,7 +4,7 @@
       "already_configured": "[%key:common::config_flow::abort::already_configured_account%]"
     },
     "error": {
-      "auth_error": "Username and/or password is incorrect.",
+      "auth_error": "[%key:common::config_flow::error::invalid_auth%]",
       "connection_error": "[%key:common::config_flow::error::cannot_connect%]"
     },
     "step": {
@@ -31,7 +31,9 @@
                   "code_format": "Default 4-6 digits. Don't change.",
                   "temp": "Enable Temp sensors",
                   "lock": "Enable dorrlocks"
-                }
+                },
+                "description": "Integration with Sector Alarm.",
+                "title": "Sector Alarm Options"
             }
         }
     }
