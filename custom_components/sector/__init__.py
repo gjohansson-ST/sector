@@ -403,7 +403,7 @@ class SectorAlarmHub(object):
                     )
                 else:
                     response = await self.websession.get(url, headers=headers)
-            if response.status != 200:
+            if response.status != 200 and response.status != 204:
                 self._access_token = None
                 if retry > 0:
                     await asyncio.sleep(1)
