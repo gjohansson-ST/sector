@@ -11,7 +11,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 API_URL = "https://mypagesapi.sectoralarm.net/api"
 DOMAIN = "sector"
 DEFAULT_NAME = "sector"
-DATA_SA = "sector"
 
 CONF_USERID = "userid"
 CONF_PASSWORD = "password"

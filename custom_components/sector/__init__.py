@@ -19,7 +19,6 @@ _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = "sector"
 DEFAULT_NAME = "sector"
-DATA_SA = "sector"
 
 CONF_USERID = "userid"
 CONF_PASSWORD = "password"
@@ -61,7 +60,7 @@ async def async_setup(hass, config):
     sector_lock, sector_temp, userid, password, websession=async_get_clientsession(hass)
     )
     await sector_data.async_update(force_update=True)
-    hass.data[DATA_SA] = sector_data
+    hass.data[DOMAIN] = sector_data
 
     panel_data = await sector_data.get_panel()
     if panel_data is None or panel_data == []:
@@ -115,7 +114,7 @@ async def async_setup_entry(hass, entry):
     sector_lock, sector_temp, userid, password, websession=async_get_clientsession(hass)
     )
     await sector_data.async_update(force_update=True)
-    hass.data[DATA_SA] = sector_data
+    hass.data[DOMAIN] = sector_data
 
     device_registry = await dr.async_get_registry(hass)
     device_registry.async_get_or_create(
@@ -139,7 +138,7 @@ async def async_setup_entry(hass, entry):
 
     temp_data = await sector_data.get_thermometers()
     if temp_data is None or temp_data == [] or sector_temp == False:
-        _LOGGER.debug("Temp not configured")
+        _LOGGER.debug("Temp not configured or Temp sensors not found")
     else:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, "sensor")
@@ -147,7 +146,7 @@ async def async_setup_entry(hass, entry):
 
     lock_data = await sector_data.get_locks()
     if lock_data is None or lock_data == [] or sector_lock == False:
-        _LOGGER.debug("Lock not configured")
+        _LOGGER.debug("Lock not configured or door lock not found")
     else:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, "lock")
@@ -157,15 +156,28 @@ async def async_setup_entry(hass, entry):
 
 async def async_unload_entry(hass, entry):
     """Unload a config entry."""
+
+    hub = hass.data[DOMAIN].pop(entry.entry_id)
+
+    sector_lock = entry.data[CONF_LOCK]
+    sector_temp = entry.data[CONF_TEMP]
+
     unload_alarm = await hass.config_entries.async_forward_entry_unload(
         entry, "alarm_control_panel"
     )
-    unload_sensor = await hass.config_entries.async_forward_entry_unload(
-        entry, "sensor"
-    )
-    unload_lock = await hass.config_entries.async_forward_entry_unload(
-        entry, "lock"
-    )
+    if sector_temp == True:
+        unload_sensor = await hass.config_entries.async_forward_entry_unload(
+            entry, "sensor"
+        )
+    else:
+        unload_sensor = True
+    if sector_lock == True:
+        unload_lock = await hass.config_entries.async_forward_entry_unload(
+            entry, "lock"
+        )
+    else:
+        unload_lock = True
+
     if unload_lock == True and unload_alarm == True and unload_sensor == True:
         return True
     else:

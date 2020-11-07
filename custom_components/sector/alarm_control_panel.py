@@ -17,7 +17,6 @@ import custom_components.sector as sector
 DEPENDENCIES = ["sector"]
 DOMAIN = "sector"
 DEFAULT_NAME = "sector"
-DATA_SA = "sector"
 
 CONF_USERID = "userid"
 CONF_PASSWORD = "password"
@@ -32,7 +31,7 @@ SCAN_INTERVAL = timedelta(seconds=10)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
 
-    sector_hub = hass.data[sector.DATA_SA]
+    sector_hub = hass.data[sector.DOMAIN]
     code = discovery_info[sector.CONF_CODE]
     code_format = discovery_info[sector.CONF_CODE_FORMAT]
 
@@ -42,7 +41,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
 async def async_setup_entry(hass, entry, async_add_entities):
 
-    sector_hub = hass.data[DATA_SA]
+    sector_hub = hass.data[DOMAIN]
     code = entry.data[CONF_CODE]
     code_format = entry.data[CONF_CODE_FORMAT]
 

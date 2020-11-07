@@ -12,12 +12,12 @@
         "data": {
           "userid": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]",
-          "code": "Code to arm/disarm alarm or open/close doorlock.",
-          "code_format": "Default 4-6 digits. Don't change.",
+          "code": "Code to arm/disarm alarm or open/close doorlock",
+          "code_format": "Default 4-6 digits",
           "temp": "Enable Temp sensors",
-          "lock": "Enable dorrlocks"
+          "lock": "Enable Door locks"
         },
-        "description": "Integration with Sector Alarm.",
+        "description": "Integration with Sector Alarm",
         "title": "Sector Alarm"
       }
     },
@@ -27,12 +27,12 @@
       "step": {
           "user": {
               "data": {
-                  "code": "Code to arm/disarm alarm or open/close doorlock.",
-                  "code_format": "Default 4-6 digits. Don't change.",
+                  "code": "Code to arm/disarm alarm or open/close doorlock",
+                  "code_format": "Default 4-6 digits",
                   "temp": "Enable Temp sensors",
-                  "lock": "Enable dorrlocks"
+                  "lock": "Enable Door locks"
                 },
-                "description": "Integration with Sector Alarm.",
+                "description": "Integration with Sector Alarm",
                 "title": "Sector Alarm Options"
             }
         }
