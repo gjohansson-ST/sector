@@ -13,12 +13,12 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2020-10-25
+**Last update:** 2020-11-07
 
 ---
 
 Integrates with Swedish Sector Alarm home alarm system (most likely works in all countries serviced by Sector Alarm).
-Currently supporting alarm, doorlock and temperature sensors
+Currently supporting alarm, door lock and temperature sensors
 
 **From version v.0.2.0 this integration supports config_flow, see details below for installation and activation details!**
 
@@ -30,13 +30,15 @@ Use [HACS](https://hacs.xyz/) to install
 
 ### Option 2
 
-Create a new folder under `custom_components` called `sector`. Upload the `***.py`-files to the newly created folder. Then update your configuration as per below before restarting your Home Assistant.
+Create a new folder under `custom_components` called `sector`. Upload the `***.py`-files to the newly created folder.
+Restart before proceeding
+
 
 ## Activate integration in HA
 
 ### Option 1
 
-After installation go to "Integrations" page in HA, press + and search for Sector
+After installation go to "Integrations" page in HA, press + and search for Sector Alarm
 Follow onscreen information to type username, password, code etc.
 No restart needed
 
