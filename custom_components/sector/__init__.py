@@ -333,7 +333,7 @@ class SectorAlarmHub(object):
 
     async def fetch_info(self):
         """ Fetch info from API """
-        if self._panel != []:
+        if self._panel == []:
             response = await self._request(API_URL + "/Panel/getFullSystem")
             if response is None:
                 return
