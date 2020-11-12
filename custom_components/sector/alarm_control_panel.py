@@ -53,7 +53,7 @@ class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
 
     @property
     def device_info(self):
-        """Return device information about HACS."""
+        """Return device information."""
         return {
             "identifiers": {(DOMAIN, self.unique_id)},
             "name": self.name,

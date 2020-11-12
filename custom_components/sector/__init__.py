@@ -157,8 +157,6 @@ async def async_setup_entry(hass, entry):
 async def async_unload_entry(hass, entry):
     """Unload a config entry."""
 
-    hub = hass.data[DOMAIN].pop(entry.entry_id)
-
     sector_lock = entry.data[CONF_LOCK]
     sector_temp = entry.data[CONF_TEMP]
 
@@ -178,10 +176,10 @@ async def async_unload_entry(hass, entry):
     else:
         unload_lock = True
 
-    if unload_lock == True and unload_alarm == True and unload_sensor == True:
-        return True
-    else:
-        return False
+
+    if all([unload_lock, unload_alarm, unload_sensor]):
+        hass.data[DOMAIN].pop(entry.entry_id)
+        return unload_alarm
 
 class SectorAlarmHub(object):
     """ Sector connectivity hub """
@@ -200,11 +198,13 @@ class SectorAlarmHub(object):
         self._password = password
         self._access_token = None
         self._last_updated = datetime.utcnow() - timedelta(hours=2)
+        self._last_updated_temp = datetime.utcnow() - timedelta(hours=2)
         self._timeout = 15
         self._panel = []
         self._temps = []
         self._locks = []
         self._panel_id = None
+        self._update_sensors = True
 
     async def get_thermometers(self):
         temps = self._temps
@@ -333,24 +333,34 @@ class SectorAlarmHub(object):
 
     async def fetch_info(self):
         """ Fetch info from API """
-        response = await self._request(API_URL + "/Panel/getFullSystem")
-        if response is None:
-            return
-        json_data = await response.json()
-        if json_data is None:
-            return
+        if self._panel != []:
+            response = await self._request(API_URL + "/Panel/getFullSystem")
+            if response is None:
+                return
+            json_data = await response.json()
+            if json_data is None:
+                return
 
-        self._panel = json_data["Panel"]
-        self._panel_id = json_data["Panel"]["PanelId"]
-        self._temps = json_data["Temperatures"]
-        self._locks = json_data["Locks"]
+            self._panel = json_data["Panel"]
+            self._panel_id = json_data["Panel"]["PanelId"]
+            self._temps = json_data["Temperatures"]
+            self._locks = json_data["Locks"]
+
+        now = datetime.utcnow()
+        if (
+            now - self._last_updated_temp < timedelta(seconds=300)
+        ):
+            self._update_sensors = False
+        else:
+            self._update_sensors = True
+            self._last_updated_temp = now
 
         response = await self._request(API_URL + "/Panel/GetPanelStatus?panelId={}".format(self._panel_id))
         json_data = await response.json()
         self._alarmstatus = json_data["Status"]
         _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
 
-        if self._temps != [] and self._sector_temp == True:
+        if self._temps != [] and self._sector_temp == True and self._update_sensors == True:
             response = await self._request(API_URL + "/Panel/GetTemperatures?panelId={}".format(self._panel_id))
             json_data = await response.json()
             if json_data is not None:
