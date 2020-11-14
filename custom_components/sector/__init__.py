@@ -392,8 +392,8 @@ class SectorAlarmHub(object):
                 headers={
                         "API-Version":"6",
                         "Platform":"iOS",
-                        "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-                        "Version":"2.0.20",
+                        "User-Agent":"  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                        "Version":"2.0.27",
                         "Connection":"keep-alive",
                         "Content-Type":"application/json",
                     },
@@ -411,8 +411,8 @@ class SectorAlarmHub(object):
                     "Authorization": self._access_token,
                     "API-Version":"6",
                     "Platform":"iOS",
-                    "User-Agent":"SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-                    "Version":"2.0.20",
+                    "User-Agent":"  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                    "Version":"2.0.27",
                     "Connection":"keep-alive",
                     "Content-Type":"application/json",
                 }
