@@ -31,10 +31,12 @@ Use [HACS](https://hacs.xyz/) to install
 ### Option 2
 
 Below config-folder create a new folder called`custom_components` if not already exist.
-Below new `custom_components` folder create a new folder called `sector`
-Upload the files/folders in `custom_components/sector` directory to the newly created folder.
-Restart before proceeding
 
+Below new `custom_components` folder create a new folder called `sector`
+
+Upload the files/folders in `custom_components/sector` directory to the newly created folder.
+
+Restart before proceeding
 
 ## Activate integration in HA
 
