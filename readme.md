@@ -30,7 +30,9 @@ Use [HACS](https://hacs.xyz/) to install
 
 ### Option 2
 
-Create a new folder under `custom_components` called `sector`. Upload the `***.py`-files to the newly created folder.
+Below config-folder create a new folder called`custom_components` if not already exist.
+Below new `custom_components` folder create a new folder called `sector`
+Upload the files/folders in `custom_components/sector` directory to the newly created folder.
 Restart before proceeding
 
 
