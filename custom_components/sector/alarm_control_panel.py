@@ -1,3 +1,4 @@
+"""Adds Alarm Panel for Sector integration."""
 import logging
 from datetime import timedelta
 from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity

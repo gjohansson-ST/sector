@@ -3,8 +3,6 @@
     "name": "Sector Alarm",
     "documentation": "https://github.com/gjohansson-ST/sector/blob/master/readme.md",
     "issue_tracker": "https://github.com/gjohansson-ST/sector/issues",
-    "dependencies": [],
     "codeowners": ["@gjohansson-ST"],
-    "requirements": [],
     "config_flow": true
 }

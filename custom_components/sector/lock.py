@@ -1,3 +1,4 @@
+"""Adds Lock for Sector integration."""
 import logging
 import asyncio
 from datetime import timedelta
