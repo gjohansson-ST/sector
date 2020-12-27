@@ -11,9 +11,20 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import Throttle
 from homeassistant.helpers import discovery
-from homeassistant.exceptions import PlatformNotReady
+from homeassistant.exceptions import PlatformNotReady, ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import device_registry as dr
+from homeassistant.const import (
+    STATE_ALARM_ARMED_AWAY,
+    STATE_ALARM_ARMED_HOME,
+    STATE_ALARM_DISARMED,
+    STATE_ALARM_PENDING,
+)
+from homeassistant.const import (
+    STATE_LOCKED,
+    STATE_UNKNOWN,
+    STATE_UNLOCKED,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +55,8 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 API_URL = "https://mypagesapi.sectoralarm.net/api"
+UPDATE_INTERVAL = 60
+UPDATE_INTERVAL_TEMP = 300
 
 async def async_setup(hass, config):
 
@@ -63,7 +76,7 @@ async def async_setup(hass, config):
     hass.data[DOMAIN] = sector_data
 
     panel_data = await sector_data.get_panel()
-    if panel_data is None or panel_data == []:
+    if panel_data is None:
         _LOGGER.error("Platform not ready")
         raise PlatformNotReady
         return False
@@ -127,10 +140,10 @@ async def async_setup_entry(hass, entry):
     )
 
     panel_data = await sector_data.get_panel()
-    if panel_data is None or panel_data == []:
+    if panel_data is None:
         _LOGGER.error("Platform not ready")
-        raise PlatformNotReady
-        return False
+        raise ConfigEntryNotReady
+
     else:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, "alarm_control_panel")
@@ -160,26 +173,24 @@ async def async_unload_entry(hass, entry):
     sector_lock = entry.data[CONF_LOCK]
     sector_temp = entry.data[CONF_TEMP]
 
-    unload_alarm = await hass.config_entries.async_forward_entry_unload(
-        entry, "alarm_control_panel"
-    )
-    if sector_temp == True:
-        unload_sensor = await hass.config_entries.async_forward_entry_unload(
-            entry, "sensor"
-        )
-    else:
-        unload_sensor = True
+    Platforms = ["alarm_control_panel"]
     if sector_lock == True:
-        unload_lock = await hass.config_entries.async_forward_entry_unload(
-            entry, "lock"
+        Platforms.append("lock")
+    if sector_temp == True:
+        Platforms.append("sensor")
+
+    unload_ok = all(
+        await asyncio.gather(
+            *[
+                hass.config_entries.async_forward_entry_unload(entry, component)
+                for component in Platforms
+            ]
         )
-    else:
-        unload_lock = True
+    )
 
-
-    if all([unload_lock, unload_alarm, unload_sensor]):
+    if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
-        return unload_alarm
+    return unload_ok
 
 class SectorAlarmHub(object):
     """ Sector connectivity hub """
@@ -308,7 +319,7 @@ class SectorAlarmHub(object):
 
         now = datetime.utcnow()
         if (
-            now - self._last_updated < timedelta(seconds=60)
+            now - self._last_updated < timedelta(seconds=UPDATE_INTERVAL)
             and not force_update
         ):
             return
@@ -336,19 +347,17 @@ class SectorAlarmHub(object):
         if self._panel == []:
             response = await self._request(API_URL + "/Panel/getFullSystem")
             if response is None:
-                return
+                return None
             json_data = await response.json()
-            if json_data is None:
-                return
-
-            self._panel = json_data["Panel"]
-            self._panel_id = json_data["Panel"]["PanelId"]
-            self._temps = json_data["Temperatures"]
-            self._locks = json_data["Locks"]
+            if json_data is not None:
+                self._panel = json_data["Panel"]
+                self._panel_id = json_data["Panel"]["PanelId"]
+                self._temps = json_data["Temperatures"]
+                self._locks = json_data["Locks"]
 
         now = datetime.utcnow()
         if (
-            now - self._last_updated_temp < timedelta(seconds=300)
+            now - self._last_updated_temp < timedelta(seconds=UPDATE_INTERVAL_TEMP)
         ):
             self._update_sensors = False
         else:
@@ -356,27 +365,26 @@ class SectorAlarmHub(object):
             self._last_updated_temp = now
 
         response = await self._request(API_URL + "/Panel/GetPanelStatus?panelId={}".format(self._panel_id))
-        json_data = await response.json()
-        self._alarmstatus = json_data["Status"]
-        _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
+        if response is not None:
+            json_data = await response.json()
+            self._alarmstatus = json_data["Status"]
+            _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
 
         if self._temps != [] and self._sector_temp == True and self._update_sensors == True:
             response = await self._request(API_URL + "/Panel/GetTemperatures?panelId={}".format(self._panel_id))
-            json_data = await response.json()
-            if json_data is not None:
-                self._tempdata = json_data
-            _LOGGER.debug("self._tempdata = %s", self._tempdata)
+            if response is not None:
+                self._tempdata = await response.json()
+                _LOGGER.debug("self._tempdata = %s", self._tempdata)
 
         if self._locks != [] and self._sector_lock == True:
             response = await self._request(API_URL + "/Panel/GetLockStatus?panelId={}".format(self._panel_id))
-            json_data = await response.json()
-            if json_data is not None:
-                self._lockdata = json_data
-            _LOGGER.debug("self._lockdata = %s", self._lockdata)
+            if response is not None:
+                self._lockdata = await response.json()
+                _LOGGER.debug("self._lockdata = %s", self._lockdata)
 
         response = await self._request(API_URL + "/Panel/GetLogs?panelId={}".format(self._panel_id))
-        json_data = await response.json()
-        if json_data is not None:
+        if response is not None:
+            json_data = await response.json()
             for users in json_data:
                 if users['User'] != "" and "arm" in users['EventType']:
                     self._changed_by = users['User']
@@ -387,26 +395,10 @@ class SectorAlarmHub(object):
 
     async def _request(self, url, json_data=None, retry=3):
         if self._access_token is None:
-            response = await self.websession.post(
-                f"{API_URL}/Login/Login",
-                headers={
-                        "API-Version":"6",
-                        "Platform":"iOS",
-                        "User-Agent":"  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
-                        "Version":"2.0.27",
-                        "Connection":"keep-alive",
-                        "Content-Type":"application/json",
-                    },
-                json={
-                    "UserId": self._userid,
-                    "Password": self._password,
-                },
-            )
-            token_data = await response.json()
-            if token_data is None or token_data == "":
-                _LOGGER.error("Error connecting to Sector")
-                raise CannotConnect
-            self._access_token = token_data['AuthorizationToken']
+            result = await self._login()
+            if result is None:
+                return None
+
         headers = {
                     "Authorization": self._access_token,
                     "API-Version":"6",
@@ -425,34 +417,98 @@ class SectorAlarmHub(object):
                     )
                 else:
                     response = await self.websession.get(url, headers=headers)
-            if response.status != 200 and response.status != 204:
+
+            if response.status == 401:
                 self._access_token = None
+                await asyncio.sleep(2)
                 if retry > 0:
-                    await asyncio.sleep(1)
                     return await self._request(url, json_data, retry=retry - 1)
-                _LOGGER.error(
-                    "Error connecting to Sector, response: %s %s", response.status, response.reason
+
+            if response.status == 200 or response.status == 204:
+                _LOGGER.debug(f"Info retrieved successfully URL: {url}")
+                _LOGGER.debug(f"request status: {response.status}")
+                return response
+
+            return None
+
+        except aiohttp.ClientConnectorError as e:
+            _LOGGER.error("ClientError connecting to Sector: %s ", e, exc_info=True)
+            raise CannotConnectError from e
+
+        except aiohttp.ContentTypeError as e:
+            _LOGGER.error("ContentTypeError connecting to Sector: %s ", c)
+            raise CannotConnectError from e
+
+        except asyncio.TimeoutError:
+            _LOGGER.error("Timed out when connecting to Sector")
+            raise OperationError("Timeout")
+
+        except asyncio.CancelledError:
+            _LOGGER.error("Task was cancelled")
+            raise OperationError("Cancelled")
+
+        return None
+
+    async def _login(self):
+        """ Login to retrieve access token """
+        try:
+            with async_timeout.timeout(self._timeout):
+                response = await self.websession.post(
+                f"{API_URL}/Login/Login",
+                headers={
+                        "API-Version":"6",
+                        "Platform":"iOS",
+                        "User-Agent":"  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                        "Version":"2.0.27",
+                        "Connection":"keep-alive",
+                        "Content-Type":"application/json",
+                    },
+                json={
+                    "UserId": self._userid,
+                    "Password": self._password,
+                    },
                 )
 
+                if response.status == 401:
+                    self._access_token = None
+                    raise UnauthorizedError("Invalid username or password")
+                    return None
+
+                if response.status == 200 or response.status == 204:
+                    token_data = await response.json()
+                    self._access_token = token_data['AuthorizationToken']
+                    return self._access_token
+
                 return None
-        except aiohttp.ClientError as err:
-            self._access_token = None
-            if retry > 0:
-                return await self._request(url, json_data, retry=retry - 1)
-            _LOGGER.error("Error connecting to Sector: %s ", err, exc_info=True)
-            raise
+
+        except aiohttp.ClientConnectorError as e:
+            _LOGGER.error("ClientError connecting to Sector: %s ", e, exc_info=True)
+            raise CannotConnectError from e
+
+        except aiohttp.ContentTypeError as c:
+            _LOGGER.error("ContentTypeError connecting to Sector: %s ", c)
+            raise CannotConnectError from c
+
         except asyncio.TimeoutError:
-            self._access_token = None
-            if retry > 0:
-                return await self._request(url, json_data, retry=retry - 1)
             _LOGGER.error("Timed out when connecting to Sector")
-            raise
-        _LOGGER.debug("request response = %s", response)
-        return response
+            raise OperationError("Timeout")
+
+        except asyncio.CancelledError:
+            _LOGGER.error("Task was cancelled")
+            raise OperationError("Cancelled")
+
+        return None
 
     @property
     def alarm_state(self):
-        return self._alarmstatus
+        if self._alarmstatus == 3:
+            return STATE_ALARM_ARMED_AWAY
+        elif self._alarmstatus == 2:
+            return STATE_ALARM_ARMED_HOME
+        elif self._alarmstatus == 1:
+            return STATE_ALARM_DISARMED
+        else:
+            return STATE_ALARM_PENDING
 
     @property
     def alarm_changed_by(self):
@@ -478,5 +534,12 @@ class SectorAlarmHub(object):
     def alarm_isonline(self):
         return self._panel['IsOnline']
 
-class CannotConnect(exceptions.HomeAssistantError):
-    """Error to indicate we cannot connect."""
+
+class UnauthorizedError(HomeAssistantError):
+    """Exception to indicate an error in authorization."""
+
+class CannotConnectError(HomeAssistantError):
+    """Exception to indicate an error in client connection."""
+
+class OperationError(HomeAssistantError):
+    """Exception to indicate an error in operation."""

@@ -1,7 +1,10 @@
 """Adds Alarm Panel for Sector integration."""
 import logging
 from datetime import timedelta
-from homeassistant.components.alarm_control_panel import AlarmControlPanelEntity
+from homeassistant.components.alarm_control_panel import (
+    AlarmControlPanelEntity,
+    FORMAT_NUMBER,
+)
 from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_AWAY,
     SUPPORT_ALARM_ARM_HOME,
@@ -61,7 +64,7 @@ class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
             "manufacturer": "Sector Alarm",
             "model": "Alarmpanel",
             "sw_version": "master",
-            "via_device": (DOMAIN, "sa_hub_"+str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, f"sa_hub_{str(self._hub.alarm_id)}"),
         }
 
 class SectorAlarmPanel(SectorAlarmAlarmDevice):
@@ -78,33 +81,33 @@ class SectorAlarmPanel(SectorAlarmAlarmDevice):
     @property
     def unique_id(self):
         """Return a unique ID to use for this sensor."""
-        return (
-            "sa_panel_"+str(self._hub.alarm_id)
-        )
+        return f"sa_panel_{str(self._hub.alarm_id)}"
 
     @property
     def name(self):
-        return "Sector Alarmpanel {}".format(self._hub.alarm_id)
+        return f"Sector Alarmpanel {self._hub.alarm_id}"
 
     @property
     def changed_by(self):
-        return self._changed_by
+        return self._hub.alarm_changed_by
 
     @property
     def supported_features(self) -> int:
         return SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY
 
     @property
-    def  code_arm_required(self):
+    def code_arm_required(self):
         return True
 
     @property
     def state(self):
-        return self._state
+        return self._hub.alarm_state
 
     @property
     def code_format(self):
-        return self._code_format if self._code_format != "" else None
+        """Return one or more digits/characters."""
+        return FORMAT_NUMBER
+        #return self._code_format if self._code_format != "" else None
 
     @property
     def device_state_attributes(self):
@@ -160,15 +163,5 @@ class SectorAlarmPanel(SectorAlarmAlarmDevice):
 
     async def async_update(self):
         update = await self._hub.async_update()
-        if self._hub.alarm_state == 3:
-            self._state = STATE_ALARM_ARMED_AWAY
-        elif self._hub.alarm_state == 2:
-            self._state = STATE_ALARM_ARMED_HOME
-        elif self._hub.alarm_state == 1:
-            self._state = STATE_ALARM_DISARMED
-        else:
-            self._state = STATE_ALARM_PENDING
-
-        self._changed_by = self._hub.alarm_changed_by
 
         return True

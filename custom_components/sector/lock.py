@@ -111,7 +111,13 @@ class SectorAlarmLock(SectorAlarmLockDevice):
 
     @property
     def state(self):
-        return self._state
+        state = self._hub.lock_state[self._serial]
+        if state == 'lock':
+            return STATE_LOCKED
+        elif state == 'unlock':
+            return STATE_UNLOCKED
+        else:
+            return STATE_UNKNOWN
 
     @property
     def available(self):
@@ -119,6 +125,7 @@ class SectorAlarmLock(SectorAlarmLockDevice):
 
     @property
     def code_format(self):
+        """Return one or more digits/characters"""
         return self._code_format
 
     @property
@@ -131,13 +138,7 @@ class SectorAlarmLock(SectorAlarmLockDevice):
 
     async def async_update(self):
         update = await self._hub.async_update()
-        state = self._hub.lock_state[self._serial]
-        if state == 'lock':
-            self._state = STATE_LOCKED
-        elif state == 'unlock':
-            self._state = STATE_UNLOCKED
-        else:
-            self._state = STATE_UNKNOWN
+
         return True
 
     @property
