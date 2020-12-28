@@ -2,7 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge&cacheSeconds=3600)](https://github.com/custom-components/hacs)
 [![size_badge](https://img.shields.io/github/repo-size/gjohansson-ST/sector?style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector)
-[![version_badge](https://img.shields.io/github/v/release/gjohansson-ST/sector?label=Latest%20release&style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector)
+[![version_badge](https://img.shields.io/github/v/release/gjohansson-ST/sector?label=Latest%20release&style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector/releases/latest)
 
 
 # Integratation to Sector Alarm
@@ -47,6 +47,8 @@ Follow onscreen information to type username, password, code etc.
 No restart needed
 
 ### Option 2
+
+#### Option 2 to use yaml code will be depriciated shortly. Use option 1 as mentioned below.
 
 To start Sector Alarm in your installation, add the following to your `configuration.yaml` file:
 
