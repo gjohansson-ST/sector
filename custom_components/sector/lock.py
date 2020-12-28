@@ -145,40 +145,30 @@ class SectorAlarmLock(SectorAlarmLockDevice):
     def is_locked(self):
         return self._state == STATE_LOCKED
 
-    async def unlock(self, **kwargs):
+    async def async_unlock(self, **kwargs):
         command = "unlock"
-        _LOGGER.debug("Sector: command is %s", command)
-        _LOGGER.debug("Sector: self._code is %s", self._code)
+        _LOGGER.debug("Lock: command is %s", command)
+        _LOGGER.debug("Lock: self._code is %s", self._code)
         code = kwargs.get(ATTR_CODE, self._code)
-        _LOGGER.debug("Sector: code is %s", code)
+        _LOGGER.debug("Lock: code is %s", code)
         if code is None:
-            _LOGGER.debug("Sector: No code supplied")
-            return False
+            _LOGGER.debug("Lock: No code supplied")
+            return
 
-        state = await self._hub.triggerlock(self._serial, code, command)
-        _LOGGER.debug("Sector: state is %s", state)
-        if state:
-            self._state = STATE_UNLOCKED
-            _LOGGER.debug("Sector: self._state is %s", self._state)
-            return True
+        await self._hub.triggerlock(self._serial, code, command)
+        _LOGGER.debug("Lock: Sent command to trigger lock")
+        self._state = STATE_LOCKED
 
-        return False
-
-    async def lock(self, **kwargs):
+    async def async_lock(self, **kwargs):
         command = "lock"
-        _LOGGER.debug("Sector: command is %s", command)
-        _LOGGER.debug("Sector: self._code is %s", self._code)
+        _LOGGER.debug("Lock: command is %s", command)
+        _LOGGER.debug("Lock: self._code is %s", self._code)
         code = kwargs.get(ATTR_CODE, self._code)
-        _LOGGER.debug("Sector: code is %s", code)
+        _LOGGER.debug("Lock: code is %s", code)
         if code is None:
-            _LOGGER.debug("Sector: No code supplied")
-            return False
+            _LOGGER.debug("Lock: No code supplied")
+            return
 
-        state = await self._hub.triggerlock(self._serial, code, command)
-        _LOGGER.debug("Sector: state is %s", state)
-        if state:
-            self._state = STATE_LOCKED
-            _LOGGER.debug("Sector: self._state is %s", self._state)
-            return True
-
-        return False
+        await self._hub.triggerlock(self._serial, code, command)
+        _LOGGER.debug("Lock: Sent command to trigger lock")
+        self._state = STATE_UNLOCKED

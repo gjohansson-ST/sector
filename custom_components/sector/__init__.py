@@ -128,6 +128,7 @@ async def async_setup_entry(hass, entry):
     )
     await sector_data.async_update(force_update=True)
     hass.data[DOMAIN] = sector_data
+    #unsub = entry.add_update_listener(update_listener)
 
     device_registry = await dr.async_get_registry(hass)
     device_registry.async_get_or_create(
@@ -167,6 +168,9 @@ async def async_setup_entry(hass, entry):
 
     return True
 
+#async def update_listener(hass, entry):
+#    """Handle options update."""
+
 async def async_unload_entry(hass, entry):
     """Unload a config entry."""
 
@@ -179,6 +183,7 @@ async def async_unload_entry(hass, entry):
     if sector_temp == True:
         Platforms.append("sensor")
 
+    #unsub()
     unload_ok = all(
         await asyncio.gather(
             *[
@@ -294,7 +299,6 @@ class SectorAlarmHub(object):
             response = await self._request(API_URL + "/Panel/Lock", json_data=message_json)
 
         await self.async_update(force_update=True)
-        return True
 
     async def triggeralarm(self, command, code):
 
@@ -312,7 +316,6 @@ class SectorAlarmHub(object):
             response = await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
 
         await self.async_update(force_update=True)
-        return True
 
     async def async_update(self, force_update=False):
         """ Fetch updates """
