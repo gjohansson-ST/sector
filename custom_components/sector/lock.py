@@ -130,8 +130,8 @@ class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
     @property
     def code_format(self):
         """Return one or more digits/characters"""
-        return return "^\\d{%s}$" % self._code_format
-        return self._code_format
+        return "^\\d{%s}$" % self._code_format
+        #return self._code_format
 
     @property
     def device_state_attributes(self):
