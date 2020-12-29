@@ -77,6 +77,10 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
         return f"Sector Alarmpanel {self._hub.alarm_id}"
 
     @property
+    def available(self):
+        return True
+
+    @property
     def changed_by(self):
         return self._hub.alarm_changed_by
 
