@@ -9,39 +9,12 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 from homeassistant.const import DEVICE_CLASS_TEMPERATURE
-
-#import custom_components.sector as sector
-
-DEPENDENCIES = ["sector"]
-DOMAIN = "sector"
-DEFAULT_NAME = "sector"
-
-CONF_USERID = "userid"
-CONF_PASSWORD = "password"
-CONF_CODE_FORMAT = "code_format"
-CONF_CODE = "code"
-CONF_TEMP = "temp"
-CONF_LOCK = "lock"
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """
-    sector_hub = hass.data[sector.DOMAIN]
-
-    thermometers = await sector_hub.get_thermometers()
-
-    tempsensors = []
-    for sensor in thermometers:
-        name = await sector_hub.get_name(sensor, "temp")
-        _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, sensor)
-        tempsensors.append(SectorAlarmTemperatureSensor(sector_hub, sensor, name))
-
-    if tempsensors is not None and tempsensors != []:
-            async_add_entities(tempsensors)
-    else:
-        return False
-    """
+    """ No setup from yaml """
     return True
 
 async def async_setup_entry(hass, entry, async_add_entities):

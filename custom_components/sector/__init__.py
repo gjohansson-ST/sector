@@ -30,19 +30,21 @@ from homeassistant.const import (
     STATE_UNLOCKED,
 )
 
+from .const import (
+    DOMAIN,
+    DEPENDENCIES,
+    CONF_USERID,
+    CONF_PASSWORD,
+    CONF_CODE_FORMAT,
+    CONF_CODE,
+    CONF_TEMP,
+    CONF_LOCK,
+    UPDATE_INTERVAL,
+    MIN_SCAN_INTERVAL,
+    API_URL,
+)
+
 _LOGGER = logging.getLogger(__name__)
-
-DOMAIN = "sector"
-DEFAULT_NAME = "sector"
-
-CONF_USERID = "userid"
-CONF_PASSWORD = "password"
-CONF_CODE_FORMAT = "code_format"
-CONF_CODE = "code"
-CONF_TEMP = "temp"
-CONF_LOCK = "lock"
-UPDATE_INTERVAL = "timesync"
-MIN_SCAN_INTERVAL = 30
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -51,7 +53,6 @@ CONFIG_SCHEMA = vol.Schema(
             vol.Required(CONF_USERID): cv.string,
             vol.Required(CONF_PASSWORD): cv.string,
             vol.Optional(CONF_CODE, default=""): cv.string,
-            #vol.Optional(CONF_CODE_FORMAT, default="^\\d{4,6}$"): cv.string,
             vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
             vol.Optional(CONF_TEMP, default=True): cv.boolean,
             vol.Optional(CONF_LOCK, default=True): cv.boolean,
@@ -62,64 +63,8 @@ CONFIG_SCHEMA = vol.Schema(
     extra=vol.ALLOW_EXTRA,
 )
 
-API_URL = "https://mypagesapi.sectoralarm.net/api"
-
-
 async def async_setup(hass, config):
-    """
-    conf = config.get(DOMAIN)
-    if conf is None:
-        return True
-
-    userid = config[DOMAIN][CONF_USERID]
-    password = config[DOMAIN][CONF_PASSWORD]
-    sector_lock = config[DOMAIN][CONF_LOCK]
-    sector_temp = config[DOMAIN][CONF_TEMP]
-
-    sector_data = SectorAlarmHub(
-    sector_lock, sector_temp, userid, password, websession=async_get_clientsession(hass)
-    )
-    await sector_data.async_update(force_update=True)
-    hass.data[DOMAIN] = sector_data
-
-    panel_data = await sector_data.get_panel()
-    if panel_data is None:
-        _LOGGER.error("Platform not ready")
-        raise PlatformNotReady
-        return False
-    else:
-        hass.async_create_task(
-                discovery.async_load_platform(
-                    hass,
-                    "alarm_control_panel",
-                    DOMAIN,
-                    {
-                        CONF_CODE_FORMAT: config[DOMAIN][CONF_CODE_FORMAT],
-                        CONF_CODE: config[DOMAIN][CONF_CODE],
-                    },
-                    config,
-                )
-            )
-
-    temp_data = await sector_data.get_thermometers()
-    if temp_data is None or temp_data == [] or sector_temp == False:
-        _LOGGER.debug("Temp not configured")
-    else:
-        hass.async_create_task(
-                discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
-            )
-
-    lock_data = await sector_data.get_locks()
-    if lock_data is None or lock_data == [] or sector_lock == False:
-        _LOGGER.debug("Lock not configured")
-    else:
-        hass.async_create_task(
-                discovery.async_load_platform(
-                    hass, 'lock', DOMAIN, {
-                        CONF_CODE_FORMAT: config[DOMAIN][CONF_CODE_FORMAT],
-                        CONF_CODE: config[DOMAIN][CONF_CODE]
-                    }, config))
-    """
+    """ No setup from yaml """
     return True
 
 async def async_migrate_entry(hass, entry):
@@ -176,10 +121,8 @@ async def async_setup_entry(hass, entry):
     coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
-        # Name of the data. For logging purposes.
         name="sector_api",
         update_method=async_update_data,
-        # Polling interval. Will only be polled if there are subscribers.
         update_interval=timedelta(seconds=entry.options[UPDATE_INTERVAL]),
     )
 

@@ -10,30 +10,29 @@ from homeassistant.core import callback
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-API_URL = "https://mypagesapi.sectoralarm.net/api"
-DOMAIN = "sector"
-DEFAULT_NAME = "sector"
-
-CONF_USERID = "userid"
-CONF_PASSWORD = "password"
-CONF_CODE_FORMAT = "code_format"
-CONF_CODE = "code"
-CONF_TEMP = "temp"
-CONF_LOCK = "lock"
-UPDATE_INTERVAL = "timesync"
-MIN_SCAN_INTERVAL = 30
+from .const import (
+    DOMAIN,
+    CONF_USERID,
+    CONF_PASSWORD,
+    CONF_CODE_FORMAT,
+    CONF_CODE,
+    CONF_TEMP,
+    CONF_LOCK,
+    UPDATE_INTERVAL,
+    MIN_SCAN_INTERVAL,
+    API_URL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 DATA_SCHEMA = vol.Schema(
     {
-    vol.Required(CONF_USERID): str,
-    vol.Required(CONF_PASSWORD): str,
-    vol.Optional(CONF_CODE, default=""): str,
-    #vol.Optional(CONF_CODE_FORMAT, default="^\\d{4,6}$"): str,
-    vol.Optional(CONF_CODE_FORMAT, default=6): int,
-    vol.Optional(CONF_TEMP, default=True): bool,
-    vol.Optional(CONF_LOCK, default=True): bool
+    vol.Required(CONF_USERID): cv.string,
+    vol.Required(CONF_PASSWORD): cv.string,
+    vol.Optional(CONF_CODE, default=""): cv.string,
+    vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
+    vol.Optional(CONF_TEMP, default=True): cv.boolean,
+    vol.Optional(CONF_LOCK, default=True): cv.boolean
     }
 )
 
@@ -103,30 +102,36 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
+            userid = user_input[CONF_USERID].replace(" ", "")
+            password = user_input[CONF_PASSWORD].replace(" ", "")
             try:
-                userid = user_input[CONF_USERID].replace(" ", "")
-                password = user_input[CONF_PASSWORD].replace(" ", "")
                 panel_id = await validate_input(self.hass, userid, password)
-                unique_id = "sa_"+panel_id
-                await self.async_set_unique_id(unique_id)
-                self._abort_if_unique_id_configured()
-
-                return self.async_create_entry(
-                    title=unique_id, data={
-                    CONF_USERID: userid,
-                    CONF_PASSWORD: password,
-                    CONF_CODE: user_input[CONF_CODE].replace(" ", ""),
-                    CONF_CODE_FORMAT: user_input[CONF_CODE_FORMAT].replace(" ", ""),
-                    CONF_TEMP: user_input[CONF_TEMP],
-                    CONF_LOCK: user_input[CONF_LOCK],
-                    },
-                )
-                _LOGGER.info("Login succesful. Config entry created.")
 
             except AlreadyConfigured:
                 return self.async_abort(reason="already_configured")
             except CannotConnect:
-                errors["base"] = "connection_error"
+                return self.async_show_form(
+                step_id="user",
+                data_schema=DATA_SCHEMA,
+                errors={"base": "connection_error"},
+                description_placeholders={},
+                )
+
+            unique_id = "sa_"+panel_id
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured()
+
+            return self.async_create_entry(
+                title=unique_id, data={
+                CONF_USERID: userid,
+                CONF_PASSWORD: password,
+                CONF_CODE: user_input[CONF_CODE].replace(" ", ""),
+                CONF_CODE_FORMAT: user_input[CONF_CODE_FORMAT].replace(" ", ""),
+                CONF_TEMP: user_input[CONF_TEMP],
+                CONF_LOCK: user_input[CONF_LOCK],
+                },
+            )
+            _LOGGER.info("Login succesful. Config entry created.")
 
         return self.async_show_form(
             step_id="user", data_schema=DATA_SCHEMA, errors=errors,

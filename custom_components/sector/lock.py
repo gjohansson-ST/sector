@@ -9,43 +9,16 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.const import (ATTR_CODE, STATE_LOCKED, STATE_UNKNOWN,
                                  STATE_UNLOCKED)
-
-#import custom_components.sector as sector
-
-DEPENDENCIES = ['sector']
-DOMAIN = "sector"
-DEFAULT_NAME = "sector"
-
-CONF_USERID = "userid"
-CONF_PASSWORD = "password"
-CONF_CODE_FORMAT = "code_format"
-CONF_CODE = "code"
-CONF_TEMP = "temp"
-CONF_LOCK = "lock"
+from .const import (
+    DOMAIN,
+    CONF_CODE,
+    CONF_CODE_FORMAT,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """
-    sector_hub = hass.data[sector.DOMAIN]
-    code = discovery_info[sector.CONF_CODE]
-    code_format = discovery_info[sector.CONF_CODE_FORMAT]
-
-    locks = await sector_hub.get_locks()
-
-    lockdevices = []
-    for lock in locks:
-        name = await sector_hub.get_name(lock, "lock")
-        autolock = await sector_hub.get_autolock(lock)
-        _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, lock)
-        _LOGGER.debug("Sector: Fetched Autlock %s for serial %s", autolock, lock)
-        lockdevices.append(SectorAlarmLock(sector_hub, code, code_format, lock, name, autolock))
-
-    if lockdevices is not None and lockdevices != []:
-        async_add_entities(lockdevices)
-    else:
-        return False
-    """
+    """ No setup from yaml """
     return True
 
 async def async_setup_entry(hass, entry, async_add_entities):

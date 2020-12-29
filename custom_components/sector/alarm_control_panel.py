@@ -19,32 +19,15 @@ from homeassistant.const import (
     STATE_ALARM_DISARMED,
     STATE_ALARM_PENDING,
 )
-
-#import custom_components.sector as sector
-
-DEPENDENCIES = ["sector"]
-DOMAIN = "sector"
-DEFAULT_NAME = "sector"
-
-CONF_USERID = "userid"
-CONF_PASSWORD = "password"
-CONF_CODE_FORMAT = "code_format"
-CONF_CODE = "code"
-CONF_TEMP = "temp"
-CONF_LOCK = "lock"
+from .const import (
+    DOMAIN,
+    CONF_CODE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """
-    sector_hub = hass.data[sector.DOMAIN]
-    code = discovery_info[sector.CONF_CODE]
-    code_format = discovery_info[sector.CONF_CODE_FORMAT]
-
-    async_add_entities([
-        SectorAlarmPanel(sector_hub, code, code_format)
-        ])
-    """
+    """ No setup from yaml """
     return True
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -52,10 +35,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
     sector_hub = hass.data[DOMAIN][entry.entry_id]["api"]
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     code = entry.data[CONF_CODE]
-    code_format = entry.data[CONF_CODE_FORMAT]
 
     async_add_entities([
-        SectorAlarmPanel(sector_hub, coordinator, code, code_format)
+        SectorAlarmPanel(sector_hub, coordinator, code)
         ])
 
     return True
@@ -80,7 +62,6 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
         self._hub = hub
         super().__init__(coordinator)
         self._code = code if code != "" else None
-        self._code_format = code_format
         self._state = STATE_ALARM_PENDING
         self._changed_by = None
         self._displayname = self._hub.alarm_displayname
@@ -115,7 +96,6 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
     def code_format(self):
         """Return one or more digits/characters."""
         return FORMAT_NUMBER
-        #return self._code_format if self._code_format != "" else None
 
     @property
     def device_state_attributes(self):
