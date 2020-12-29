@@ -478,7 +478,7 @@ class SectorAlarmHub(object):
                 )
 
                 if response.status == 401:
-                    self._access_token = None or password")
+                    self._access_token = None
                     return None
 
                 if response.status == 200 or response.status == 204:
