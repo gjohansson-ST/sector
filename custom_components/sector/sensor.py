@@ -4,9 +4,13 @@ import asyncio
 from datetime import timedelta
 from homeassistant.const import TEMP_CELSIUS
 from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    UpdateFailed,
+)
 from homeassistant.const import DEVICE_CLASS_TEMPERATURE
 
-import custom_components.sector as sector
+#import custom_components.sector as sector
 
 DEPENDENCIES = ["sector"]
 DOMAIN = "sector"
@@ -21,10 +25,8 @@ CONF_LOCK = "lock"
 
 _LOGGER = logging.getLogger(__name__)
 
-SCAN_INTERVAL = timedelta(seconds=10)
-
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-
+    """
     sector_hub = hass.data[sector.DOMAIN]
 
     thermometers = await sector_hub.get_thermometers()
@@ -39,12 +41,13 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             async_add_entities(tempsensors)
     else:
         return False
-
+    """
     return True
 
 async def async_setup_entry(hass, entry, async_add_entities):
 
-    sector_hub = hass.data[DOMAIN]
+    sector_hub = hass.data[DOMAIN][entry.entry_id]["api"]
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     thermometers = await sector_hub.get_thermometers()
 
@@ -52,7 +55,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     for sensor in thermometers:
         name = await sector_hub.get_name(sensor, "temp")
         _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, sensor)
-        tempsensors.append(SectorAlarmTemperatureSensor(sector_hub, sensor, name))
+        tempsensors.append(SectorAlarmTemperatureSensor(sector_hub, coordinator, sensor, name))
 
     if tempsensors is not None and tempsensors != []:
             async_add_entities(tempsensors)
@@ -75,10 +78,11 @@ class SectorAlarmTemperatureDevice(Entity):
             "via_device": (DOMAIN, "sa_hub_"+str(self._hub.alarm_id)),
         }
 
-class SectorAlarmTemperatureSensor(SectorAlarmTemperatureDevice):
+class SectorAlarmTemperatureSensor(CoordinatorEntity, SectorAlarmTemperatureDevice):
 
-    def __init__(self, hub, sensor, name):
+    def __init__(self, hub, coordinator, sensor, name):
         self._hub = hub
+        super().__init__(coordinator)
         self._serial = sensor
         self._name = name
         self._state = None
@@ -100,12 +104,6 @@ class SectorAlarmTemperatureSensor(SectorAlarmTemperatureDevice):
     def unit_of_measurement(self):
         return self._uom
 
-    async def async_update(self):
-        update = await self._hub.async_update()
-        state = self._hub.temp_state[self._serial]
-        self._state = state
-        return True
-
     @property
     def device_class(self):
         return self._deviceclass
@@ -113,6 +111,7 @@ class SectorAlarmTemperatureSensor(SectorAlarmTemperatureDevice):
 
     @property
     def state(self):
+        self._state = self._hub.temp_state[self._serial]
         return self._state
 
     @property

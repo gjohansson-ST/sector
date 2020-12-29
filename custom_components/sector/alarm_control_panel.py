@@ -5,6 +5,10 @@ from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     FORMAT_NUMBER,
 )
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    UpdateFailed,
+)
 from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_AWAY,
     SUPPORT_ALARM_ARM_HOME,
@@ -16,7 +20,7 @@ from homeassistant.const import (
     STATE_ALARM_PENDING,
 )
 
-import custom_components.sector as sector
+#import custom_components.sector as sector
 
 DEPENDENCIES = ["sector"]
 DOMAIN = "sector"
@@ -31,10 +35,8 @@ CONF_LOCK = "lock"
 
 _LOGGER = logging.getLogger(__name__)
 
-SCAN_INTERVAL = timedelta(seconds=10)
-
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-
+    """
     sector_hub = hass.data[sector.DOMAIN]
     code = discovery_info[sector.CONF_CODE]
     code_format = discovery_info[sector.CONF_CODE_FORMAT]
@@ -42,16 +44,21 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     async_add_entities([
         SectorAlarmPanel(sector_hub, code, code_format)
         ])
+    """
+    return True
 
 async def async_setup_entry(hass, entry, async_add_entities):
 
-    sector_hub = hass.data[DOMAIN]
+    sector_hub = hass.data[DOMAIN][entry.entry_id]["api"]
+    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     code = entry.data[CONF_CODE]
     code_format = entry.data[CONF_CODE_FORMAT]
 
     async_add_entities([
-        SectorAlarmPanel(sector_hub, code, code_format)
+        SectorAlarmPanel(sector_hub, coordinator, code, code_format)
         ])
+
+    return True
 
 class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
 
@@ -67,10 +74,11 @@ class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
             "via_device": (DOMAIN, f"sa_hub_{str(self._hub.alarm_id)}"),
         }
 
-class SectorAlarmPanel(SectorAlarmAlarmDevice):
+class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
-    def __init__(self, hub, code, code_format):
+    def __init__(self, hub, coordinator, code, code_format):
         self._hub = hub
+        super().__init__(coordinator)
         self._code = code if code != "" else None
         self._code_format = code_format
         self._state = STATE_ALARM_PENDING
@@ -160,8 +168,3 @@ class SectorAlarmPanel(SectorAlarmAlarmDevice):
             self._state = STATE_ALARM_ARMED_AWAY
             return True
         return False
-
-    async def async_update(self):
-        update = await self._hub.async_update()
-
-        return True

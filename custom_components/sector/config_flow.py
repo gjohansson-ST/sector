@@ -4,7 +4,9 @@ import logging
 import voluptuous as vol
 import aiohttp
 
+import homeassistant.helpers.config_validation as cv
 from homeassistant import config_entries, core, exceptions
+from homeassistant.core import callback
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -18,6 +20,8 @@ CONF_CODE_FORMAT = "code_format"
 CONF_CODE = "code"
 CONF_TEMP = "temp"
 CONF_LOCK = "lock"
+UPDATE_INTERVAL = "timesync"
+MIN_SCAN_INTERVAL = 30
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,7 +30,8 @@ DATA_SCHEMA = vol.Schema(
     vol.Required(CONF_USERID): str,
     vol.Required(CONF_PASSWORD): str,
     vol.Optional(CONF_CODE, default=""): str,
-    vol.Optional(CONF_CODE_FORMAT, default="^\\d{4,6}$"): str,
+    #vol.Optional(CONF_CODE_FORMAT, default="^\\d{4,6}$"): str,
+    vol.Optional(CONF_CODE_FORMAT, default=6): int,
     vol.Optional(CONF_TEMP, default=True): bool,
     vol.Optional(CONF_LOCK, default=True): bool
     }
@@ -84,13 +89,14 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
 class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Sector integration."""
 
-    VERSION = 1
+    VERSION = 2
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
-    #@staticmethod
-    #def async_get_options_flow(config_entry):
-    #    """Get the options flow for this handler."""
-    #    return SectorOptionFlow(config_entry)
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return SectorOptionFlow(config_entry)
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -126,31 +132,31 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=DATA_SCHEMA, errors=errors,
         )
 
-#class SectorOptionFlow(config_entries.OptionsFlow):
+class SectorOptionFlow(config_entries.OptionsFlow):
 
-#    def __init__(self, config_entry):
-#        self.config_entry = config_entry
-#        self.options = dict(config_entry.options)
+    def __init__(self, config_entry):
+        self.config_entry = config_entry
 
-#    async def async_step_init(self, user_input=None):
-#        """Manage the Sector options."""
-#        if user_input is not None:
-#            return self.async_create_entry(
-#                title=self.config_entry
-#                , data=user_input
-#                )
+    async def async_step_init(self, user_input=None):
+        """Manage the Sector options."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title=""
+                , data=user_input
+                )
 
-#        return self.async_show_form(
-#            step_id="init",
-#            data_schema=vol.Schema(
-#                {
-#                    vol.Required(
-#                        "show_things",
-#                        default=self.config_entry.options.get("show_things"),
-#                    ): bool
-#                }
-#            ),
-#        )
+        data_schema = vol.Schema(
+                        {
+                            vol.Required(
+                                UPDATE_INTERVAL,
+                                default=self.config_entry.options.get(
+                                UPDATE_INTERVAL, 60
+                            ),
+                            ): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
+                        }
+                    )
+
+        return self.async_show_form(step_id="init", data_schema=data_schema)
 
 
 class CannotConnect(exceptions.HomeAssistantError):

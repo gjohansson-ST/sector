@@ -13,7 +13,7 @@
                     "userid": "E-mail address",
                     "password": "Password",
                     "code": "Code to arm/disarm alarm or open/close doorlock",
-                    "code_format": "Default 4-6 digits",
+                    "code_format": "Default 6 digits",
                     "temp": "Enable Temp sensors",
                     "lock": "Enable Door locks"
                 },
@@ -25,14 +25,10 @@
     },
     "options": {
         "step": {
-            "user": {
+            "init": {
                 "data": {
-                    "code": "Code to arm/disarm alarm or open/close door lock",
-                    "code_format": "Default 4-6 digits",
-                    "temp": "Enable Temp sensors",
-                    "lock": "Enable Door locks"
+                    "timesync": "Update frequency. Don't set too low!"
                 },
-                "description": "Integration with Sector Alarm.",
                 "title": "Sector Alarm Options"
             }
         }

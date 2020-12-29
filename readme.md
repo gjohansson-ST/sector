@@ -40,35 +40,13 @@ Restart before proceeding
 
 ## Activate integration in HA
 
-### Option 1
-
 After installation go to "Integrations" page in HA, press + and search for Sector Alarm
 Follow onscreen information to type username, password, code etc.
 No restart needed
 
-### Option 2
+### Options
 
-#### Option 2 to use yaml code will be depriciated shortly. Use option 1 as mentioned below.
+After activating the integration there is an option to adjust the frequence off polling.
+Any value below 60 seconds will most likely get your account locked
 
-To start Sector Alarm in your installation, add the following to your `configuration.yaml` file:
-
-```yaml
-# Configuration.yaml entry
-sector:
-  userid: !secret sector_alarm_email   #email registered with Sector Alarm
-  password: !secret sector_alarm_pwd   #password registered with Sector Alarm
-  code: !secret sector_alarm_code      #Alarm code neccessary to open/close lock and arm/disarm alarmpanel
-  temp: true                           #true/false to activate temperature sensors, default is true (if exist in SA system)
-  lock: true                           #true/false to activate lock, default is true (if exist in SA system)
-```
-
-```yaml
-# Example configuration.yaml entry
-sector:
-  userid: email@gmail.com
-  password: VerySecretPassword
-  code: "123456"
-  temp: true
-  lock: true
-```
-Dont forget to restart after changing your config file
+### Option to use yaml to configure the integration has from version 0.3 been depreciated!
