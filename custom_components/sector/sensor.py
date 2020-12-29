@@ -74,6 +74,10 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SectorAlarmTemperatureDevi
         return "Sector "+str(self._name)+" "+str(self._serial)
 
     @property
+    def available(self):
+        return True
+
+    @property
     def unit_of_measurement(self):
         return self._uom
 

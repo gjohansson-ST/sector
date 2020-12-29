@@ -445,19 +445,15 @@ class SectorAlarmHub(object):
 
         except aiohttp.ClientConnectorError as e:
             _LOGGER.error("ClientError connecting to Sector: %s ", e, exc_info=True)
-            raise CannotConnectError from e
 
         except aiohttp.ContentTypeError as e:
-            _LOGGER.error("ContentTypeError connecting to Sector: %s ", c)
-            raise CannotConnectError from e
+            _LOGGER.error("ContentTypeError connecting to Sector: %s ", e)
 
         except asyncio.TimeoutError:
             _LOGGER.error("Timed out when connecting to Sector")
-            raise OperationError("Timeout")
 
         except asyncio.CancelledError:
             _LOGGER.error("Task was cancelled")
-            raise OperationError("Cancelled")
 
         return None
 
@@ -482,8 +478,7 @@ class SectorAlarmHub(object):
                 )
 
                 if response.status == 401:
-                    self._access_token = None
-                    raise UnauthorizedError("Invalid username or password")
+                    self._access_token = None or password")
                     return None
 
                 if response.status == 200 or response.status == 204:
@@ -491,23 +486,17 @@ class SectorAlarmHub(object):
                     self._access_token = token_data['AuthorizationToken']
                     return self._access_token
 
-                return None
-
         except aiohttp.ClientConnectorError as e:
             _LOGGER.error("ClientError connecting to Sector: %s ", e, exc_info=True)
-            raise CannotConnectError from e
 
         except aiohttp.ContentTypeError as c:
             _LOGGER.error("ContentTypeError connecting to Sector: %s ", c)
-            raise CannotConnectError from c
 
         except asyncio.TimeoutError:
             _LOGGER.error("Timed out when connecting to Sector")
-            raise OperationError("Timeout")
 
         except asyncio.CancelledError:
             _LOGGER.error("Task was cancelled")
-            raise OperationError("Cancelled")
 
         return None
 
