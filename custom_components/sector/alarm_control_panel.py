@@ -58,7 +58,7 @@ class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
 
 class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
-    def __init__(self, hub, coordinator, code, code_format):
+    def __init__(self, hub, coordinator, code):
         self._hub = hub
         super().__init__(coordinator)
         self._code = code if code != "" else None
