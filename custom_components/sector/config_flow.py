@@ -126,7 +126,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_USERID: userid,
                 CONF_PASSWORD: password,
                 CONF_CODE: user_input[CONF_CODE].replace(" ", ""),
-                CONF_CODE_FORMAT: user_input[CONF_CODE_FORMAT].replace(" ", ""),
+                CONF_CODE_FORMAT: user_input[CONF_CODE_FORMAT],
                 CONF_TEMP: user_input[CONF_TEMP],
                 CONF_LOCK: user_input[CONF_LOCK],
                 },
