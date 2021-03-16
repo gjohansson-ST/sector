@@ -90,7 +90,7 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
     @property
     def code_arm_required(self):
-        return True
+        return False
 
     @property
     def state(self):
@@ -116,14 +116,17 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
     async def async_alarm_arm_home(self, code=None):
         command = "partial"
-        if not self._validate_code(code):
+        if self.code_arm_required and not self._validate_code(code):
             return
+        else:
+            code=self._code
 
         _LOGGER.debug("Trying to arm home Sector Alarm")
         result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Armed home Sector Alarm")
             self._state = STATE_ALARM_ARMED_HOME
+            await self.coordinator.async_refresh()
             return True
         return False
 
@@ -137,18 +140,22 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
         if result:
             _LOGGER.debug("Disarmed Sector Alarm")
             self._state = STATE_ALARM_DISARMED
+            await self.coordinator.async_refresh()
             return True
         return False
 
     async def async_alarm_arm_away(self, code=None):
         command = "full"
-        if not self._validate_code(code):
+        if self.code_arm_required and not self._validate_code(code):
             return
+        else:
+            code=self._code
 
         _LOGGER.debug("Trying to arm away Sector Alarm")
         result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Armed away Sector Alarm")
             self._state = STATE_ALARM_ARMED_AWAY
+            await self.coordinator.async_refresh()
             return True
         return False
