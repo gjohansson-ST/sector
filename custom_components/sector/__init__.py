@@ -340,6 +340,13 @@ class SectorAlarmHub(object):
             response = await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
 
         await self.fetch_info()
+        
+        if command == "full":
+            return self._alarmstatus == 3
+        elif command == "partial":
+            return self._alarmstatus == 2
+        else:
+            return self._alarmstatus == 1
 
     async def fetch_info(self):
         """ Fetch info from API """
