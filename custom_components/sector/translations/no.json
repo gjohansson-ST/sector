@@ -1,0 +1,36 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Kontoen er allerede konfigurert"
+        },
+        "error": {
+            "auth_error": "Brukernavn og / eller passord er feil",
+            "connection_error": "Tilkobling mislyktes"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "userid": "Epostadresse",
+                    "password": "Passord",
+                    "code": "CKode for å aktivere / deaktivere alarm eller åpne / lukke dørlås",
+                    "code_format": "Standard 6 sifre",
+                    "temp": "Aktiver Temp-sensorer",
+                    "lock": "Aktiver dørlåser"
+                },
+                "description": "Integrasjon med Sector Alarm",
+                "title": "Sector Alarm"
+            }
+        },
+        "title": "Sector Alarm"
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "timesync": "Oppdater frekvensen. Ikke sett for lavt!"
+                },
+                "title": "Sector Alarm Options"
+            }
+        }
+    }
+}

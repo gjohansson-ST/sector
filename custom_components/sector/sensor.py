@@ -88,7 +88,10 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SectorAlarmTemperatureDevi
 
     @property
     def state(self):
-        self._state = self._hub.temp_state[self._serial]
+        try:
+            self._state = self._hub.temp_state[self._serial]
+        except:
+            return None
         return self._state
 
     @property

@@ -1,0 +1,36 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Kontot existerar redan"
+        },
+        "error": {
+            "auth_error": "Användarnamn eller lösenord är inte korrekt",
+            "connection_error": "Kunde inte ansluta
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "userid": "E-post adress",
+                    "password": "Lösenord",
+                    "code": "Kod för att larma/avlarma eller öppna/stänga dörren",
+                    "code_format": "Default 6 siffror",
+                    "temp": "Använd temp sensorer",
+                    "lock": "Använd dörrlåset"
+                },
+                "description": "Integrera med Sector Alarm",
+                "title": "Sector Alarm"
+            }
+        },
+        "title": "Sector Alarm"
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "timesync": "Uppdateringsfrekvens. Sätt inte för lågt!"
+                },
+                "title": "Sector Alarm Alternativ"
+            }
+        }
+    }
+}

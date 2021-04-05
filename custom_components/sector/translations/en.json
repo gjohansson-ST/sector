@@ -4,7 +4,7 @@
             "already_configured": "Account is already configured"
         },
         "error": {
-            "auth_error": "Username and/or password is incorrect.",
+            "auth_error": "Username and/or password is incorrect",
             "connection_error": "Failed to connect"
         },
         "step": {
