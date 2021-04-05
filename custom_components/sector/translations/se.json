@@ -5,7 +5,7 @@
         },
         "error": {
             "auth_error": "Användarnamn eller lösenord är inte korrekt",
-            "connection_error": "Kunde inte ansluta
+            "connection_error": "Kunde inte ansluta"
         },
         "step": {
             "user": {
