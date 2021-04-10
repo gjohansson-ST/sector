@@ -7,8 +7,7 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     UpdateFailed,
 )
-from homeassistant.const import (ATTR_CODE, STATE_LOCKED, STATE_UNKNOWN,
-                                 STATE_UNLOCKED)
+from homeassistant.const import ATTR_CODE, STATE_LOCKED, STATE_UNKNOWN, STATE_UNLOCKED
 from .const import (
     DOMAIN,
     CONF_CODE,
@@ -17,9 +16,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """ No setup from yaml """
     return True
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
 
@@ -36,7 +37,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
         autolock = await sector_hub.get_autolock(lock)
         _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, lock)
         _LOGGER.debug("Sector: Fetched Autolock %s for serial %s", autolock, lock)
-        lockdevices.append(SectorAlarmLock(sector_hub, coordinator, code, code_format, lock, name, autolock))
+        lockdevices.append(
+            SectorAlarmLock(
+                sector_hub, coordinator, code, code_format, lock, name, autolock
+            )
+        )
 
     if lockdevices is not None and lockdevices != []:
         async_add_entities(lockdevices)
@@ -45,8 +50,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     return True
 
-class SectorAlarmLockDevice(LockEntity):
 
+class SectorAlarmLockDevice(LockEntity):
     @property
     def device_info(self):
         """Return device information."""
@@ -56,11 +61,11 @@ class SectorAlarmLockDevice(LockEntity):
             "manufacturer": "Sector Alarm",
             "model": "Lock",
             "sw_version": "master",
-            "via_device": (DOMAIN, "sa_hub_"+str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, "sa_hub_" + str(self._hub.alarm_id)),
         }
 
-class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
 
+class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
     def __init__(self, hub, coordinator, code, code_format, serial, name, autolock):
         self._hub = hub
         super().__init__(coordinator)
@@ -74,13 +79,11 @@ class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
     @property
     def unique_id(self):
         """Return a unique ID to use for this sensor."""
-        return (
-            "sa_lock_"+str(self._serial)
-        )
+        return "sa_lock_" + str(self._serial)
 
     @property
     def name(self):
-        return "Sector "+str(self._name)+" "+str(self._serial)
+        return "Sector " + str(self._name) + " " + str(self._serial)
 
     @property
     def changed_by(self):
@@ -89,9 +92,9 @@ class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
     @property
     def state(self):
         state = self._hub.lock_state[self._serial]
-        if state == 'lock':
+        if state == "lock":
             return STATE_LOCKED
-        elif state == 'unlock':
+        elif state == "unlock":
             return STATE_UNLOCKED
         else:
             return STATE_UNKNOWN
@@ -104,14 +107,14 @@ class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
     def code_format(self):
         """Return one or more digits/characters"""
         return "^\\d{%s}$" % self._code_format
-        #return self._code_format
+        # return self._code_format
 
     @property
     def device_state_attributes(self):
         return {
             "Name": self._name,
             "Autolock": self._autolock,
-            "Serial No": self._serial
+            "Serial No": self._serial,
         }
 
     @property

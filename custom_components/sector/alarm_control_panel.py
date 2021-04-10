@@ -26,9 +26,11 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """ No setup from yaml """
     return True
+
 
 async def async_setup_entry(hass, entry, async_add_entities):
 
@@ -36,14 +38,12 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     code = entry.data[CONF_CODE]
 
-    async_add_entities([
-        SectorAlarmPanel(sector_hub, coordinator, code)
-        ])
+    async_add_entities([SectorAlarmPanel(sector_hub, coordinator, code)])
 
     return True
 
-class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
 
+class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
     @property
     def device_info(self):
         """Return device information."""
@@ -56,8 +56,8 @@ class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
             "via_device": (DOMAIN, f"sa_hub_{str(self._hub.alarm_id)}"),
         }
 
-class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
+class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
     def __init__(self, hub, coordinator, code):
         self._hub = hub
         super().__init__(coordinator)
@@ -103,10 +103,7 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
     @property
     def device_state_attributes(self):
-        return {
-            "Display name": self._displayname,
-            "Is Online": self._isonline
-        }
+        return {"Display name": self._displayname, "Is Online": self._isonline}
 
     def _validate_code(self, code):
         check = self._code is None or code == self._code
@@ -127,7 +124,6 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
             _LOGGER.debug("Armed home")
             self._state = STATE_ALARM_ARMED_HOME
             await self.coordinator.async_refresh()
-
 
     async def async_alarm_disarm(self, code=None):
         command = "disarm"

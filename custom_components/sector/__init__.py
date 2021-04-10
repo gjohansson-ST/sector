@@ -11,7 +11,11 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.util import Throttle
 from homeassistant.helpers import discovery
-from homeassistant.exceptions import PlatformNotReady, ConfigEntryNotReady, HomeAssistantError
+from homeassistant.exceptions import (
+    PlatformNotReady,
+    ConfigEntryNotReady,
+    HomeAssistantError,
+)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import (
@@ -48,24 +52,28 @@ _LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = vol.Schema(
     {
-    DOMAIN: vol.Schema(
-        {
-            vol.Required(CONF_USERID): cv.string,
-            vol.Required(CONF_PASSWORD): cv.string,
-            vol.Optional(CONF_CODE, default=""): cv.string,
-            vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
-            vol.Optional(CONF_TEMP, default=True): cv.boolean,
-            vol.Optional(CONF_LOCK, default=True): cv.boolean,
-            vol.Required(UPDATE_INTERVAL, default=60): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
-        }
+        DOMAIN: vol.Schema(
+            {
+                vol.Required(CONF_USERID): cv.string,
+                vol.Required(CONF_PASSWORD): cv.string,
+                vol.Optional(CONF_CODE, default=""): cv.string,
+                vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
+                vol.Optional(CONF_TEMP, default=True): cv.boolean,
+                vol.Optional(CONF_LOCK, default=True): cv.boolean,
+                vol.Required(UPDATE_INTERVAL, default=60): vol.All(
+                    cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)
+                ),
+            }
         )
     },
     extra=vol.ALLOW_EXTRA,
 )
 
+
 async def async_setup(hass, config):
     """ No setup from yaml """
     return True
+
 
 async def async_migrate_entry(hass, entry):
     """Migrate old entry."""
@@ -96,15 +104,20 @@ async def async_setup_entry(hass, entry):
     title = entry.title
 
     if UPDATE_INTERVAL not in entry.options:
-        _LOGGER.info("Set 60 seconds as update_interval as default. Adjust in options for integration")
-        hass.config_entries.async_update_entry(
-            entry, options={UPDATE_INTERVAL: 60}
+        _LOGGER.info(
+            "Set 60 seconds as update_interval as default. Adjust in options for integration"
         )
+        hass.config_entries.async_update_entry(entry, options={UPDATE_INTERVAL: 60})
 
     websession = async_get_clientsession(hass)
 
     api = SectorAlarmHub(
-    entry.data[CONF_LOCK], entry.data[CONF_TEMP], entry.data[CONF_USERID], entry.data[CONF_PASSWORD], entry.options.get(UPDATE_INTERVAL, 60), websession=websession
+        entry.data[CONF_LOCK],
+        entry.data[CONF_TEMP],
+        entry.data[CONF_USERID],
+        entry.data[CONF_PASSWORD],
+        entry.options.get(UPDATE_INTERVAL, 60),
+        websession=websession,
     )
 
     async def async_update_data():
@@ -113,7 +126,9 @@ async def async_setup_entry(hass, entry):
         now = datetime.utcnow()
         hass.data[DOMAIN][entry.entry_id]["last_updated"] = now
         _LOGGER.debug(f"UPDATE_INTERVAL = {entry.options[UPDATE_INTERVAL]}")
-        _LOGGER.debug("last updated = %s", hass.data[DOMAIN][entry.entry_id]["last_updated"])
+        _LOGGER.debug(
+            "last updated = %s", hass.data[DOMAIN][entry.entry_id]["last_updated"]
+        )
         await api.fetch_info()
 
         return True
@@ -146,7 +161,7 @@ async def async_setup_entry(hass, entry):
     else:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, "alarm_control_panel")
-            )
+        )
 
     temp_data = await api.get_thermometers()
     if temp_data is None or entry.data[CONF_TEMP] == False:
@@ -154,7 +169,7 @@ async def async_setup_entry(hass, entry):
     else:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, "sensor")
-            )
+        )
 
     lock_data = await api.get_locks()
     if lock_data is None or entry.data[CONF_LOCK] == False:
@@ -162,12 +177,12 @@ async def async_setup_entry(hass, entry):
     else:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, "lock")
-            )
+        )
 
     device_registry = await dr.async_get_registry(hass)
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, "sa_hub_"+str(api.alarm_id))},
+        identifiers={(DOMAIN, "sa_hub_" + str(api.alarm_id))},
         manufacturer="Sector Alarm",
         name="Sector Hub",
         model="Hub",
@@ -175,6 +190,7 @@ async def async_setup_entry(hass, entry):
     )
 
     return True
+
 
 async def update_listener(hass, entry):
     """Update when config_entry options update."""
@@ -220,10 +236,13 @@ async def async_unload_entry(hass, entry):
         return unload_ok
     return False
 
+
 class SectorAlarmHub(object):
     """ Sector connectivity hub """
 
-    def __init__(self, sector_lock, sector_temp, userid, password, timesync, websession):
+    def __init__(
+        self, sector_lock, sector_temp, userid, password, timesync, websession
+    ):
         self._lockstatus = {}
         self._tempstatus = {}
         self._lockdata = None
@@ -270,7 +289,7 @@ class SectorAlarmHub(object):
                 if name["SerialNo"] == serial:
                     _LOGGER.debug("Returning label: %s", name["Label"])
                     return name["Label"]
-            elif command =="lock":
+            elif command == "lock":
                 if name["Serial"] == serial:
                     _LOGGER.debug("Returning label: %s", name["Label"])
                     return name["Label"]
@@ -284,7 +303,9 @@ class SectorAlarmHub(object):
 
         for autolock in autolocks:
             if autolock["Serial"] == serial:
-                _LOGGER.debug("Returning AutoLockEnabled: %s", autolock["AutoLockEnabled"])
+                _LOGGER.debug(
+                    "Returning AutoLockEnabled: %s", autolock["AutoLockEnabled"]
+                )
                 return autolock["AutoLockEnabled"]
 
         return "Not found"
@@ -307,37 +328,42 @@ class SectorAlarmHub(object):
 
         return panel["PanelDisplayName"]
 
-
     async def triggerlock(self, lock, code, command):
 
         message_json = {
-                "LockSerial": lock,
-                "PanelCode": code,
-                "PanelId": self._panel_id,
-                "Platform": "app"
-            }
+            "LockSerial": lock,
+            "PanelCode": code,
+            "PanelId": self._panel_id,
+            "Platform": "app",
+        }
 
         if command == "unlock":
-            response = await self._request(API_URL + "/Panel/Unlock", json_data=message_json)
+            response = await self._request(
+                API_URL + "/Panel/Unlock", json_data=message_json
+            )
         else:
-            response = await self._request(API_URL + "/Panel/Lock", json_data=message_json)
+            response = await self._request(
+                API_URL + "/Panel/Lock", json_data=message_json
+            )
 
         await self.fetch_info(False)
 
     async def triggeralarm(self, command, code):
 
-        message_json = {
-                "PanelCode": code,
-                "PanelId": self._panel_id,
-                "Platform": "app"
-            }
+        message_json = {"PanelCode": code, "PanelId": self._panel_id, "Platform": "app"}
 
         if command == "full":
-            response = await self._request(API_URL + "/Panel/Arm", json_data=message_json)
+            response = await self._request(
+                API_URL + "/Panel/Arm", json_data=message_json
+            )
         elif command == "partial":
-            response = await self._request(API_URL + "/Panel/PartialArm", json_data=message_json)
+            response = await self._request(
+                API_URL + "/Panel/PartialArm", json_data=message_json
+            )
         else:
-            response = await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
+            response = await self._request(
+                API_URL + "/Panel/Disarm", json_data=message_json
+            )
 
         await self.fetch_info(False)
 
@@ -357,51 +383,70 @@ class SectorAlarmHub(object):
         now = datetime.utcnow()
         _LOGGER.debug(f"self._last_updated_temp = {self._last_updated_temp}")
         _LOGGER.debug(f"self._timesync * 5 = {self._timesync*5}")
-        _LOGGER.debug(f"Evaluate should temp sensors update {now - self._last_updated_temp}")
+        _LOGGER.debug(
+            f"Evaluate should temp sensors update {now - self._last_updated_temp}"
+        )
         if tempcheck == False:
             self._update_sensors = False
-        elif (
-            now - self._last_updated_temp < timedelta(seconds=self._timesync * 5):
-        ):
+        elif now - self._last_updated_temp < timedelta(seconds=self._timesync * 5):
             self._update_sensors = False
         else:
             self._update_sensors = True
             self._last_updated_temp = now
 
-        response = await self._request(API_URL + "/Panel/GetPanelStatus?panelId={}".format(self._panel_id))
+        response = await self._request(
+            API_URL + "/Panel/GetPanelStatus?panelId={}".format(self._panel_id)
+        )
         if response is not None:
             json_data = await response.json()
             self._alarmstatus = json_data["Status"]
             _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
 
-        if self._temps != [] and self._sector_temp == True and self._update_sensors == True:
-            response = await self._request(API_URL + "/Panel/GetTemperatures?panelId={}".format(self._panel_id))
+        if (
+            self._temps != []
+            and self._sector_temp == True
+            and self._update_sensors == True
+        ):
+            response = await self._request(
+                API_URL + "/Panel/GetTemperatures?panelId={}".format(self._panel_id)
+            )
             if response is not None:
                 self._tempdata = await response.json()
-                if self._tempdata is not None and self._tempdata != [] and self._sector_temp == True:
+                if (
+                    self._tempdata is not None
+                    and self._tempdata != []
+                    and self._sector_temp == True
+                ):
                     self._tempstatus = {
-                                    temperature["SerialNo"]: temperature["Temprature"]
-                                    for temperature in self._tempdata
-                                }
+                        temperature["SerialNo"]: temperature["Temprature"]
+                        for temperature in self._tempdata
+                    }
                 _LOGGER.debug("self._tempdata = %s", self._tempdata)
 
         if self._locks != [] and self._sector_lock == True:
-            response = await self._request(API_URL + "/Panel/GetLockStatus?panelId={}".format(self._panel_id))
+            response = await self._request(
+                API_URL + "/Panel/GetLockStatus?panelId={}".format(self._panel_id)
+            )
             if response is not None:
                 self._lockdata = await response.json()
-                if self._lockdata is not None and self._lockdata != [] and self._sector_lock == True:
+                if (
+                    self._lockdata is not None
+                    and self._lockdata != []
+                    and self._sector_lock == True
+                ):
                     self._lockstatus = {
-                                    lock["Serial"]: lock["Status"]
-                                    for lock in self._lockdata
-                                }
+                        lock["Serial"]: lock["Status"] for lock in self._lockdata
+                    }
                 _LOGGER.debug("self._lockdata = %s", self._lockdata)
 
-        response = await self._request(API_URL + "/Panel/GetLogs?panelId={}".format(self._panel_id))
+        response = await self._request(
+            API_URL + "/Panel/GetLogs?panelId={}".format(self._panel_id)
+        )
         if response is not None:
             json_data = await response.json()
             for users in json_data:
-                if users['User'] != "" and "arm" in users['EventType']:
-                    self._changed_by = users['User']
+                if users["User"] != "" and "arm" in users["EventType"]:
+                    self._changed_by = users["User"]
                     break
                 else:
                     self._changed_by = "unknown"
@@ -414,14 +459,14 @@ class SectorAlarmHub(object):
                 return None
 
         headers = {
-                    "Authorization": self._access_token,
-                    "API-Version":"6",
-                    "Platform":"iOS",
-                    "User-Agent":"  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
-                    "Version":"2.0.27",
-                    "Connection":"keep-alive",
-                    "Content-Type":"application/json",
-                }
+            "Authorization": self._access_token,
+            "API-Version": "6",
+            "Platform": "iOS",
+            "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+            "Version": "2.0.27",
+            "Connection": "keep-alive",
+            "Content-Type": "application/json",
+        }
 
         try:
             with async_timeout.timeout(self._timeout):
@@ -464,18 +509,18 @@ class SectorAlarmHub(object):
         try:
             with async_timeout.timeout(self._timeout):
                 response = await self.websession.post(
-                f"{API_URL}/Login/Login",
-                headers={
-                        "API-Version":"6",
-                        "Platform":"iOS",
-                        "User-Agent":"  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
-                        "Version":"2.0.27",
-                        "Connection":"keep-alive",
-                        "Content-Type":"application/json",
+                    f"{API_URL}/Login/Login",
+                    headers={
+                        "API-Version": "6",
+                        "Platform": "iOS",
+                        "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                        "Version": "2.0.27",
+                        "Connection": "keep-alive",
+                        "Content-Type": "application/json",
                     },
-                json={
-                    "UserId": self._userid,
-                    "Password": self._password,
+                    json={
+                        "UserId": self._userid,
+                        "Password": self._password,
                     },
                 )
 
@@ -485,7 +530,7 @@ class SectorAlarmHub(object):
 
                 if response.status == 200 or response.status == 204:
                     token_data = await response.json()
-                    self._access_token = token_data['AuthorizationToken']
+                    self._access_token = token_data["AuthorizationToken"]
                     return self._access_token
 
         except aiohttp.ClientConnectorError as e:
@@ -527,22 +572,24 @@ class SectorAlarmHub(object):
 
     @property
     def alarm_id(self):
-        return self._panel['PanelId']
+        return self._panel["PanelId"]
 
     @property
     def alarm_displayname(self):
-        return self._panel['PanelDisplayName']
+        return self._panel["PanelDisplayName"]
 
     @property
     def alarm_isonline(self):
-        return self._panel['IsOnline']
+        return self._panel["IsOnline"]
 
 
 class UnauthorizedError(HomeAssistantError):
     """Exception to indicate an error in authorization."""
 
+
 class CannotConnectError(HomeAssistantError):
     """Exception to indicate an error in client connection."""
+
 
 class OperationError(HomeAssistantError):
     """Exception to indicate an error in operation."""
