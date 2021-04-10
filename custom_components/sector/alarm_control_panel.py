@@ -90,7 +90,7 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
     @property
     def code_arm_required(self):
-        return True
+        return False
 
     @property
     def state(self):
@@ -116,39 +116,43 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
     async def async_alarm_arm_home(self, code=None):
         command = "partial"
-        if not self._validate_code(code):
-            return
+        if code not None:
+            _LOGGER.debug("Trying to arm home with supplied code")
+            if not self._validate_code(code):
+                return
 
         _LOGGER.debug("Trying to arm home Sector Alarm")
         result = await self._hub.triggeralarm(command, code=code)
         if result:
-            _LOGGER.debug("Armed home Sector Alarm")
+            _LOGGER.debug("Armed home")
             self._state = STATE_ALARM_ARMED_HOME
-            return True
-        return False
+            await self.coordinator.async_refresh()
+
 
     async def async_alarm_disarm(self, code=None):
         command = "disarm"
-        if not self._validate_code(code):
-            return
+        if code not None:
+            _LOGGER.debug("Trying to disarm home with supplied code")
+            if not self._validate_code(code):
+                return
 
-        _LOGGER.debug("Trying to disarm Sector Alarm")
+        _LOGGER.debug("Trying to disarm")
         result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Disarmed Sector Alarm")
             self._state = STATE_ALARM_DISARMED
-            return True
-        return False
+            await self.coordinator.async_refresh()
 
     async def async_alarm_arm_away(self, code=None):
         command = "full"
-        if not self._validate_code(code):
-            return
+        if code not None:
+            _LOGGER.debug("Trying to arm away with supplied code")
+            if not self._validate_code(code):
+                return
 
-        _LOGGER.debug("Trying to arm away Sector Alarm")
+        _LOGGER.debug("Trying to arm away")
         result = await self._hub.triggeralarm(command, code=code)
         if result:
             _LOGGER.debug("Armed away Sector Alarm")
             self._state = STATE_ALARM_ARMED_AWAY
-            return True
-        return False
+            await self.coordinator.async_refresh()

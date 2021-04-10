@@ -322,7 +322,7 @@ class SectorAlarmHub(object):
         else:
             response = await self._request(API_URL + "/Panel/Lock", json_data=message_json)
 
-        await self.fetch_info()
+        await self.fetch_info(False)
 
     async def triggeralarm(self, command, code):
 
@@ -339,9 +339,9 @@ class SectorAlarmHub(object):
         else:
             response = await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
 
-        await self.fetch_info()
+        await self.fetch_info(False)
 
-    async def fetch_info(self):
+    async def fetch_info(self, tempcheck=True):
         """ Fetch info from API """
         if self._panel == []:
             response = await self._request(API_URL + "/Panel/getFullSystem")
@@ -358,8 +358,10 @@ class SectorAlarmHub(object):
         _LOGGER.debug(f"self._last_updated_temp = {self._last_updated_temp}")
         _LOGGER.debug(f"self._timesync * 5 = {self._timesync*5}")
         _LOGGER.debug(f"Evaluate should temp sensors update {now - self._last_updated_temp}")
-        if (
-            now - self._last_updated_temp < timedelta(seconds=self._timesync * 5)
+        if tempcheck == False:
+            self._update_sensors = False
+        elif (
+            now - self._last_updated_temp < timedelta(seconds=self._timesync * 5):
         ):
             self._update_sensors = False
         else:
