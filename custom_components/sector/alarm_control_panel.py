@@ -116,7 +116,7 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
     async def async_alarm_arm_home(self, code=None):
         command = "partial"
-        if code not None:
+        if code is not None:
             _LOGGER.debug("Trying to arm home with supplied code")
             if not self._validate_code(code):
                 return
@@ -131,7 +131,7 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
     async def async_alarm_disarm(self, code=None):
         command = "disarm"
-        if code not None:
+        if code is not None:
             _LOGGER.debug("Trying to disarm home with supplied code")
             if not self._validate_code(code):
                 return
@@ -145,7 +145,7 @@ class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
 
     async def async_alarm_arm_away(self, code=None):
         command = "full"
-        if code not None:
+        if code is not None:
             _LOGGER.debug("Trying to arm away with supplied code")
             if not self._validate_code(code):
                 return
