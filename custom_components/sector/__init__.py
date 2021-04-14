@@ -346,7 +346,9 @@ class SectorAlarmHub(object):
                 API_URL + "/Panel/Lock", json_data=message_json
             )
 
-        await self.fetch_info(False)
+        If response is not None:
+            await self.fetch_info(False)
+            return True
 
     async def triggeralarm(self, command, code):
 
@@ -365,7 +367,9 @@ class SectorAlarmHub(object):
                 API_URL + "/Panel/Disarm", json_data=message_json
             )
 
-        await self.fetch_info(False)
+        If response is not None:
+            await self.fetch_info(False)
+            return True
 
     async def fetch_info(self, tempcheck=True):
         """ Fetch info from API """

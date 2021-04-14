@@ -131,10 +131,11 @@ class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
             _LOGGER.debug("Lock: No code supplied")
             return
 
-        await self._hub.triggerlock(self._serial, code, command)
-        _LOGGER.debug("Lock: Sent command to trigger lock")
-        self._state = STATE_LOCKED
-        await self.coordinator.async_refresh()
+        result = await self._hub.triggerlock(self._serial, code, command)
+        if result:
+            _LOGGER.debug("Lock: Sent command to trigger lock")
+            self._state = STATE_LOCKED
+            await self.coordinator.async_refresh()
 
     async def async_lock(self, **kwargs):
         command = "lock"
@@ -146,7 +147,8 @@ class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
             _LOGGER.debug("Lock: No code supplied")
             return
 
-        await self._hub.triggerlock(self._serial, code, command)
-        _LOGGER.debug("Lock: Sent command to trigger lock")
-        self._state = STATE_UNLOCKED
-        await self.coordinator.async_refresh()
+        result = await self._hub.triggerlock(self._serial, code, command)
+        if result:
+            _LOGGER.debug("Lock: Sent command to trigger lock")
+            self._state = STATE_UNLOCKED
+            await self.coordinator.async_refresh()
