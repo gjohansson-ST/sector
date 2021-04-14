@@ -346,7 +346,7 @@ class SectorAlarmHub(object):
                 API_URL + "/Panel/Lock", json_data=message_json
             )
 
-        If response is not None:
+        if response is not None:
             await self.fetch_info(False)
             return True
 
@@ -367,7 +367,7 @@ class SectorAlarmHub(object):
                 API_URL + "/Panel/Disarm", json_data=message_json
             )
 
-        If response is not None:
+        if response is not None:
             await self.fetch_info(False)
             return True
 
