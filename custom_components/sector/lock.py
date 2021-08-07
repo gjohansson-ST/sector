@@ -1,25 +1,13 @@
 """Adds Lock for Sector integration."""
 import logging
-import asyncio
-from datetime import timedelta
+
 from homeassistant.components.lock import LockEntity
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    UpdateFailed,
-)
 from homeassistant.const import ATTR_CODE, STATE_LOCKED, STATE_UNKNOWN, STATE_UNLOCKED
-from .const import (
-    DOMAIN,
-    CONF_CODE,
-    CONF_CODE_FORMAT,
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import CONF_CODE, CONF_CODE_FORMAT, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
-
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """ No setup from yaml """
-    return True
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -105,7 +93,7 @@ class SectorAlarmLock(CoordinatorEntity, SectorAlarmLockDevice):
 
     @property
     def code_format(self):
-        """Return one or more digits/characters"""
+        """Return one or more digits/characters."""
         return "^\\d{%s}$" % self._code_format
         # return self._code_format
 

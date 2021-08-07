@@ -1,13 +1,9 @@
 """Adds Alarm Panel for Sector integration."""
 import logging
-from datetime import timedelta
+
 from homeassistant.components.alarm_control_panel import (
-    AlarmControlPanelEntity,
     FORMAT_NUMBER,
-)
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    UpdateFailed,
+    AlarmControlPanelEntity,
 )
 from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_AWAY,
@@ -19,20 +15,15 @@ from homeassistant.const import (
     STATE_ALARM_DISARMED,
     STATE_ALARM_PENDING,
 )
-from .const import (
-    DOMAIN,
-    CONF_CODE,
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import CONF_CODE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """ No setup from yaml """
-    return True
-
-
 async def async_setup_entry(hass, entry, async_add_entities):
+    """Set up alarm panel from config entry."""
 
     sector_hub = hass.data[DOMAIN][entry.entry_id]["api"]
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]

@@ -1,51 +1,38 @@
-"""SECTOR ALARM INTEGRATION FOR HOME ASSISTANT"""
-import logging
-import json
+"""SECTOR ALARM INTEGRATION FOR HOME ASSISTANT."""
 import asyncio
+from datetime import datetime, timedelta
+import logging
+
 import aiohttp
 import async_timeout
-from datetime import datetime, timedelta
 import voluptuous as vol
-from homeassistant import exceptions
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.entity import Entity
-from homeassistant.util import Throttle
-from homeassistant.helpers import discovery
-from homeassistant.exceptions import (
-    PlatformNotReady,
-    ConfigEntryNotReady,
-    HomeAssistantError,
-)
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.update_coordinator import (
-    DataUpdateCoordinator,
-    UpdateFailed,
-)
+
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
     STATE_ALARM_ARMED_HOME,
     STATE_ALARM_DISARMED,
     STATE_ALARM_PENDING,
 )
-from homeassistant.const import (
-    STATE_LOCKED,
-    STATE_UNKNOWN,
-    STATE_UNLOCKED,
+from homeassistant.exceptions import (
+    ConfigEntryNotReady,
+    HomeAssistantError,
 )
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
-    DOMAIN,
-    DEPENDENCIES,
-    CONF_USERID,
-    CONF_PASSWORD,
-    CONF_CODE_FORMAT,
-    CONF_CODE,
-    CONF_TEMP,
-    CONF_LOCK,
-    UPDATE_INTERVAL,
-    MIN_SCAN_INTERVAL,
     API_URL,
+    CONF_CODE,
+    CONF_CODE_FORMAT,
+    CONF_LOCK,
+    CONF_PASSWORD,
+    CONF_TEMP,
+    CONF_USERID,
+    DOMAIN,
+    MIN_SCAN_INTERVAL,
+    UPDATE_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,11 +55,6 @@ CONFIG_SCHEMA = vol.Schema(
     },
     extra=vol.ALLOW_EXTRA,
 )
-
-
-async def async_setup(hass, config):
-    """ No setup from yaml """
-    return True
 
 
 async def async_migrate_entry(hass, entry):
@@ -99,9 +81,8 @@ async def async_migrate_entry(hass, entry):
 
 
 async def async_setup_entry(hass, entry):
-    """ Setup from config entries """
+    """Set up Sector Alarm as config entry."""
     hass.data.setdefault(DOMAIN, {})
-    title = entry.title
 
     if UPDATE_INTERVAL not in entry.options:
         _LOGGER.info(
@@ -121,7 +102,7 @@ async def async_setup_entry(hass, entry):
     )
 
     async def async_update_data():
-        """ Fetch data """
+        """Fetch data from api."""
 
         now = datetime.utcnow()
         hass.data[DOMAIN][entry.entry_id]["last_updated"] = now
@@ -164,7 +145,7 @@ async def async_setup_entry(hass, entry):
         )
 
     temp_data = await api.get_thermometers()
-    if temp_data is None or entry.data[CONF_TEMP] == False:
+    if not temp_data or not entry.data[CONF_TEMP]:
         _LOGGER.debug("Temp not configured or Temp sensors not found")
     else:
         hass.async_create_task(
@@ -172,7 +153,7 @@ async def async_setup_entry(hass, entry):
         )
 
     lock_data = await api.get_locks()
-    if lock_data is None or entry.data[CONF_LOCK] == False:
+    if not lock_data or not entry.data[CONF_LOCK]:
         _LOGGER.debug("Lock not configured or door lock not found")
     else:
         hass.async_create_task(
@@ -212,9 +193,9 @@ async def async_unload_entry(hass, entry):
     sector_temp = entry.data[CONF_TEMP]
 
     Platforms = ["alarm_control_panel"]
-    if sector_lock == True:
+    if sector_lock:
         Platforms.append("lock")
-    if sector_temp == True:
+    if sector_temp:
         Platforms.append("sensor")
 
     for listener in hass.data[DOMAIN][entry.entry_id]["data_listener"]:
@@ -238,7 +219,7 @@ async def async_unload_entry(hass, entry):
 
 
 class SectorAlarmHub(object):
-    """ Sector connectivity hub """
+    """Sector connectivity hub."""
 
     def __init__(
         self, sector_lock, sector_temp, userid, password, timesync, websession
@@ -372,7 +353,7 @@ class SectorAlarmHub(object):
             return True
 
     async def fetch_info(self, tempcheck=True):
-        """ Fetch info from API """
+        """Fetch info from API."""
         if self._panel == []:
             response = await self._request(API_URL + "/Panel/getFullSystem")
             if response is None:
@@ -390,7 +371,7 @@ class SectorAlarmHub(object):
         _LOGGER.debug(
             f"Evaluate should temp sensors update {now - self._last_updated_temp}"
         )
-        if tempcheck == False:
+        if not tempcheck:
             self._update_sensors = False
         elif now - self._last_updated_temp < timedelta(seconds=self._timesync * 5):
             self._update_sensors = False
@@ -401,43 +382,31 @@ class SectorAlarmHub(object):
         response = await self._request(
             API_URL + "/Panel/GetPanelStatus?panelId={}".format(self._panel_id)
         )
-        if response is not None:
+        if response:
             json_data = await response.json()
             self._alarmstatus = json_data["Status"]
             _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
 
-        if (
-            self._temps != []
-            and self._sector_temp == True
-            and self._update_sensors == True
-        ):
+        if self._temps and self._sector_temp and self._update_sensors:
             response = await self._request(
                 API_URL + "/Panel/GetTemperatures?panelId={}".format(self._panel_id)
             )
-            if response is not None:
+            if response:
                 self._tempdata = await response.json()
-                if (
-                    self._tempdata is not None
-                    and self._tempdata != []
-                    and self._sector_temp == True
-                ):
+                if self._tempdata and self._tempdata and self._sector_temp:
                     self._tempstatus = {
                         temperature["SerialNo"]: temperature["Temprature"]
                         for temperature in self._tempdata
                     }
                 _LOGGER.debug("self._tempdata = %s", self._tempdata)
 
-        if self._locks != [] and self._sector_lock == True:
+        if self._locks and self._sector_lock:
             response = await self._request(
                 API_URL + "/Panel/GetLockStatus?panelId={}".format(self._panel_id)
             )
-            if response is not None:
+            if response:
                 self._lockdata = await response.json()
-                if (
-                    self._lockdata is not None
-                    and self._lockdata != []
-                    and self._sector_lock == True
-                ):
+                if self._lockdata and self._lockdata and self._sector_lock:
                     self._lockstatus = {
                         lock["Serial"]: lock["Status"] for lock in self._lockdata
                     }
@@ -509,7 +478,7 @@ class SectorAlarmHub(object):
         return None
 
     async def _login(self):
-        """ Login to retrieve access token """
+        """Login to retrieve access token."""
         try:
             with async_timeout.timeout(self._timeout):
                 response = await self.websession.post(

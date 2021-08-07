@@ -2,25 +2,23 @@
 import logging
 
 import voluptuous as vol
-import aiohttp
 
-import homeassistant.helpers.config_validation as cv
 from homeassistant import config_entries, core, exceptions
 from homeassistant.core import callback
-from homeassistant.const import CONF_PASSWORD
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
-    DOMAIN,
-    CONF_USERID,
-    CONF_PASSWORD,
-    CONF_CODE_FORMAT,
-    CONF_CODE,
-    CONF_TEMP,
-    CONF_LOCK,
-    UPDATE_INTERVAL,
-    MIN_SCAN_INTERVAL,
     API_URL,
+    CONF_CODE,
+    CONF_CODE_FORMAT,
+    CONF_LOCK,
+    CONF_PASSWORD,
+    CONF_TEMP,
+    CONF_USERID,
+    DOMAIN,
+    MIN_SCAN_INTERVAL,
+    UPDATE_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -61,8 +59,8 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
     )
 
     token_data = await login.json()
-    if token_data is None or token_data == "":
-        _LOGGER.error("Failed to login to retrieve token: %d", response.status)
+    if not token_data:
+        _LOGGER.error("Failed to login to retrieve token: %d", login.status)
         raise CannotConnect
     access_token = token_data["AuthorizationToken"]
 
