@@ -22,37 +22,38 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     thermometers = await sector_hub.get_thermometers()
-    description = SensorEntityDescription(
-        unit_of_measurement=TEMP_CELSIUS,
-        state_class=STATE_CLASS_MEASUREMENT,
-        device_class=DEVICE_CLASS_TEMPERATURE,
-    )
 
     tempsensors = []
     for sensor in thermometers:
         name = await sector_hub.get_name(sensor, "temp")
         _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, sensor)
+        description = SensorEntityDescription(
+            key=sensor,
+            name=name,
+            unit_of_measurement=TEMP_CELSIUS,
+            state_class=STATE_CLASS_MEASUREMENT,
+            device_class=DEVICE_CLASS_TEMPERATURE,
+        )
         tempsensors.append(
-            SectorAlarmTemperatureSensor(
-                sector_hub, coordinator, sensor, name, description
-            )
+            SectorAlarmTemperatureSensor(sector_hub, coordinator, description)
         )
 
-    if tempsensors is not None:
+    if tempsensors:
         async_add_entities(tempsensors)
     else:
+        _LOGGER.debug("No tempsensors to add")
         return False
 
     return True
 
 
 class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
-    def __init__(self, hub, coordinator, sensor, name, description):
+    def __init__(self, hub, coordinator, description):
         self._hub = hub
         super().__init__(coordinator)
-        self._serial = sensor
-        self._attr_name = name
-        self._attr_unique_id: str = "sa_temp_" + str(self._serial)
+        self._serial = description.key
+        self._attr_name = description.name
+        self._attr_unique_id: str = "sa_temp_" + str(description.key)
         self.entity_description = description
 
     @property
