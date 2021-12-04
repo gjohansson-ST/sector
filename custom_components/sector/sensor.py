@@ -43,7 +43,7 @@ async def async_setup_entry(
         description = SensorEntityDescription(
             key=sensor,
             name=name,
-            unit_of_measurement=TEMP_CELSIUS,
+            native_unit_of_measurement=TEMP_CELSIUS,
             state_class=STATE_CLASS_MEASUREMENT,
             device_class=DEVICE_CLASS_TEMPERATURE,
         )
