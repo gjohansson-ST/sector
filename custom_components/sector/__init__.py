@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import logging
 
 import aiohttp
-from aiohttp.client_reqrep import ClientResponse
+from aiohttp import ClientResponse
 import async_timeout
 import voluptuous as vol
 
