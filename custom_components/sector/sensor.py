@@ -90,6 +90,6 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
         return self._hub.temp_state[self._serial]
 
     @property
-    def extra_state_attributes(self) -> dict(str, str):
+    def extra_state_attributes(self) -> dict:
         """Extra states for sensor."""
         return {"Serial No": self._serial}

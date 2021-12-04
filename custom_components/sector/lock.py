@@ -94,7 +94,7 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         }
 
     @property
-    def extra_state_attributes(self) -> dict(str, str):
+    def extra_state_attributes(self) -> dict:
         """Additional states of lock."""
         return {
             "Autolock": self._autolock,

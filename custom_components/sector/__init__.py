@@ -394,10 +394,10 @@ class SectorAlarmHub(object):
             self._switchdata = await response.json()
             if self._switchdata:
                 self._switchstatus = {
-                    switch["Serial"]: switch["Status"] for switch in self._switchdata
+                    switch["SerialNo"]: switch["Status"] for switch in self._switchdata
                 }
                 self._switchid = {
-                    switch["Serial"]: switch["Id"] for switch in self._switchdata
+                    switch["SerialNo"]: switch["Id"] for switch in self._switchdata
                 }
             _LOGGER.debug("self._switchdata = %s", self._switchdata)
 

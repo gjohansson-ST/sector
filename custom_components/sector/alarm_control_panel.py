@@ -102,7 +102,7 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         return FORMAT_NUMBER
 
     @property
-    def extra_state_attributes(self) -> dict(str, str):
+    def extra_state_attributes(self) -> dict:
         """Additional states for alarm panel."""
         return {"Display name": self._displayname, "Is Online": self._isonline}
 
