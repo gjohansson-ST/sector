@@ -9,34 +9,58 @@ from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_AWAY,
     SUPPORT_ALARM_ARM_HOME,
 )
-from homeassistant.const import (
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_ARMED_HOME,
-    STATE_ALARM_DISARMED,
-    STATE_ALARM_PENDING,
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import STATE_ALARM_PENDING
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
 )
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .__init__ import SectorAlarmHub
 from .const import CONF_CODE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up alarm panel from config entry."""
 
-    sector_hub = hass.data[DOMAIN][entry.entry_id]["api"]
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    code = entry.data[CONF_CODE]
+    sector_hub: SectorAlarmHub = hass.data[DOMAIN][entry.entry_id]["api"]
+    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
+        "coordinator"
+    ]
+    code: str = entry.data[CONF_CODE]
 
     async_add_entities([SectorAlarmPanel(sector_hub, coordinator, code)])
 
-    return True
 
+class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
+    """Sector Alarm Panel."""
 
-class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
+    def __init__(
+        self, hub: SectorAlarmHub, coordinator: DataUpdateCoordinator, code: str
+    ) -> None:
+        """Initialize the Alarm panel."""
+        self._hub = hub
+        super().__init__(coordinator)
+        self._code: str = code if code != "" else None
+        self._state: str = STATE_ALARM_PENDING
+        self._changed_by: str = ""
+        self._displayname: str = self._hub.alarm_displayname
+        self._isonline: str = self._hub.alarm_isonline
+
     @property
-    def device_info(self):
+    def unique_id(self) -> str:
+        """Return a unique ID to use for this sensor."""
+        return f"sa_panel_{str(self._hub.alarm_id)}"
+
+    @property
+    def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
             "identifiers": {(DOMAIN, self.unique_id)},
@@ -47,99 +71,64 @@ class SectorAlarmAlarmDevice(AlarmControlPanelEntity):
             "via_device": (DOMAIN, f"sa_hub_{str(self._hub.alarm_id)}"),
         }
 
-
-class SectorAlarmPanel(CoordinatorEntity, SectorAlarmAlarmDevice):
-    def __init__(self, hub, coordinator, code):
-        self._hub = hub
-        super().__init__(coordinator)
-        self._code = code if code != "" else None
-        self._state = STATE_ALARM_PENDING
-        self._changed_by = None
-        self._displayname = self._hub.alarm_displayname
-        self._isonline = self._hub.alarm_isonline
-
     @property
-    def unique_id(self):
-        """Return a unique ID to use for this sensor."""
-        return f"sa_panel_{str(self._hub.alarm_id)}"
-
-    @property
-    def name(self):
+    def name(self) -> str:
+        """Name of Alarm panel."""
         return f"Sector Alarmpanel {self._hub.alarm_id}"
 
     @property
-    def available(self):
-        return True
-
-    @property
-    def changed_by(self):
+    def changed_by(self) -> str:
+        """Alarm changed by."""
         return self._hub.alarm_changed_by
 
     @property
     def supported_features(self) -> int:
+        """Supported features for alarm."""
         return SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY
 
     @property
-    def code_arm_required(self):
+    def code_arm_required(self) -> bool:
+        """Code for arming required."""
         return False
 
     @property
-    def state(self):
+    def state(self) -> str:
+        """Return state of alarm."""
         return self._hub.alarm_state
 
     @property
-    def code_format(self):
+    def code_format(self) -> str:
         """Return one or more digits/characters."""
         return FORMAT_NUMBER
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self) -> dict(str, str):
+        """Additional states for alarm panel."""
         return {"Display name": self._displayname, "Is Online": self._isonline}
 
-    def _validate_code(self, code):
-        check = self._code is None or code == self._code
-        if not check:
-            _LOGGER.warning("Invalid code given")
-        return check
-
-    async def async_alarm_arm_home(self, code=None):
+    async def async_alarm_arm_home(self, code=None) -> None:
+        """Arm alarm home."""
         command = "partial"
-        if code is not None:
-            _LOGGER.debug("Trying to arm home with supplied code")
-            if not self._validate_code(code):
-                return
-
-        _LOGGER.debug("Trying to arm home Sector Alarm")
-        result = await self._hub.triggeralarm(command, code=code)
-        if result:
-            _LOGGER.debug("Armed home")
-            self._state = STATE_ALARM_ARMED_HOME
+        if code is None:
+            code = self._code
+        if code:
+            await self._hub.triggeralarm(command, code=code)
             await self.coordinator.async_refresh()
 
-    async def async_alarm_disarm(self, code=None):
+    async def async_alarm_disarm(self, code=None) -> None:
+        """Arm alarm off."""
         command = "disarm"
-        if code is not None:
-            _LOGGER.debug("Trying to disarm home with supplied code")
-            if not self._validate_code(code):
-                return
-
-        _LOGGER.debug("Trying to disarm")
-        result = await self._hub.triggeralarm(command, code=code)
-        if result:
-            _LOGGER.debug("Disarmed Sector Alarm")
-            self._state = STATE_ALARM_DISARMED
+        if code is None:
+            code = self._code
+        if code:
+            await self._hub.triggeralarm(command, code=code)
             await self.coordinator.async_refresh()
 
-    async def async_alarm_arm_away(self, code=None):
+    async def async_alarm_arm_away(self, code=None) -> None:
+        """Arm alarm away."""
         command = "full"
-        if code is not None:
-            _LOGGER.debug("Trying to arm away with supplied code")
-            if not self._validate_code(code):
-                return
-
-        _LOGGER.debug("Trying to arm away")
-        result = await self._hub.triggeralarm(command, code=code)
-        if result:
-            _LOGGER.debug("Armed away Sector Alarm")
-            self._state = STATE_ALARM_ARMED_AWAY
+        if code is None:
+            code = self._code
+        if code:
+            await self._hub.triggeralarm(command, code=code)
             await self.coordinator.async_refresh()

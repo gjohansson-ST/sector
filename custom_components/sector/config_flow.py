@@ -121,6 +121,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(unique_id)
             self._abort_if_unique_id_configured()
 
+            _LOGGER.info("Login succesful. Config entry created")
             return self.async_create_entry(
                 title=unique_id,
                 data={
@@ -132,7 +133,6 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_LOCK: user_input[CONF_LOCK],
                 },
             )
-            _LOGGER.info("Login succesful. Config entry created.")
 
         return self.async_show_form(
             step_id="user",
@@ -142,7 +142,10 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SectorOptionFlow(config_entries.OptionsFlow):
+    """Handle a options config flow for Sector integration."""
+
     def __init__(self, config_entry):
+        """Initialize config flow."""
         self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):

@@ -4,19 +4,19 @@ from datetime import datetime, timedelta
 import logging
 
 import aiohttp
+from aiohttp.client_reqrep import ClientResponse
 import async_timeout
 import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
     STATE_ALARM_ARMED_HOME,
     STATE_ALARM_DISARMED,
     STATE_ALARM_PENDING,
 )
-from homeassistant.exceptions import (
-    ConfigEntryNotReady,
-    HomeAssistantError,
-)
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
@@ -32,6 +32,7 @@ from .const import (
     CONF_USERID,
     DOMAIN,
     MIN_SCAN_INTERVAL,
+    PLATFORMS,
     UPDATE_INTERVAL,
 )
 
@@ -57,7 +58,7 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
-async def async_migrate_entry(hass, entry):
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Migrate old entry."""
     _LOGGER.debug("Migrating from version %s", entry.version)
 
@@ -77,10 +78,8 @@ async def async_migrate_entry(hass, entry):
 
     _LOGGER.info("Migration to version %s successful", entry.version)
 
-    return True
 
-
-async def async_setup_entry(hass, entry):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sector Alarm as config entry."""
     hass.data.setdefault(DOMAIN, {})
 
@@ -106,7 +105,7 @@ async def async_setup_entry(hass, entry):
 
         now = datetime.utcnow()
         hass.data[DOMAIN][entry.entry_id]["last_updated"] = now
-        _LOGGER.debug(f"UPDATE_INTERVAL = {entry.options[UPDATE_INTERVAL]}")
+        _LOGGER.debug("UPDATE_INTERVAL = %s", {entry.options[UPDATE_INTERVAL]})
         _LOGGER.debug(
             "last updated = %s", hass.data[DOMAIN][entry.entry_id]["last_updated"]
         )
@@ -128,37 +127,12 @@ async def async_setup_entry(hass, entry):
         "last_updated": datetime.utcnow() - timedelta(hours=2),
         "data_listener": [entry.add_update_listener(update_listener)],
     }
-    _LOGGER.debug("Connected to Sector Alarm API")
 
     await coordinator.async_refresh()
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
 
-    panel_data = await api.get_panel()
-    if panel_data is None:
-        _LOGGER.error("Platform not ready")
-        raise ConfigEntryNotReady
-
-    else:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, "alarm_control_panel")
-        )
-
-    temp_data = await api.get_thermometers()
-    if not temp_data or not entry.data[CONF_TEMP]:
-        _LOGGER.debug("Temp not configured or Temp sensors not found")
-    else:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, "sensor")
-        )
-
-    lock_data = await api.get_locks()
-    if not lock_data or not entry.data[CONF_LOCK]:
-        _LOGGER.debug("Lock not configured or door lock not found")
-    else:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, "lock")
-        )
+    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 
     device_registry = await dr.async_get_registry(hass)
     device_registry.async_get_or_create(
@@ -173,42 +147,19 @@ async def async_setup_entry(hass, entry):
     return True
 
 
-async def update_listener(hass, entry):
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update when config_entry options update."""
-    controller = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    old_update_interval = controller.update_interval
+    controller: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     controller.update_interval = timedelta(seconds=entry.options.get(UPDATE_INTERVAL))
-    if old_update_interval != controller.update_interval:
-        _LOGGER.debug(
-            "Changing scan_interval from %s to %s",
-            old_update_interval,
-            controller.update_interval,
-        )
 
 
-async def async_unload_entry(hass, entry):
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-
-    sector_lock = entry.data[CONF_LOCK]
-    sector_temp = entry.data[CONF_TEMP]
-
-    Platforms = ["alarm_control_panel"]
-    if sector_lock:
-        Platforms.append("lock")
-    if sector_temp:
-        Platforms.append("sensor")
 
     for listener in hass.data[DOMAIN][entry.entry_id]["data_listener"]:
         listener()
 
-    unload_ok = all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(entry, component)
-                for component in Platforms
-            ]
-        )
-    )
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     title = entry.title
     if unload_ok:
@@ -222,94 +173,96 @@ class SectorAlarmHub(object):
     """Sector connectivity hub."""
 
     def __init__(
-        self, sector_lock, sector_temp, userid, password, timesync, websession
-    ):
-        self._lockstatus = {}
-        self._tempstatus = {}
-        self._lockdata = None
-        self._tempdata = None
-        self._alarmstatus = None
-        self._changed_by = None
+        self,
+        sector_lock: bool,
+        sector_temp: bool,
+        userid: str,
+        password: str,
+        timesync: int,
+        websession: aiohttp.ClientSession,
+    ) -> None:
+        """Initialize the sector hub."""
+        self._lockstatus: dict = {}
+        self._tempstatus: dict = {}
+        self._switchstatus: dict = {}
+        self._switchid: dict = {}
+        self._lockdata: dict = {}
+        self._tempdata: dict = {}
+        self._switchdata: dict = {}
+        self._alarmstatus: str = ""
+        self._changed_by: str = ""
         self.websession = websession
         self._sector_temp = sector_temp
         self._sector_lock = sector_lock
         self._userid = userid
         self._password = password
-        self._access_token = None
-        self._last_updated = datetime.utcnow() - timedelta(hours=2)
-        self._last_updated_temp = datetime.utcnow() - timedelta(hours=2)
-        self._timeout = 15
-        self._panel = []
-        self._temps = []
-        self._locks = []
-        self._panel_id = None
-        self._update_sensors = True
+        self._access_token: str = ""
+        self._last_updated: datetime = datetime.utcnow() - timedelta(hours=2)
+        self._last_updated_temp: datetime = datetime.utcnow() - timedelta(hours=2)
+        self._timeout: int = 15
+        self._panel: list = []
+        self._temps: list = []
+        self._locks: list = []
+        self._switches: list = []
+        self._panel_id: str = ""
+        self._update_sensors: bool = True
         self._timesync = timesync
 
-    async def get_thermometers(self):
-        temps = self._temps
+    async def get_thermometers(self) -> list:
+        """Get temp sensors."""
+        if self._temps:
+            return (temp["SerialNo"] for temp in self._temps)
 
-        if temps is None or temps == []:
-            _LOGGER.debug("Failed to fetch temperature sensors")
-            return None
-
-        return (temp["SerialNo"] for temp in temps)
-
-    async def get_name(self, serial, command):
-        _LOGGER.debug("Command is: %s", command)
-        _LOGGER.debug("Serial is: %s", serial)
+    async def get_name(self, serial: str, command: str) -> str:
+        """Get name for sensors or locks."""
         if command == "temp":
             names = self._temps
-        elif command == "lock":
+        if command == "lock":
             names = self._locks
-        else:
-            return None
+        if command == "switch":
+            names = self._switches
 
         for name in names:
             if command == "temp":
                 if name["SerialNo"] == serial:
-                    _LOGGER.debug("Returning label: %s", name["Label"])
                     return name["Label"]
             elif command == "lock":
                 if name["Serial"] == serial:
-                    _LOGGER.debug("Returning label: %s", name["Label"])
                     return name["Label"]
-            else:
-                _LOGGER.debug("Get_name no command, return Not found")
-                return "Not found"
+            elif command == "switch":
+                if name["SerialNo"] == serial:
+                    return name["Label"]
+        return
 
-    async def get_autolock(self, serial):
-        _LOGGER.debug("Serial is: %s", serial)
-        autolocks = self._locks
+    async def get_id(self, serial: str) -> str:
+        """Get id for switch."""
+        for switch in self._switches:
+            if switch["SerialNo"] == serial:
+                return switch["id"]
 
-        for autolock in autolocks:
+    async def get_autolock(self, serial: str) -> str:
+        """Check if autolock is enabled."""
+        for autolock in self._locks:
             if autolock["Serial"] == serial:
-                _LOGGER.debug(
-                    "Returning AutoLockEnabled: %s", autolock["AutoLockEnabled"]
-                )
                 return autolock["AutoLockEnabled"]
 
-        return "Not found"
+    async def get_locks(self) -> list:
+        """Get locks."""
+        if self._locks:
+            return (lock["Serial"] for lock in self._locks)
 
-    async def get_locks(self):
-        locks = self._locks
+    async def get_switches(self) -> list:
+        """Get switches."""
+        if self._switches:
+            return (switch["SerialNo"] for switch in self._switches)
 
-        if locks is None or locks == []:
-            _LOGGER.debug("Failed to fetch locks")
-            return None
+    async def get_panel(self) -> str:
+        """Get Alarm panel."""
+        if self._panel:
+            return self._panel["PanelDisplayName"]
 
-        return (lock["Serial"] for lock in locks)
-
-    async def get_panel(self):
-        panel = self._panel
-
-        if panel is None or panel == []:
-            _LOGGER.debug("Failed to fetch panel")
-            return None
-
-        return panel["PanelDisplayName"]
-
-    async def triggerlock(self, lock, code, command):
+    async def triggerlock(self, lock: str, code: str, command: str) -> None:
+        """Change status of lock."""
 
         message_json = {
             "LockSerial": lock,
@@ -319,42 +272,51 @@ class SectorAlarmHub(object):
         }
 
         if command == "unlock":
-            response = await self._request(
-                API_URL + "/Panel/Unlock", json_data=message_json
+            await self._request(API_URL + "/Panel/Unlock", json_data=message_json)
+        if command == "lock":
+            await self._request(API_URL + "/Panel/Lock", json_data=message_json)
+        await self.fetch_info(False)
+
+    async def triggerswitch(self, identity: str, command: str) -> None:
+        """Change status of switch."""
+
+        message_json = {
+            "PanelId": self._panel_id,
+            "Platform": "app",
+        }
+
+        if command == "On":
+            await self._request(
+                f"{API_URL}TurnOnSmartplug?switchId={identity}&panelId={self._panel_id}",
+                json_data=message_json,
             )
-        else:
-            response = await self._request(
-                API_URL + "/Panel/Lock", json_data=message_json
+        if command == "Off":
+            await self._request(
+                f"{API_URL}TurnOffSmartplug?switchId={identity}&panelId={self._panel_id}",
+                json_data=message_json,
             )
+        await self.fetch_info(False)
 
-        if response is not None:
-            await self.fetch_info(False)
-            return True
+    async def triggeralarm(self, command: str, code: str) -> None:
+        """Change status of alarm."""
 
-    async def triggeralarm(self, command, code):
-
-        message_json = {"PanelCode": code, "PanelId": self._panel_id, "Platform": "app"}
+        message_json = {
+            "PanelCode": code,
+            "PanelId": self._panel_id,
+            "Platform": "app",
+        }
 
         if command == "full":
-            response = await self._request(
-                API_URL + "/Panel/Arm", json_data=message_json
-            )
-        elif command == "partial":
-            response = await self._request(
-                API_URL + "/Panel/PartialArm", json_data=message_json
-            )
-        else:
-            response = await self._request(
-                API_URL + "/Panel/Disarm", json_data=message_json
-            )
+            await self._request(API_URL + "/Panel/Arm", json_data=message_json)
+        if command == "partial":
+            await self._request(API_URL + "/Panel/PartialArm", json_data=message_json)
+        if command == "disarm":
+            await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
+        await self.fetch_info(False)
 
-        if response is not None:
-            await self.fetch_info(False)
-            return True
-
-    async def fetch_info(self, tempcheck=True):
+    async def fetch_info(self, tempcheck: bool = True) -> None:
         """Fetch info from API."""
-        if self._panel == []:
+        if not self._panel:
             response = await self._request(API_URL + "/Panel/getFullSystem")
             if response is None:
                 return None
@@ -364,12 +326,13 @@ class SectorAlarmHub(object):
                 self._panel_id = json_data["Panel"]["PanelId"]
                 self._temps = json_data["Temperatures"]
                 self._locks = json_data["Locks"]
+                self._switches = json_data["Smartplugs"]
 
         now = datetime.utcnow()
-        _LOGGER.debug(f"self._last_updated_temp = {self._last_updated_temp}")
-        _LOGGER.debug(f"self._timesync * 5 = {self._timesync*5}")
+        _LOGGER.debug("self._last_updated_temp = %s", self._last_updated_temp)
+        _LOGGER.debug("self._timesync * 5 = %s", self._timesync * 5)
         _LOGGER.debug(
-            f"Evaluate should temp sensors update {now - self._last_updated_temp}"
+            "Evaluate should temp sensors update %s", now - self._last_updated_temp
         )
         if not tempcheck:
             self._update_sensors = False
@@ -421,11 +384,26 @@ class SectorAlarmHub(object):
                 if users["User"] != "" and "arm" in users["EventType"]:
                     self._changed_by = users["User"]
                     break
-                else:
-                    self._changed_by = "unknown"
+                self._changed_by = "unknown"
             _LOGGER.debug("self._changed_by = %s", self._changed_by)
 
-    async def _request(self, url, json_data=None, retry=3):
+        response = await self._request(
+            API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(self._panel_id)
+        )
+        if response:
+            self._switchdata = await response.json()
+            if self._switchdata:
+                self._switchstatus = {
+                    switch["Serial"]: switch["Status"] for switch in self._switchdata
+                }
+                self._switchid = {
+                    switch["Serial"]: switch["Id"] for switch in self._switchdata
+                }
+            _LOGGER.debug("self._switchdata = %s", self._switchdata)
+
+    async def _request(
+        self, url: str, json_data: dict = None, retry: int = 3
+    ) -> ClientResponse:
         if self._access_token is None:
             result = await self._login()
             if result is None:
@@ -457,17 +435,17 @@ class SectorAlarmHub(object):
                     return await self._request(url, json_data, retry=retry - 1)
 
             if response.status == 200 or response.status == 204:
-                _LOGGER.debug(f"Info retrieved successfully URL: {url}")
-                _LOGGER.debug(f"request status: {response.status}")
+                _LOGGER.debug("Info retrieved successfully URL: %s", url)
+                _LOGGER.debug("request status: %s", response.status)
                 return response
 
             return None
 
-        except aiohttp.ClientConnectorError as e:
-            _LOGGER.error("ClientError connecting to Sector: %s ", e, exc_info=True)
+        except aiohttp.ClientConnectorError as error:
+            _LOGGER.error("ClientError connecting to Sector: %s ", error, exc_info=True)
 
-        except aiohttp.ContentTypeError as e:
-            _LOGGER.error("ContentTypeError connecting to Sector: %s ", e)
+        except aiohttp.ContentTypeError as error:
+            _LOGGER.error("ContentTypeError connecting to Sector: %s ", error)
 
         except asyncio.TimeoutError:
             _LOGGER.error("Timed out when connecting to Sector")
@@ -477,7 +455,7 @@ class SectorAlarmHub(object):
 
         return None
 
-    async def _login(self):
+    async def _login(self) -> str:
         """Login to retrieve access token."""
         try:
             with async_timeout.timeout(self._timeout):
@@ -506,11 +484,11 @@ class SectorAlarmHub(object):
                     self._access_token = token_data["AuthorizationToken"]
                     return self._access_token
 
-        except aiohttp.ClientConnectorError as e:
-            _LOGGER.error("ClientError connecting to Sector: %s ", e, exc_info=True)
+        except aiohttp.ClientConnectorError as error:
+            _LOGGER.error("ClientError connecting to Sector: %s ", error, exc_info=True)
 
-        except aiohttp.ContentTypeError as c:
-            _LOGGER.error("ContentTypeError connecting to Sector: %s ", c)
+        except aiohttp.ContentTypeError as error:
+            _LOGGER.error("ContentTypeError connecting to Sector: %s ", error)
 
         except asyncio.TimeoutError:
             _LOGGER.error("Timed out when connecting to Sector")
@@ -521,38 +499,49 @@ class SectorAlarmHub(object):
         return None
 
     @property
-    def alarm_state(self):
+    def alarm_state(self) -> str:
+        """Check state of alarm."""
         if self._alarmstatus == 3:
             return STATE_ALARM_ARMED_AWAY
-        elif self._alarmstatus == 2:
+        if self._alarmstatus == 2:
             return STATE_ALARM_ARMED_HOME
-        elif self._alarmstatus == 1:
+        if self._alarmstatus == 1:
             return STATE_ALARM_DISARMED
-        else:
-            return STATE_ALARM_PENDING
+        return STATE_ALARM_PENDING
 
     @property
-    def alarm_changed_by(self):
+    def alarm_changed_by(self) -> str:
+        """Alarm changed by."""
         return self._changed_by
 
     @property
-    def temp_state(self):
+    def temp_state(self) -> dict:
+        """State of temp."""
         return self._tempstatus
 
     @property
-    def lock_state(self):
+    def lock_state(self) -> dict:
+        """State of locks."""
         return self._lockstatus
 
     @property
-    def alarm_id(self):
+    def switch_state(self) -> dict:
+        """State of switch."""
+        return self._switchstatus
+
+    @property
+    def alarm_id(self) -> str:
+        """Id for Alarm panel."""
         return self._panel["PanelId"]
 
     @property
-    def alarm_displayname(self):
+    def alarm_displayname(self) -> str:
+        """Displayname of alarm panel."""
         return self._panel["PanelDisplayName"]
 
     @property
-    def alarm_isonline(self):
+    def alarm_isonline(self) -> str:
+        """Check alarm online."""
         return self._panel["IsOnline"]
 
 

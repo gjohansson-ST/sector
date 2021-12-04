@@ -7,26 +7,39 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import TEMP_CELSIUS
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.update_coordinator import CoordinatorEntity, UpdateFailed
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 
-from .const import DOMAIN
+from .__init__ import SectorAlarmHub
+from .const import CONF_TEMP, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
+    """Sensor platform."""
 
-    sector_hub = hass.data[DOMAIN][entry.entry_id]["api"]
-    coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    sector_hub: SectorAlarmHub = hass.data[DOMAIN][entry.entry_id]["api"]
+    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
+        "coordinator"
+    ]
+
+    if not entry.data[CONF_TEMP]:
+        return
 
     thermometers = await sector_hub.get_thermometers()
-
     tempsensors = []
     for sensor in thermometers:
         name = await sector_hub.get_name(sensor, "temp")
-        _LOGGER.debug("Sector: Fetched Label %s for serial %s", name, sensor)
         description = SensorEntityDescription(
             key=sensor,
             name=name,
@@ -40,15 +53,18 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
     if tempsensors:
         async_add_entities(tempsensors)
-    else:
-        _LOGGER.debug("No tempsensors to add")
-        return False
-
-    return True
 
 
 class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
-    def __init__(self, hub, coordinator, description):
+    """Sector Temp sensor."""
+
+    def __init__(
+        self,
+        hub: SectorAlarmHub,
+        coordinator: DataUpdateCoordinator,
+        description: SensorEntityDescription,
+    ) -> None:
+        """Initialize Temp sensor."""
         self._hub = hub
         super().__init__(coordinator)
         self._serial = description.key
@@ -69,9 +85,11 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
         }
 
     @property
-    def state(self):
+    def state(self) -> float:
+        """State of sensor."""
         return self._hub.temp_state[self._serial]
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict(str, str):
+        """Extra states for sensor."""
         return {"Serial No": self._serial}

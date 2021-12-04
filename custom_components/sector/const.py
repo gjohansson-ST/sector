@@ -1,4 +1,4 @@
-"""SECTOR ALARM INTEGRATION CONSTANTS FOR HOME ASSISTANT"""
+"""SECTOR ALARM INTEGRATION CONSTANTS FOR HOME ASSISTANT."""
 DOMAIN = "sector"
 DEPENDENCIES = ["sector"]
 
@@ -13,3 +13,6 @@ CONF_LOCK = "lock"
 UPDATE_INTERVAL = "timesync"
 
 MIN_SCAN_INTERVAL = 30
+
+
+PLATFORMS = ["alarm_control_panel", "lock", "sensor", "switch"]
