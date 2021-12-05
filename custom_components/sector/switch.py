@@ -32,20 +32,19 @@ async def async_setup_entry(
     ]
 
     switches = await sector_hub.get_switches()
-
-    switches = []
+    switchlist: list = []
     for switch in switches:
         name = await sector_hub.get_name(switch, "switch")
         identification = await sector_hub.get_id(switch)
         description = SwitchEntityDescription(
             key=switch, name=name, device_class=DEVICE_CLASS_OUTLET
         )
-        switches.append(
+        switchlist.append(
             SectorAlarmSwitch(sector_hub, coordinator, description, identification)
         )
 
-    if switches:
-        async_add_entities(switches)
+    if switchlist:
+        async_add_entities(switchlist)
 
 
 class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):

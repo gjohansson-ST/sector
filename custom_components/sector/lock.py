@@ -34,7 +34,7 @@ async def async_setup_entry(
         return
 
     locks = await sector_hub.get_locks()
-    lockdevices = []
+    lockdevices: list = []
     for lock in locks:
         name = await sector_hub.get_name(lock, "lock")
         autolock = await sector_hub.get_autolock(lock)
