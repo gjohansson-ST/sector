@@ -75,7 +75,7 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
         }
 
     @property
-    def extra_state_attributes(self) -> dict(str, str):
+    def extra_state_attributes(self) -> dict:
         """Additional states for switch."""
         return {
             "Serial No": self._serial,
