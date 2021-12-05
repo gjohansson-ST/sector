@@ -35,13 +35,10 @@ async def async_setup_entry(
     switchlist: list = []
     for switch in switches:
         name = await sector_hub.get_name(switch, "switch")
-        identification = await sector_hub.get_id(switch)
         description = SwitchEntityDescription(
             key=switch, name=name, device_class=DEVICE_CLASS_OUTLET
         )
-        switchlist.append(
-            SectorAlarmSwitch(sector_hub, coordinator, description, identification)
-        )
+        switchlist.append(SectorAlarmSwitch(sector_hub, coordinator, description))
 
     if switchlist:
         async_add_entities(switchlist)
@@ -50,7 +47,12 @@ async def async_setup_entry(
 class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
     """Sector Switch."""
 
-    def __init__(self, hub, coordinator, description, identification) -> None:
+    def __init__(
+        self,
+        hub: SectorAlarmHub,
+        coordinator: DataUpdateCoordinator,
+        description: SwitchEntityDescription,
+    ) -> None:
         """Initialize Switch."""
         self._hub = hub
         super().__init__(coordinator)
@@ -59,7 +61,7 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_unique_id: str = "sa_switch_" + str(description.key)
         self.entity_description = description
         self._attr_is_on = self._hub.switch_state[self._serial]
-        self._id = identification
+        self._id: str = self._hub.get_id[self._serial]
 
     @property
     def device_info(self) -> DeviceInfo:

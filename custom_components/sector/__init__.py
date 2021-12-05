@@ -238,7 +238,7 @@ class SectorAlarmHub(object):
         """Get id for switch."""
         for switch in self._switches:
             if switch["SerialNo"] == serial:
-                return switch["id"]
+                return switch["Id"]
 
     async def get_autolock(self, serial: str) -> str:
         """Check if autolock is enabled."""
