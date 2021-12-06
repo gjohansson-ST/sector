@@ -61,7 +61,7 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_unique_id: str = "sa_switch_" + str(description.key)
         self.entity_description = description
         self._attr_is_on = self._hub.switch_state[self._serial]
-        self._id: str = self._hub.get_id[self._serial]
+        self._id: str = self._hub.get_id(self._serial)
 
     @property
     def device_info(self) -> DeviceInfo:
