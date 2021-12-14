@@ -85,7 +85,7 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn the switch on."""
-        self.async_triggerswitch("On")
+        await self.async_triggerswitch("On")
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn the switch off."""
