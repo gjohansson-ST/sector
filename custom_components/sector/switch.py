@@ -2,7 +2,7 @@
 import logging
 
 from homeassistant.components.switch import (
-    DEVICE_CLASS_OUTLET,
+    SwitchDeviceClass,
     SwitchEntity,
     SwitchEntityDescription,
 )
@@ -36,7 +36,7 @@ async def async_setup_entry(
     for switch in switches:
         name = await sector_hub.get_name(switch, "switch")
         description = SwitchEntityDescription(
-            key=switch, name=name, device_class=DEVICE_CLASS_OUTLET
+            key=switch, name=name, device_class=SwitchDeviceClass.OUTLET
         )
         switchlist.append(SectorAlarmSwitch(sector_hub, coordinator, description))
 
@@ -60,8 +60,8 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_name = description.name
         self._attr_unique_id: str = "sa_switch_" + str(description.key)
         self.entity_description = description
-        self._attr_is_on = self._hub.switch_state[self._serial]
-        self._id: str = self._hub.get_id(self._serial)
+        self._attr_is_on = bool(self._hub.switch_state[self._serial] == "On")
+        self._id: str = self._hub.switch_id[self._serial]
 
     @property
     def device_info(self) -> DeviceInfo:

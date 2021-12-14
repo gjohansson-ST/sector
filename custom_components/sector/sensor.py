@@ -2,8 +2,8 @@
 import logging
 
 from homeassistant.components.sensor import (
-    DEVICE_CLASS_TEMPERATURE,
-    STATE_CLASS_MEASUREMENT,
+    SensorDeviceClass,
+    SensorStateClass,
     SensorEntity,
     SensorEntityDescription,
 )
@@ -44,8 +44,8 @@ async def async_setup_entry(
             key=sensor,
             name=name,
             native_unit_of_measurement=TEMP_CELSIUS,
-            state_class=STATE_CLASS_MEASUREMENT,
-            device_class=DEVICE_CLASS_TEMPERATURE,
+            state_class=SensorStateClass.MEASUREMENT,
+            device_class=SensorDeviceClass.TEMPERATURE,
         )
         tempsensors.append(
             SectorAlarmTemperatureSensor(sector_hub, coordinator, description)
@@ -71,6 +71,7 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
         self._attr_name = description.name
         self._attr_unique_id: str = "sa_temp_" + str(description.key)
         self.entity_description = description
+        self._attr_state = self._hub.temp_state[self._serial]
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -83,11 +84,6 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
             "sw_version": "master",
             "via_device": (DOMAIN, "sa_hub_" + str(self._hub.alarm_id)),
         }
-
-    @property
-    def state(self) -> float:
-        """State of sensor."""
-        return self._hub.temp_state[self._serial]
 
     @property
     def extra_state_attributes(self) -> dict:

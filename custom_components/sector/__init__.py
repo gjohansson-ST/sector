@@ -234,12 +234,6 @@ class SectorAlarmHub(object):
                     return name["Label"]
         return
 
-    async def get_id(self, serial: str) -> str:
-        """Get id for switch."""
-        for switch in self._switches:
-            if switch["SerialNo"] == serial:
-                return switch["Id"]
-
     async def get_autolock(self, serial: str) -> str:
         """Check if autolock is enabled."""
         for autolock in self._locks:
@@ -287,12 +281,12 @@ class SectorAlarmHub(object):
 
         if command == "On":
             await self._request(
-                f"{API_URL}TurnOnSmartplug?switchId={identity}&panelId={self._panel_id}",
+                f"{API_URL}/Panel/TurnOnSmartplug?switchId={identity}&panelId={self._panel_id}",
                 json_data=message_json,
             )
         if command == "Off":
             await self._request(
-                f"{API_URL}TurnOffSmartplug?switchId={identity}&panelId={self._panel_id}",
+                f"{API_URL}/Panel/TurnOffSmartplug?switchId={identity}&panelId={self._panel_id}",
                 json_data=message_json,
             )
         await self.fetch_info(False)
@@ -434,7 +428,7 @@ class SectorAlarmHub(object):
                 if retry > 0:
                     return await self._request(url, json_data, retry=retry - 1)
 
-            if response.status == 200 or response.status == 204:
+            if response.status in (200, 204):
                 _LOGGER.debug("Info retrieved successfully URL: %s", url)
                 _LOGGER.debug("request status: %s", response.status)
                 return response
@@ -479,7 +473,7 @@ class SectorAlarmHub(object):
                     self._access_token = None
                     return None
 
-                if response.status == 200 or response.status == 204:
+                if response.status in (200, 204):
                     token_data = await response.json()
                     self._access_token = token_data["AuthorizationToken"]
                     return self._access_token
@@ -528,6 +522,11 @@ class SectorAlarmHub(object):
     def switch_state(self) -> dict:
         """State of switch."""
         return self._switchstatus
+
+    @property
+    def switch_id(self) -> dict:
+        """Id of Switch"""
+        return self._switchid
 
     @property
     def alarm_id(self) -> str:

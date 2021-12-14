@@ -53,11 +53,13 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         self._changed_by: str = ""
         self._displayname: str = self._hub.alarm_displayname
         self._isonline: str = self._hub.alarm_isonline
-
-    @property
-    def unique_id(self) -> str:
-        """Return a unique ID to use for this sensor."""
-        return f"sa_panel_{str(self._hub.alarm_id)}"
+        self._attr_name = f"Sector Alarmpanel {self._hub.alarm_id}"
+        self._attr_unique_id = f"sa_panel_{str(self._hub.alarm_id)}"
+        self._attr_changed_by = self._hub.alarm_changed_by
+        self._attr_supported_features = SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY
+        self._attr_code_arm_required = False
+        self._attr_code_format = FORMAT_NUMBER
+        self._attr_state = self._hub.alarm_state
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -70,36 +72,6 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
             "sw_version": "master",
             "via_device": (DOMAIN, f"sa_hub_{str(self._hub.alarm_id)}"),
         }
-
-    @property
-    def name(self) -> str:
-        """Name of Alarm panel."""
-        return f"Sector Alarmpanel {self._hub.alarm_id}"
-
-    @property
-    def changed_by(self) -> str:
-        """Alarm changed by."""
-        return self._hub.alarm_changed_by
-
-    @property
-    def supported_features(self) -> int:
-        """Supported features for alarm."""
-        return SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY
-
-    @property
-    def code_arm_required(self) -> bool:
-        """Code for arming required."""
-        return False
-
-    @property
-    def state(self) -> str:
-        """Return state of alarm."""
-        return self._hub.alarm_state
-
-    @property
-    def code_format(self) -> str:
-        """Return one or more digits/characters."""
-        return FORMAT_NUMBER
 
     @property
     def extra_state_attributes(self) -> dict:
