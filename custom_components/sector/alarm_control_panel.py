@@ -65,8 +65,8 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
     def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self.unique_id)},
-            "name": self.name,
+            "identifiers": {(DOMAIN, self._attr_unique_id)},
+            "name": self._attr_name,
             "manufacturer": "Sector Alarm",
             "model": "Alarmpanel",
             "sw_version": "master",

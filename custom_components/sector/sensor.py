@@ -67,11 +67,10 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
         """Initialize Temp sensor."""
         self._hub = hub
         super().__init__(coordinator)
-        self._serial = description.key
+        self.entity_description = description
         self._attr_name = description.name
         self._attr_unique_id: str = "sa_temp_" + str(description.key)
-        self.entity_description = description
-        self._attr_state = self._hub.temp_state[self._serial]
+        self._attr_native_value = self._hub.temp_state[description.key]
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -88,4 +87,4 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Extra states for sensor."""
-        return {"Serial No": self._serial}
+        return {"Serial No": self.entity_description.key}
