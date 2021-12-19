@@ -9,7 +9,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import TEMP_CELSIUS
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -88,3 +88,9 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self) -> dict:
         """Extra states for sensor."""
         return {"Serial No": self.entity_description.key}
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_native_value = self._hub.temp_state[self.entity_description.key]
+        self.async_write_ha_state()

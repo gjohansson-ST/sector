@@ -10,8 +10,7 @@ from homeassistant.components.alarm_control_panel.const import (
     SUPPORT_ALARM_ARM_HOME,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ALARM_PENDING
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -49,8 +48,6 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         self._hub = hub
         super().__init__(coordinator)
         self._code: str = code if code != "" else None
-        self._state: str = STATE_ALARM_PENDING
-        self._changed_by: str = ""
         self._displayname: str = self._hub.alarm_displayname
         self._isonline: str = self._hub.alarm_isonline
         self._attr_name = f"Sector Alarmpanel {self._hub.alarm_id}"
@@ -104,3 +101,11 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         if code:
             await self._hub.triggeralarm(command, code=code)
             await self.coordinator.async_refresh()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._isonline: str = self._hub.alarm_isonline
+        self._attr_changed_by = self._hub.alarm_changed_by
+        self._attr_state = self._hub.alarm_state
+        self.async_write_ha_state()

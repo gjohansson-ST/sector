@@ -3,8 +3,8 @@ import logging
 
 from homeassistant.components.lock import LockEntity, LockEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_CODE, STATE_LOCKED, STATE_UNKNOWN
-from homeassistant.core import HomeAssistant
+from homeassistant.const import ATTR_CODE, STATE_LOCKED
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -71,15 +71,16 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         """Initialize lock."""
         self._hub = hub
         super().__init__(coordinator)
-        self._serial = serial
         self._attr_name = description.name
         self._attr_unique_id: str = "sa_lock_" + str(description.key)
         self._attr_code_format: str = f"^\\d{code_format}$"
+        self._attr_is_locked = bool(
+            self._hub.lock_state[description.key] == STATE_LOCKED
+        )
         self._autolock = autolock
         self._code = code
         self.entity_description = description
         self._code_format = code_format
-        self._state: str = STATE_UNKNOWN
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -98,20 +99,15 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         """Additional states of lock."""
         return {
             "Autolock": self._autolock,
-            "Serial No": self._serial,
+            "Serial No": self.entity_description.key,
         }
-
-    @property
-    def is_locked(self) -> bool:
-        """Return if locked."""
-        return self._state == STATE_LOCKED
 
     async def async_unlock(self, **kwargs) -> None:
         """Unlock lock."""
         command = "unlock"
         code = kwargs.get(ATTR_CODE, self._code)
         if code:
-            await self._hub.triggerlock(self._serial, code, command)
+            await self._hub.triggerlock(self.entity_description.key, code, command)
             await self.coordinator.async_refresh()
 
     async def async_lock(self, **kwargs) -> None:
@@ -119,5 +115,13 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         command = "lock"
         code = kwargs.get(ATTR_CODE, self._code)
         if code:
-            await self._hub.triggerlock(self._serial, code, command)
+            await self._hub.triggerlock(self.entity_description.key, code, command)
             await self.coordinator.async_refresh()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        self._attr_is_locked = bool(
+            self._hub.lock_state[self.entity_description.key] == STATE_LOCKED
+        )
+        self.async_write_ha_state()
