@@ -15,7 +15,7 @@ from homeassistant.const import (
     STATE_ALARM_ARMED_HOME,
     STATE_ALARM_DISARMED,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -88,7 +88,7 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         if code:
             await self._hub.triggeralarm(command, code=code)
             self._attr_state = STATE_ALARM_ARMED_HOME
-            await self.async_write_ha_state()
+            self.async_write_ha_state()
 
     async def async_alarm_disarm(self, code=None) -> None:
         """Arm alarm off."""
@@ -98,7 +98,7 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         if code:
             await self._hub.triggeralarm(command, code=code)
             self._attr_state = STATE_ALARM_DISARMED
-            await self.async_write_ha_state()
+            self.async_write_ha_state()
 
     async def async_alarm_arm_away(self, code=None) -> None:
         """Arm alarm away."""
@@ -108,10 +108,12 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         if code:
             await self._hub.triggeralarm(command, code=code)
             self._attr_state = STATE_ALARM_ARMED_AWAY
-            await self.async_write_ha_state()
+            self.async_write_ha_state()
 
-    def update(self) -> None:
+    @callback
+    def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._isonline: str = self._hub.alarm_isonline
         self._attr_changed_by = self._hub.alarm_changed_by
         self._attr_state = self._hub.alarm_state
+        self.async_write_ha_state()
