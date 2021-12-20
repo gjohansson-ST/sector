@@ -7,7 +7,7 @@ from homeassistant.components.switch import (
     SwitchEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -86,21 +86,18 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn the switch on."""
-        await self.async_triggerswitch("On")
+        await self._hub.triggerswitch(self._id, "On")
+        self._attr_is_on = True
+        await self.async_write_ha_state
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn the switch off."""
-        await self.async_triggerswitch("Off")
+        await self._hub.triggerswitch(self._id, "Off")
+        self._attr_is_on = False
+        await self.async_write_ha_state
 
-    async def async_triggerswitch(self, command) -> None:
-        """Trigger switch."""
-        await self._hub.triggerswitch(self._id, command)
-        await self.coordinator.async_refresh()
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
+    def update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_is_on = bool(
             self._hub.switch_state[self.entity_description.key] == "On"
         )
-        self.async_write_ha_state()

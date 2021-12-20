@@ -4,7 +4,7 @@ import logging
 from homeassistant.components.lock import LockEntity, LockEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_CODE, STATE_LOCKED
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -110,7 +110,8 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         code = kwargs.get(ATTR_CODE, self._code)
         if code:
             await self._hub.triggerlock(self.entity_description.key, code, command)
-            await self.coordinator.async_refresh()
+            self._attr_is_locked = False
+            await self.async_write_ha_state()
 
     async def async_lock(self, **kwargs) -> None:
         """Lock lock."""
@@ -118,12 +119,11 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         code = kwargs.get(ATTR_CODE, self._code)
         if code:
             await self._hub.triggerlock(self.entity_description.key, code, command)
-            await self.coordinator.async_refresh()
+            self._attr_is_locked = True
+            await self.async_write_ha_state()
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
+    def update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_is_locked = bool(
             self._hub.lock_state[self.entity_description.key] == "lock"
         )
-        self.async_write_ha_state()

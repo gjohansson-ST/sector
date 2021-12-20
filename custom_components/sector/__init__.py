@@ -100,7 +100,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         websession=websession,
     )
 
-    async def async_update_data():
+    async def async_update_data() -> None:
         """Fetch data from api."""
 
         now = datetime.utcnow()
@@ -110,8 +110,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "last updated = %s", hass.data[DOMAIN][entry.entry_id]["last_updated"]
         )
         await api.fetch_info()
-
-        return True
 
     coordinator = DataUpdateCoordinator(
         hass,
