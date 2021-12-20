@@ -32,6 +32,8 @@ async def async_setup_entry(
     ]
 
     switches = await sector_hub.get_switches()
+    if not switches:
+        return
     switchlist: list = []
     for switch in switches:
         name = await sector_hub.get_name(switch, "switch")

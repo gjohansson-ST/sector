@@ -34,6 +34,8 @@ async def async_setup_entry(
         return
 
     locks = await sector_hub.get_locks()
+    if not locks:
+        return
     lockdevices: list = []
     for lock in locks:
         name = await sector_hub.get_name(lock, "lock")
@@ -122,6 +124,6 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_is_locked = bool(
-            self._hub.lock_state[self.entity_description.key] == STATE_LOCKED
+            self._hub.lock_state[self.entity_description.key] == "lock"
         )
         self.async_write_ha_state()
