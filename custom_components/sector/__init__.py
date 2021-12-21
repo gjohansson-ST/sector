@@ -341,6 +341,7 @@ class SectorAlarmHub(object):
             json_data = await response.json()
             self._alarmstatus = json_data["Status"]
             _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
+            _LOGGER.debug("Full output panelstatus: %s", json_data)
 
         if self._temps and self._sector_temp and self._update_sensors:
             response = await self._request(
