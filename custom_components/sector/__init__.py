@@ -187,7 +187,7 @@ class SectorAlarmHub(object):
         self._lockdata: dict = {}
         self._tempdata: dict = {}
         self._switchdata: dict = {}
-        self._alarmstatus: str = ""
+        self._alarmstatus: int = 0
         self._changed_by: str = ""
         self.websession = websession
         self._sector_temp = sector_temp
@@ -339,9 +339,10 @@ class SectorAlarmHub(object):
         )
         if response:
             json_data = await response.json()
-            self._alarmstatus = json_data["Status"]
-            _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
-            _LOGGER.debug("Full output panelstatus: %s", json_data)
+            if json_data["IsOnline"] is True:
+                self._alarmstatus = json_data["Status"]
+                _LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
+                _LOGGER.debug("Full output panelstatus: %s", json_data)
 
         if self._temps and self._sector_temp and self._update_sensors:
             response = await self._request(
