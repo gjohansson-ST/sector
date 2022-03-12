@@ -1,5 +1,5 @@
 """Adds switch for Sector integration."""
-import logging
+from __future__ import annotations
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -15,10 +15,8 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from .__init__ import SectorAlarmHub
 from .const import DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
+from .coordinator import SectorAlarmHub
 
 
 async def async_setup_entry(

@@ -1,5 +1,5 @@
 """Adds Alarm Panel for Sector integration."""
-import logging
+from __future__ import annotations
 
 from homeassistant.components.alarm_control_panel import (
     FORMAT_NUMBER,
@@ -25,8 +25,6 @@ from homeassistant.helpers.update_coordinator import (
 
 from .__init__ import SectorAlarmHub
 from .const import CONF_CODE, DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
