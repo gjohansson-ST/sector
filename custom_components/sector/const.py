@@ -1,6 +1,11 @@
 """SECTOR ALARM INTEGRATION CONSTANTS FOR HOME ASSISTANT."""
+from __future__ import annotations
+
+import logging
+
 DOMAIN = "sector"
-DEPENDENCIES = ["sector"]
+
+LOGGER = logging.getLogger(__package__)
 
 API_URL = "https://mypagesapi.sectoralarm.net/api"
 

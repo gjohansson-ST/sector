@@ -1,5 +1,5 @@
 """Adds config flow for Sector integration."""
-import logging
+from __future__ import annotations
 
 import voluptuous as vol
 
@@ -17,11 +17,10 @@ from .const import (
     CONF_TEMP,
     CONF_USERID,
     DOMAIN,
+    LOGGER,
     MIN_SCAN_INTERVAL,
     UPDATE_INTERVAL,
 )
-
-_LOGGER = logging.getLogger(__name__)
 
 DATA_SCHEMA = vol.Schema(
     {
@@ -60,7 +59,7 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
 
     token_data = await login.json()
     if not token_data:
-        _LOGGER.error("Failed to login to retrieve token: %d", login.status)
+        LOGGER.error("Failed to login to retrieve token: %d", login.status)
         raise CannotConnect
     access_token = token_data["AuthorizationToken"]
 
@@ -79,7 +78,7 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
 
     panel_data = await response.json()
     if response.status != 200 or panel_data is None or panel_data == "":
-        _LOGGER.error("Failed to login to retrieve Panel ID: %d", response.status)
+        LOGGER.error("Failed to login to retrieve Panel ID: %d", response.status)
         raise CannotConnect
 
     return panel_data["Panel"]["PanelId"]
@@ -121,7 +120,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(unique_id)
             self._abort_if_unique_id_configured()
 
-            _LOGGER.info("Login succesful. Config entry created")
+            LOGGER.info("Login succesful. Config entry created")
             return self.async_create_entry(
                 title=unique_id,
                 data={
