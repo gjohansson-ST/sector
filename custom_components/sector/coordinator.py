@@ -19,7 +19,7 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import API_URL, LOGGER
 
 
-class SectorAlarmHub(object):
+class SectorAlarmHub:
     """Sector connectivity hub."""
 
     def __init__(
@@ -191,10 +191,9 @@ class SectorAlarmHub(object):
         )
         if response:
             json_data = await response.json()
-            if json_data["IsOnline"] is True:
-                self._alarmstatus = json_data["Status"]
-                LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
-                LOGGER.debug("Full output panelstatus: %s", json_data)
+            self._alarmstatus = json_data["Status"]
+            LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
+            LOGGER.debug("Full output panelstatus: %s", json_data)
 
         if self._temps and self._sector_temp and self._update_sensors:
             response = await self._request(
