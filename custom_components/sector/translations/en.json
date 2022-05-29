@@ -17,8 +17,7 @@
                     "temp": "Enable Temp sensors",
                     "lock": "Enable Door locks"
                 },
-                "description": "Integration with Sector Alarm",
-                "title": "Sector Alarm"
+                "description": "Integration with Sector Alarm"
             }
         },
         "title": "Sector Alarm"
@@ -28,8 +27,7 @@
             "init": {
                 "data": {
                     "timesync": "Update frequency. Don't set too low!"
-                },
-                "title": "Sector Alarm Options"
+                }
             }
         }
     }
