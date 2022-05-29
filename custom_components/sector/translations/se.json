@@ -19,8 +19,7 @@
                 },
                 "description": "Integrera med Sector Alarm"
             }
-        },
-        "title": "Sector Alarm"
+        }
     },
     "options": {
         "step": {
