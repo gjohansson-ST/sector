@@ -17,8 +17,7 @@
                     "temp": "Använd temp sensorer",
                     "lock": "Använd dörrlåset"
                 },
-                "description": "Integrera med Sector Alarm",
-                "title": "Sector Alarm"
+                "description": "Integrera med Sector Alarm"
             }
         },
         "title": "Sector Alarm"
@@ -28,8 +27,7 @@
             "init": {
                 "data": {
                     "timesync": "Uppdateringsfrekvens. Sätt inte för lågt!"
-                },
-                "title": "Sector Alarm Alternativ"
+                }
             }
         }
     }
