@@ -19,8 +19,7 @@
                 },
                 "description": "Integrasjon med Sector Alarm"
             }
-        },
-        "title": "Sector Alarm"
+        }
     },
     "options": {
         "step": {
