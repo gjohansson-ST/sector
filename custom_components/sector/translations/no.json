@@ -17,8 +17,7 @@
                     "temp": "Aktiver Temp-sensorer",
                     "lock": "Aktiver dørlåser"
                 },
-                "description": "Integrasjon med Sector Alarm",
-                "title": "Sector Alarm"
+                "description": "Integrasjon med Sector Alarm"
             }
         },
         "title": "Sector Alarm"
@@ -28,8 +27,7 @@
             "init": {
                 "data": {
                     "timesync": "Oppdater frekvensen. Ikke sett for lavt!"
-                },
-                "title": "Sector Alarm Options"
+                }
             }
         }
     }
