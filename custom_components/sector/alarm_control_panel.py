@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 from homeassistant.components.alarm_control_panel import (
-    FORMAT_NUMBER,
+    CodeFormat,
     AlarmControlPanelEntity,
 )
 from homeassistant.components.alarm_control_panel.const import (
-    SUPPORT_ALARM_ARM_AWAY,
-    SUPPORT_ALARM_ARM_HOME,
+    AlarmControlPanelEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -56,9 +55,12 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         self._attr_name = f"Sector Alarmpanel {self._hub.alarm_id}"
         self._attr_unique_id = f"sa_panel_{str(self._hub.alarm_id)}"
         self._attr_changed_by = self._hub.alarm_changed_by
-        self._attr_supported_features = SUPPORT_ALARM_ARM_HOME | SUPPORT_ALARM_ARM_AWAY
+        self._attr_supported_features = (
+            AlarmControlPanelEntityFeature.ARM_HOME
+            | AlarmControlPanelEntityFeature.ARM_AWAY
+        )
         self._attr_code_arm_required = False
-        self._attr_code_format = FORMAT_NUMBER
+        self._attr_code_format = CodeFormat.NUMBER
         self._attr_state = self._hub.alarm_state
 
     @property
