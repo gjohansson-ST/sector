@@ -1,7 +1,6 @@
 {
   "name": "Sector Alarm",
   "render_readme": true,
-  "domains": ["sensor", "lock", "alarm_control_panel", "switch"],
   "homeassistant": "2022.5.0",
   "iot_class": "Cloud Polling"
 }
