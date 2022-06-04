@@ -3,18 +3,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
-    CONF_CODE,
     CONF_CODE_FORMAT,
     CONF_LOCK,
     CONF_PASSWORD,
@@ -22,30 +17,10 @@ from .const import (
     CONF_USERID,
     DOMAIN,
     LOGGER,
-    MIN_SCAN_INTERVAL,
     PLATFORMS,
     UPDATE_INTERVAL,
 )
 from .coordinator import SectorAlarmHub
-
-CONFIG_SCHEMA = vol.Schema(
-    {
-        DOMAIN: vol.Schema(
-            {
-                vol.Required(CONF_USERID): cv.string,
-                vol.Required(CONF_PASSWORD): cv.string,
-                vol.Optional(CONF_CODE, default=""): cv.string,
-                vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
-                vol.Optional(CONF_TEMP, default=True): cv.boolean,
-                vol.Optional(CONF_LOCK, default=True): cv.boolean,
-                vol.Required(UPDATE_INTERVAL, default=60): vol.All(
-                    cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)
-                ),
-            }
-        )
-    },
-    extra=vol.ALLOW_EXTRA,
-)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -116,13 +91,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "data_listener": [entry.add_update_listener(update_listener)],
     }
 
-    await coordinator.async_refresh()
-    if not coordinator.last_update_success:
-        raise ConfigEntryNotReady
+    await coordinator.async_config_entry_first_refresh()
 
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 
-    device_registry = await dr.async_get_registry(hass)
+    device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "sa_hub_" + str(api.alarm_id))},
@@ -147,11 +120,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for listener in hass.data[DOMAIN][entry.entry_id]["data_listener"]:
         listener()
 
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-    title = entry.title
-    if unload_ok:
+    if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
-        LOGGER.debug("Unloaded entry for %s", title)
         return unload_ok
     return False

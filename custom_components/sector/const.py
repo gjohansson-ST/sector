@@ -17,7 +17,7 @@ CONF_TEMP = "temp"
 CONF_LOCK = "lock"
 UPDATE_INTERVAL = "timesync"
 
-MIN_SCAN_INTERVAL = 30
+MIN_SCAN_INTERVAL = 60
 
 
 PLATFORMS = ["alarm_control_panel", "lock", "sensor", "switch"]

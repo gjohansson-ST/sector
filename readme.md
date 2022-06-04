@@ -16,6 +16,8 @@
 
 **Last update:** 2022-01-09
 
+**Join the Discussion on Development:** [https://discord.gg/uvdxXChg](https://discord.gg/uvdxXChg)
+
 ---
 
 Integrates with Swedish Sector Alarm home alarm system (most likely works in all countries serviced by Sector Alarm).
