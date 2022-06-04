@@ -131,6 +131,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_TEMP: user_input[CONF_TEMP],
                     CONF_LOCK: user_input[CONF_LOCK],
                 },
+                options={UPDATE_INTERVAL: 60},
             )
 
         return self.async_show_form(
