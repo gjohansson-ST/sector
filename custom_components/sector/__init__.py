@@ -29,15 +29,14 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     if entry.version == 1:
 
-        new = {**entry.options}
-        new[UPDATE_INTERVAL] = 60
+        new_options = {**entry.options}
+        new_options[UPDATE_INTERVAL] = 60
+        new_data = {**entry.data}
+        new_data[CONF_CODE_FORMAT] = 6
 
-        entry.options = {**new}
-
-        new2 = {**entry.data}
-        new2[CONF_CODE_FORMAT] = 6
-
-        entry.data = {**new2}
+        hass.config_entries.async_update_entry(
+            entry, data=new_data, options=new_options
+        )
 
         entry.version = 2
 
@@ -46,13 +45,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sector Alarm as config entry."""
-    hass.data.setdefault(DOMAIN, {})
-
-    if UPDATE_INTERVAL not in entry.options:
-        LOGGER.info(
-            "Set 60 seconds as update_interval as default. Adjust in options for integration"
-        )
-        hass.config_entries.async_update_entry(entry, options={UPDATE_INTERVAL: 60})
 
     websession = async_get_clientsession(hass)
 
@@ -68,8 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_update_data() -> None:
         """Fetch data from api."""
 
-        now = datetime.utcnow()
-        hass.data[DOMAIN][entry.entry_id]["last_updated"] = now
+        hass.data[DOMAIN][entry.entry_id]["last_updated"] = datetime.utcnow()
         LOGGER.debug("UPDATE_INTERVAL = %s", {entry.options[UPDATE_INTERVAL]})
         LOGGER.debug(
             "last updated = %s", hass.data[DOMAIN][entry.entry_id]["last_updated"]
@@ -84,16 +75,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         update_interval=timedelta(seconds=entry.options[UPDATE_INTERVAL]),
     )
 
-    hass.data[DOMAIN][entry.entry_id] = {
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "api": api,
         "coordinator": coordinator,
         "last_updated": datetime.utcnow() - timedelta(hours=2),
-        "data_listener": [entry.add_update_listener(update_listener)],
     }
 
     await coordinator.async_config_entry_first_refresh()
 
-    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
@@ -105,10 +95,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         sw_version="master",
     )
 
+    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+
     return True
 
 
-async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update when config_entry options update."""
     controller: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
     controller.update_interval = timedelta(seconds=entry.options.get(UPDATE_INTERVAL))
@@ -116,9 +108,6 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-
-    for listener in hass.data[DOMAIN][entry.entry_id]["data_listener"]:
-        listener()
 
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)

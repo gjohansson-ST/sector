@@ -13,6 +13,7 @@ from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
     STATE_ALARM_ARMED_HOME,
     STATE_ALARM_DISARMED,
+    STATE_ALARM_PENDING,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
@@ -24,6 +25,13 @@ from homeassistant.helpers.update_coordinator import (
 
 from .__init__ import SectorAlarmHub
 from .const import CONF_CODE, DOMAIN
+
+ALARM_STATE_TO_HA_STATE = {
+    3: STATE_ALARM_ARMED_AWAY,
+    2: STATE_ALARM_ARMED_HOME,
+    1: STATE_ALARM_DISARMED,
+    0: STATE_ALARM_PENDING,
+}
 
 
 async def async_setup_entry(
@@ -115,5 +123,5 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         """Handle updated data from the coordinator."""
         self._isonline: str = self._hub.alarm_isonline
         self._attr_changed_by = self._hub.alarm_changed_by
-        self._attr_state = self._hub.alarm_state
+        self._attr_state = ALARM_STATE_TO_HA_STATE[self._hub.alarm_state]
         self.async_write_ha_state()
