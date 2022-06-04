@@ -3,18 +3,13 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+from typing import Any
 
 import aiohttp
 from aiohttp import ClientResponse
 import async_timeout
 
-from homeassistant.const import (
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_ARMED_HOME,
-    STATE_ALARM_DISARMED,
-    STATE_ALARM_PENDING,
-)
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 
 from .const import API_URL, LOGGER
 
@@ -32,13 +27,13 @@ class SectorAlarmHub:
         websession: aiohttp.ClientSession,
     ) -> None:
         """Initialize the sector hub."""
-        self._lockstatus: dict = {}
-        self._tempstatus: dict = {}
-        self._switchstatus: dict = {}
-        self._switchid: dict = {}
-        self._lockdata: dict = {}
-        self._tempdata: dict = {}
-        self._switchdata: dict = {}
+        self._lockstatus: dict[str, str] = {}
+        self._tempstatus: dict[str, str] = {}
+        self._switchstatus: dict[str, str] = {}
+        self._switchid: dict[str, str] = {}
+        self._lockdata: list[dict[str, Any]] = []
+        self._tempdata: list[dict[str, Any]] = []
+        self._switchdata: list[dict[str, Any]] = []
         self._alarmstatus: int = 0
         self._changed_by: str = ""
         self.websession = websession
@@ -49,11 +44,11 @@ class SectorAlarmHub:
         self._access_token: str = ""
         self._last_updated: datetime = datetime.utcnow() - timedelta(hours=2)
         self._last_updated_temp: datetime = datetime.utcnow() - timedelta(hours=2)
-        self._timeout: int = 15
-        self._panel: list = []
-        self._temps: list = []
-        self._locks: list = []
-        self._switches: list = []
+        self._timeout: int = 8
+        self._panel: dict[str, Any] = {}
+        self._temps: list[dict[str, Any]] = []
+        self._locks: list[dict[str, Any]] = []
+        self._switches: list[dict[str, Any]] = []
         self._panel_id: str = ""
         self._update_sensors: bool = True
         self._timesync = timesync
@@ -168,9 +163,9 @@ class SectorAlarmHub:
             if json_data is not None:
                 self._panel = json_data["Panel"]
                 self._panel_id = json_data["Panel"]["PanelId"]
-                self._temps = json_data["Temperatures"]
-                self._locks = json_data["Locks"]
-                self._switches = json_data["Smartplugs"]
+                self._temps: list[dict[str, Any]] = json_data["Temperatures"]
+                self._locks: list[dict[str, Any]] = json_data["Locks"]
+                self._switches: list[dict[str, Any]] = json_data["Smartplugs"]
 
         now = datetime.utcnow()
         LOGGER.debug("self._last_updated_temp = %s", self._last_updated_temp)
@@ -191,7 +186,7 @@ class SectorAlarmHub:
         )
         if response:
             json_data = await response.json()
-            self._alarmstatus = json_data["Status"]
+            self._alarmstatus: int = json_data["Status"]
             LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
             LOGGER.debug("Full output panelstatus: %s", json_data)
 
@@ -202,7 +197,7 @@ class SectorAlarmHub:
             if response:
                 self._tempdata = await response.json()
                 if self._tempdata and self._tempdata and self._sector_temp:
-                    self._tempstatus = {
+                    self._tempstatus: dict[str, str] = {
                         temperature["SerialNo"]: temperature["Temprature"]
                         for temperature in self._tempdata
                     }
@@ -215,7 +210,7 @@ class SectorAlarmHub:
             if response:
                 self._lockdata = await response.json()
                 if self._lockdata and self._lockdata and self._sector_lock:
-                    self._lockstatus = {
+                    self._lockstatus: dict[str, str] = {
                         lock["Serial"]: lock["Status"] for lock in self._lockdata
                     }
                 LOGGER.debug("self._lockdata = %s", self._lockdata)
@@ -238,10 +233,10 @@ class SectorAlarmHub:
         if response:
             self._switchdata = await response.json()
             if self._switchdata:
-                self._switchstatus = {
+                self._switchstatus: dict[str, str] = {
                     switch["SerialNo"]: switch["Status"] for switch in self._switchdata
                 }
-                self._switchid = {
+                self._switchid: dict[str, str] = {
                     switch["SerialNo"]: switch["Id"] for switch in self._switchdata
                 }
             LOGGER.debug("self._switchdata = %s", self._switchdata)
@@ -252,7 +247,7 @@ class SectorAlarmHub:
         if self._access_token is None:
             result = await self._login()
             if result is None:
-                return None
+                raise ConfigEntryAuthFailed
 
         headers = {
             "Authorization": self._access_token,
@@ -344,15 +339,11 @@ class SectorAlarmHub:
         return None
 
     @property
-    def alarm_state(self) -> str:
+    def alarm_state(self) -> int:
         """Check state of alarm."""
-        if self._alarmstatus == 3:
-            return STATE_ALARM_ARMED_AWAY
-        if self._alarmstatus == 2:
-            return STATE_ALARM_ARMED_HOME
-        if self._alarmstatus == 1:
-            return STATE_ALARM_DISARMED
-        return STATE_ALARM_PENDING
+        if self._alarmstatus:
+            return self._alarmstatus
+        return 0
 
     @property
     def alarm_changed_by(self) -> str:
