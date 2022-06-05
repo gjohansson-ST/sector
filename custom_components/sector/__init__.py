@@ -52,8 +52,13 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if new_options[CONF_CODE] == "":
             new_options[CONF_CODE] = None
         hass.config_entries.async_update_entry(
-            entry, data=new_data, options=new_options
+            entry,
+            data=new_data,
+            options=new_options,
+            title=entry.data[CONF_USERNAME],
+            unique_id=entry.data[CONF_USERNAME],
         )
+
         entry.version = 3
 
     LOGGER.info("Migration to version %s successful", entry.version)

@@ -17,6 +17,12 @@
                     "temp": "Enable Temp sensors"
                 },
                 "description": "Integration with Sector Alarm"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "username": "E-mail address",
+                    "password": "Password"
+                }
             }
         }
     },

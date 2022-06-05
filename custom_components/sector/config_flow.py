@@ -1,11 +1,15 @@
 """Adds config flow for Sector integration."""
 from __future__ import annotations
+from typing import Any
 
 import voluptuous as vol
+
+from collections.abc import Mapping
 
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_CODE, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
@@ -29,14 +33,18 @@ DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_LOG_NAME): cv.string,
     }
 )
+DATA_SCHEMA_AUTH = vol.Schema(
+    {
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+    }
+)
 
 
-async def validate_input(hass: core.HomeAssistant, userid, password):
+async def validate_input(
+    hass: core.HomeAssistant, username: str, password: str
+) -> None:
     """Validate the user input allows us to connect."""
-    for entry in hass.config_entries.async_entries(DOMAIN):
-        if entry.data["userid"] == userid:
-            raise AlreadyConfigured
-
     websession = async_get_clientsession(hass)
     login = await websession.post(
         f"{API_URL}/Login/Login",
@@ -49,12 +57,14 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
             "Content-Type": "application/json",
         },
         json={
-            "UserId": userid,
+            "username": username,
             "Password": password,
         },
     )
 
     token_data = await login.json()
+    if login.status == 401:
+        raise AuthenticationError
     if not token_data:
         LOGGER.error("Failed to login to retrieve token: %d", login.status)
         raise CannotConnect
@@ -74,11 +84,9 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
     )
 
     panel_data = await response.json()
-    if response.status != 200 or panel_data is None or panel_data == "":
+    if response.status not in [200, 204] or panel_data is None:
         LOGGER.error("Failed to login to retrieve Panel ID: %d", response.status)
         raise CannotConnect
-
-    return panel_data["Panel"]["PanelId"]
 
 
 class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -86,51 +94,89 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 3
 
+    entry: config_entries.ConfigEntry | None
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
         return SectorOptionFlow(config_entry)
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_reauth(self, data: Mapping[str, Any]) -> FlowResult:
+        """Handle re-authentication."""
+
+        self.entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm re-authentication with Sensibo."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            username = user_input[CONF_USERNAME].replace(" ", "")
+            password = user_input[CONF_PASSWORD].replace(" ", "")
+            try:
+                await validate_input(self.hass, username, password)
+            except CannotConnect:
+                errors = {"base": "connection_error"}
+            except AuthenticationError:
+                errors = {"base": "auth_error"}
+            else:
+                assert self.entry is not None
+                if username == self.entry.unique_id:
+                    self.hass.config_entries.async_update_entry(
+                        self.entry,
+                        data={
+                            **self.entry.data,
+                            CONF_USERNAME: username,
+                            CONF_PASSWORD: password,
+                        },
+                    )
+                    await self.hass.config_entries.async_reload(self.entry.entry_id)
+                    return self.async_abort(reason="reauth_successful")
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=DATA_SCHEMA_AUTH,
+            errors=errors,
+        )
+
+    async def async_step_user(
+        self, user_input: dict[str, str] | None = None
+    ) -> FlowResult:
         """Handle the initial step."""
         errors = {}
 
         if user_input is not None:
-            userid = user_input[CONF_USERNAME].replace(" ", "")
+            username = user_input[CONF_USERNAME].replace(" ", "")
             password = user_input[CONF_PASSWORD].replace(" ", "")
             try:
-                panel_id = await validate_input(self.hass, userid, password)
-
-            except AlreadyConfigured:
-                return self.async_abort(reason="already_configured")
+                await validate_input(self.hass, username, password)
             except CannotConnect:
-                return self.async_show_form(
-                    step_id="user",
-                    data_schema=DATA_SCHEMA,
-                    errors={"base": "connection_error"},
-                    description_placeholders={},
+                errors = {"base": "connection_error"}
+            except AuthenticationError:
+                errors = {"base": "auth_error"}
+            else:
+                await self.async_set_unique_id(username)
+                self._abort_if_unique_id_configured()
+
+                LOGGER.info("Login succesful. Config entry created")
+                return self.async_create_entry(
+                    title=username,
+                    data={
+                        CONF_USERNAME: username,
+                        CONF_PASSWORD: password,
+                        CONF_TEMP: user_input[CONF_TEMP],
+                    },
+                    options={
+                        UPDATE_INTERVAL: 60,
+                        CONF_CODE: user_input.get(CONF_CODE),
+                        CONF_CODE_FORMAT: user_input.get(CONF_CODE_FORMAT),
+                        CONF_LOG_NAME: user_input.get(CONF_LOG_NAME),
+                    },
                 )
-
-            unique_id = "sa_" + panel_id
-            await self.async_set_unique_id(unique_id)
-            self._abort_if_unique_id_configured()
-
-            LOGGER.info("Login succesful. Config entry created")
-            return self.async_create_entry(
-                title=unique_id,
-                data={
-                    CONF_USERNAME: userid,
-                    CONF_PASSWORD: password,
-                    CONF_TEMP: user_input[CONF_TEMP],
-                },
-                options={
-                    UPDATE_INTERVAL: 60,
-                    CONF_CODE: user_input.get(CONF_CODE),
-                    CONF_CODE_FORMAT: user_input.get(CONF_CODE_FORMAT),
-                    CONF_LOG_NAME: user_input.get(CONF_LOG_NAME),
-                },
-            )
 
         return self.async_show_form(
             step_id="user",
@@ -142,11 +188,13 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class SectorOptionFlow(config_entries.OptionsFlow):
     """Handle a options config flow for Sector integration."""
 
-    def __init__(self, config_entry):
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize config flow."""
         self.config_entry: config_entries.ConfigEntry = config_entry
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(
+        self, user_input: dict[str, str] | None = None
+    ) -> FlowResult:
         """Manage the Sector options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
@@ -191,5 +239,5 @@ class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
 
 
-class AlreadyConfigured(exceptions.HomeAssistantError):
-    """Error to indicate host is already configured."""
+class AuthenticationError(exceptions.HomeAssistantError):
+    """Error to indicate authentication failure."""
