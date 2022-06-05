@@ -5,6 +5,7 @@ from homeassistant.components.lock import LockEntity, LockEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_CODE, STATE_LOCKED
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -107,6 +108,8 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
             await self._hub.triggerlock(self.entity_description.key, code, command)
             self._attr_is_locked = False
             self.async_write_ha_state()
+            return
+        raise HomeAssistantError("No code provided")
 
     async def async_lock(self, **kwargs) -> None:
         """Lock lock."""
@@ -116,6 +119,8 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
             await self._hub.triggerlock(self.entity_description.key, code, command)
             self._attr_is_locked = True
             self.async_write_ha_state()
+            return
+        raise HomeAssistantError("No code provided")
 
     @callback
     def _handle_coordinator_update(self) -> None:

@@ -17,6 +17,12 @@
                     "temp": "Aktiver Temp-sensorer"
                 },
                 "description": "Integrasjon med Sector Alarm"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "username": "Epostadresse",
+                    "password": "Passord"
+                }
             }
         }
     },
