@@ -18,6 +18,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -99,6 +100,8 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
             if self._hub.log_name:
                 self._attr_changed_by = self._hub.log_name
             self.async_write_ha_state()
+            return
+        raise HomeAssistantError("No code provided")
 
     async def async_alarm_disarm(self, code=None) -> None:
         """Arm alarm off."""
@@ -111,6 +114,8 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
             if self._hub.log_name:
                 self._attr_changed_by = self._hub.log_name
             self.async_write_ha_state()
+            return
+        raise HomeAssistantError("No code provided")
 
     async def async_alarm_arm_away(self, code=None) -> None:
         """Arm alarm away."""
@@ -123,6 +128,8 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
             if self._hub.log_name:
                 self._attr_changed_by = self._hub.log_name
             self.async_write_ha_state()
+            return
+        raise HomeAssistantError("No code provided")
 
     @callback
     def _handle_coordinator_update(self) -> None:

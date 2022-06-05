@@ -9,7 +9,11 @@ import aiohttp
 from aiohttp import ClientResponse
 import async_timeout
 
-from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.exceptions import (
+    ConfigEntryAuthFailed,
+    ConfigEntryNotReady,
+    HomeAssistantError,
+)
 
 from .const import API_URL, LOGGER
 
@@ -158,7 +162,7 @@ class SectorAlarmHub:
         if not self._panel:
             response = await self._request(API_URL + "/Panel/getFullSystem")
             if response is None:
-                return None
+                raise ConfigEntryNotReady
             json_data = await response.json()
             if json_data is not None:
                 self._panel = json_data["Panel"]
@@ -279,7 +283,10 @@ class SectorAlarmHub:
                 LOGGER.debug("request status: %s", response.status)
                 return response
 
-            return None
+            text = await response.text
+            LOGGER.error(
+                "Error fetching data status %s with text %s", response.status, text
+            )
 
         except aiohttp.ClientConnectorError as error:
             LOGGER.error("ClientError connecting to Sector: %s ", error, exc_info=True)
