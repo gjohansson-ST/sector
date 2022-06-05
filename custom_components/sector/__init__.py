@@ -14,6 +14,7 @@ from .const import (
     CONF_CODE_FORMAT,
     CONF_LOG_NAME,
     CONF_TEMP,
+    CONF_USERID,
     DOMAIN,
     LOGGER,
     PLATFORMS,
@@ -31,15 +32,19 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         new_data = {**entry.data, CONF_CODE_FORMAT: 6}
         new_options = {**entry.options, UPDATE_INTERVAL: 60}
 
-        hass.config_entries.async_update_entry(
+        if hass.config_entries.async_update_entry(
             entry, data=new_data, options=new_options
-        )
-
-        entry.version = 2
+        ):
+            entry.version = 2
 
     if entry.version == 2:
+        username = (
+            entry.data[CONF_USERNAME]
+            if entry.data.get(CONF_USERNAME)
+            else entry.data[CONF_USERID]
+        )
         new_data = {
-            CONF_USERNAME: entry.data[CONF_USERNAME],
+            CONF_USERNAME: username,
             CONF_PASSWORD: entry.data[CONF_PASSWORD],
             CONF_TEMP: entry.data[CONF_TEMP],
         }
@@ -51,15 +56,14 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         }
         if new_options[CONF_CODE] == "":
             new_options[CONF_CODE] = None
-        hass.config_entries.async_update_entry(
+        if hass.config_entries.async_update_entry(
             entry,
             data=new_data,
             options=new_options,
-            title=entry.data[CONF_USERNAME],
-            unique_id=entry.data[CONF_USERNAME],
-        )
-
-        entry.version = 3
+            title=username,
+            unique_id=username,
+        ):
+            entry.version = 3
 
     LOGGER.info("Migration to version %s successful", entry.version)
 
