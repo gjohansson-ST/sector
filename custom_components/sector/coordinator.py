@@ -22,6 +22,7 @@ class SectorAlarmHub:
         sector_temp: bool,
         userid: str,
         password: str,
+        log_name: str | None,
         timesync: int,
         websession: aiohttp.ClientSession,
     ) -> None:
@@ -50,6 +51,7 @@ class SectorAlarmHub:
         self._panel_id: str = ""
         self._update_sensors: bool = True
         self._timesync = timesync
+        self.log_name = log_name
 
     async def get_thermometers(self) -> list:
         """Get temp sensors."""

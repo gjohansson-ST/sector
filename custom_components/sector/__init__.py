@@ -68,6 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_TEMP],
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
+        entry.options.get(CONF_LOG_NAME),
         entry.options.get(UPDATE_INTERVAL, 60),
         websession=websession,
     )

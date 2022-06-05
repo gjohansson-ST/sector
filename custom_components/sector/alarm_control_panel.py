@@ -96,6 +96,8 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         if code:
             await self._hub.triggeralarm(command, code=code)
             self._attr_state = STATE_ALARM_ARMED_HOME
+            if self._hub.log_name:
+                self._attr_changed_by = self._hub.log_name
             self.async_write_ha_state()
 
     async def async_alarm_disarm(self, code=None) -> None:
