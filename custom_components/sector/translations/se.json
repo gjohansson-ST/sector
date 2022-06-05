@@ -17,6 +17,12 @@
                     "temp": "Använd temp sensorer"
                 },
                 "description": "Integrera med Sector Alarm"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "username": "E-post adress",
+                    "password": "Lösenord"
+                }
             }
         }
     },
