@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_CODE, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -11,10 +12,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_CODE_FORMAT,
-    CONF_LOCK,
-    CONF_PASSWORD,
+    CONF_LOG_NAME,
     CONF_TEMP,
-    CONF_USERID,
     DOMAIN,
     LOGGER,
     PLATFORMS,
@@ -29,16 +28,33 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     if entry.version == 1:
 
-        new_options = {**entry.options}
-        new_options[UPDATE_INTERVAL] = 60
-        new_data = {**entry.data}
-        new_data[CONF_CODE_FORMAT] = 6
+        new_data = {**entry.data, CONF_CODE_FORMAT: 6}
+        new_options = {**entry.options, UPDATE_INTERVAL: 60}
 
         hass.config_entries.async_update_entry(
             entry, data=new_data, options=new_options
         )
 
         entry.version = 2
+
+    if entry.version == 2:
+        new_data = {
+            CONF_USERNAME: entry.data[CONF_USERNAME],
+            CONF_PASSWORD: entry.data[CONF_PASSWORD],
+            CONF_TEMP: entry.data[CONF_TEMP],
+        }
+        new_options = {
+            UPDATE_INTERVAL: entry.options.get(UPDATE_INTERVAL),
+            CONF_CODE: entry.options.get(CONF_CODE),
+            CONF_CODE_FORMAT: entry.options.get(CONF_CODE_FORMAT),
+            CONF_LOG_NAME: entry.options.get(CONF_LOG_NAME),
+        }
+        if new_options[CONF_CODE] == "":
+            new_options[CONF_CODE] = None
+        hass.config_entries.async_update_entry(
+            entry, data=new_data, options=new_options
+        )
+        entry.version = 3
 
     LOGGER.info("Migration to version %s successful", entry.version)
 
@@ -49,9 +65,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     websession = async_get_clientsession(hass)
 
     api = SectorAlarmHub(
-        entry.data[CONF_LOCK],
         entry.data[CONF_TEMP],
-        entry.data[CONF_USERID],
+        entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
         entry.options.get(UPDATE_INTERVAL, 60),
         websession=websession,

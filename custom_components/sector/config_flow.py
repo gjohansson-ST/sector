@@ -4,32 +4,29 @@ from __future__ import annotations
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
+from homeassistant.const import CONF_CODE, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
     API_URL,
-    CONF_CODE,
     CONF_CODE_FORMAT,
-    CONF_LOCK,
-    CONF_PASSWORD,
+    CONF_LOG_NAME,
     CONF_TEMP,
-    CONF_USERID,
     DOMAIN,
     LOGGER,
-    MIN_SCAN_INTERVAL,
     UPDATE_INTERVAL,
 )
 
 DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_USERID): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_CODE, default=""): cv.string,
+        vol.Optional(CONF_CODE): cv.string,
         vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
-        vol.Optional(CONF_TEMP, default=True): cv.boolean,
-        vol.Optional(CONF_LOCK, default=True): cv.boolean,
+        vol.Optional(CONF_TEMP, default=False): cv.boolean,
+        vol.Optional(CONF_LOG_NAME): cv.string,
     }
 )
 
@@ -87,8 +84,7 @@ async def validate_input(hass: core.HomeAssistant, userid, password):
 class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Sector integration."""
 
-    VERSION = 2
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
+    VERSION = 3
 
     @staticmethod
     @callback
@@ -101,7 +97,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            userid = user_input[CONF_USERID].replace(" ", "")
+            userid = user_input[CONF_USERNAME].replace(" ", "")
             password = user_input[CONF_PASSWORD].replace(" ", "")
             try:
                 panel_id = await validate_input(self.hass, userid, password)
@@ -124,14 +120,16 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title=unique_id,
                 data={
-                    CONF_USERID: userid,
+                    CONF_USERNAME: userid,
                     CONF_PASSWORD: password,
-                    CONF_CODE: user_input[CONF_CODE].replace(" ", ""),
-                    CONF_CODE_FORMAT: user_input[CONF_CODE_FORMAT],
                     CONF_TEMP: user_input[CONF_TEMP],
-                    CONF_LOCK: user_input[CONF_LOCK],
                 },
-                options={UPDATE_INTERVAL: 60},
+                options={
+                    UPDATE_INTERVAL: 60,
+                    CONF_CODE: user_input.get(CONF_CODE),
+                    CONF_CODE_FORMAT: user_input.get(CONF_CODE_FORMAT),
+                    CONF_LOG_NAME: user_input.get(CONF_LOG_NAME),
+                },
             )
 
         return self.async_show_form(
@@ -146,7 +144,7 @@ class SectorOptionFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize config flow."""
-        self.config_entry = config_entry
+        self.config_entry: config_entries.ConfigEntry = config_entry
 
     async def async_step_init(self, user_input=None):
         """Manage the Sector options."""
@@ -155,10 +153,34 @@ class SectorOptionFlow(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
-                vol.Required(
+                vol.Optional(
                     UPDATE_INTERVAL,
-                    default=self.config_entry.options.get(UPDATE_INTERVAL, 60),
-                ): vol.All(cv.positive_int, vol.Clamp(min=MIN_SCAN_INTERVAL)),
+                    description={
+                        "suggested_value": self.config_entry.options.get(
+                            UPDATE_INTERVAL, 60
+                        )
+                    },
+                ): cv.positive_int,
+                vol.Optional(
+                    CONF_CODE,
+                    description={
+                        "suggested_value": self.config_entry.options.get(CONF_CODE)
+                    },
+                ): cv.string,
+                vol.Optional(
+                    CONF_CODE_FORMAT,
+                    description={
+                        "suggested_value": self.config_entry.options.get(
+                            CONF_CODE_FORMAT, 6
+                        )
+                    },
+                ): cv.positive_int,
+                vol.Optional(
+                    CONF_LOG_NAME,
+                    description={
+                        "suggested_value": self.config_entry.options.get(CONF_LOG_NAME)
+                    },
+                ): cv.string,
             }
         )
 

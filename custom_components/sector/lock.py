@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from .const import CONF_CODE, CONF_CODE_FORMAT, CONF_LOCK, DOMAIN
+from .const import CONF_CODE, CONF_CODE_FORMAT, DOMAIN
 from .coordinator import SectorAlarmHub
 
 
@@ -27,9 +27,6 @@ async def async_setup_entry(
     ]
     code: str = entry.data[CONF_CODE]
     code_format: int = entry.data[CONF_CODE_FORMAT]
-
-    if not entry.data[CONF_LOCK]:
-        return
 
     locks = await sector_hub.get_locks()
     if not locks:

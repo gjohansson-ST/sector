@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from homeassistant.components.alarm_control_panel import (
-    CodeFormat,
     AlarmControlPanelEntity,
+    CodeFormat,
 )
 from homeassistant.components.alarm_control_panel.const import (
     AlarmControlPanelEntityFeature,

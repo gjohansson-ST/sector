@@ -10,12 +10,11 @@
         "step": {
             "user": {
                 "data": {
-                    "userid": "E-post adress",
+                    "username": "E-post adress",
                     "password": "Lösenord",
                     "code": "Kod för att larma/avlarma eller öppna/stänga dörren",
                     "code_format": "Default 6 siffror",
-                    "temp": "Använd temp sensorer",
-                    "lock": "Använd dörrlåset"
+                    "temp": "Använd temp sensorer"
                 },
                 "description": "Integrera med Sector Alarm"
             }
@@ -25,7 +24,10 @@
         "step": {
             "init": {
                 "data": {
-                    "timesync": "Uppdateringsfrekvens. Sätt inte för lågt!"
+                    "timesync": "Uppdateringsfrekvens. Sätt inte för lågt!",
+                    "code": "Kod för att larma/avlarma eller öppna/stänga dörren",
+                    "code_format": "Default 6 siffror",
+                    "log_name": "Namn att använda för changed by"
                 }
             }
         }
