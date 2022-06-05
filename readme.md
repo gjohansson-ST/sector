@@ -14,16 +14,29 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2022-01-09
+**Last update:** 2022-06-05
 
 **Join the Discussion on Development:** [https://discord.gg/uvdxXChg](https://discord.gg/uvdxXChg)
 
 ---
 
 Integrates with Swedish Sector Alarm home alarm system (most likely works in all countries serviced by Sector Alarm).
-Currently supporting alarm, door lock and temperature sensors
+Currently supporting Alarm, Locks, Temperature and Smartplugs
 
-**From version v.0.3.0 this integration only supports config flow using integration page, any yaml in config.yaml should be removed**
+## Configuration Options
+
+Set once:
+
+- Username: Your e-mail address linked to Sector Alarm account
+- Password: Password used for app or Sector website
+- Enable Temp sensors (Not recommended and turned off by default)
+
+Options that you can change at any time:
+
+- Update frequency: Set at minimum 60 seconds. Don't set lower as it will probably block your account
+- Code: Code used to alarm and open/close door locks
+- Code Format: Number of digits in code
+- Log Name: Set to user which HA operates via and it will populate changed_by on state changes to the correct user name
 
 ## Installation
 
@@ -46,10 +59,3 @@ Restart before proceeding
 After installation go to "Integrations" page in HA, press + and search for Sector Alarm
 Follow onscreen information to type username, password, code etc.
 No restart needed
-
-### Options
-
-After activating the integration there is an option to adjust the frequence off polling.
-Any value below 60 seconds will most likely get your account locked so take care setting value lower!
-
-### Option to use yaml to configure the integration has from version 0.3 been depreciated!
