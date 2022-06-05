@@ -19,7 +19,6 @@ class SectorAlarmHub:
 
     def __init__(
         self,
-        sector_lock: bool,
         sector_temp: bool,
         userid: str,
         password: str,
@@ -38,7 +37,6 @@ class SectorAlarmHub:
         self._changed_by: str = ""
         self.websession = websession
         self._sector_temp = sector_temp
-        self._sector_lock = sector_lock
         self._userid = userid
         self._password = password
         self._access_token: str = ""
@@ -196,20 +194,20 @@ class SectorAlarmHub:
             )
             if response:
                 self._tempdata = await response.json()
-                if self._tempdata and self._tempdata and self._sector_temp:
+                if self._tempdata and self._sector_temp:
                     self._tempstatus: dict[str, str] = {
                         temperature["SerialNo"]: temperature["Temprature"]
                         for temperature in self._tempdata
                     }
                 LOGGER.debug("self._tempdata = %s", self._tempdata)
 
-        if self._locks and self._sector_lock:
+        if self._locks:
             response = await self._request(
                 API_URL + "/Panel/GetLockStatus?panelId={}".format(self._panel_id)
             )
             if response:
                 self._lockdata = await response.json()
-                if self._lockdata and self._lockdata and self._sector_lock:
+                if self._lockdata:
                     self._lockstatus: dict[str, str] = {
                         lock["Serial"]: lock["Status"] for lock in self._lockdata
                     }
