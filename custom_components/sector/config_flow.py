@@ -1,10 +1,11 @@
 """Adds config flow for Sector integration."""
 from __future__ import annotations
-from typing import Any
-
-import voluptuous as vol
 
 from collections.abc import Mapping
+from typing import Any
+
+from aiohttp.client_exceptions import ContentTypeError
+import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
 from homeassistant.const import CONF_CODE, CONF_PASSWORD, CONF_USERNAME
@@ -61,13 +62,22 @@ async def validate_input(
             "Password": password,
         },
     )
-
-    token_data = await login.json()
     if login.status == 401:
+        text = await login.text
+        LOGGER.error("Auth failure %s, status %s", text, login.status)
         raise AuthenticationError
+
+    try:
+        token_data = await login.json()
+    except ContentTypeError as error:
+        text = await login.text
+        LOGGER.error("ContentTypeError %s, status %s", text, login.status)
+        raise CannotConnect from error
+
     if not token_data:
         LOGGER.error("Failed to login to retrieve token: %d", login.status)
         raise CannotConnect
+
     access_token = token_data["AuthorizationToken"]
 
     response = await websession.get(
