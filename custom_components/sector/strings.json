@@ -13,8 +13,9 @@
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]",
           "code": "Code to arm/disarm alarm or open/close doorlock",
-          "code_format": "Default 6 digits",
-          "temp": "Enable Temp sensors"
+          "code_format": "Code length for alarm and locks",
+          "temp": "Enable Temp sensors",
+          "log_name": "Name to use for changed by"
         },
         "description": "Integration with Sector Alarm"
       },
@@ -32,7 +33,7 @@
               "data": {
                   "timesync": "Update frequency. Don't set too low!",
                   "code": "Code to arm/disarm alarm or open/close doorlock",
-                  "code_format": "Default 6 digits",
+                  "code_format": "Code length for alarm and locks",
                   "log_name": "Name to use for changed by"
                 }
             }
