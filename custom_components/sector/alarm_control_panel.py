@@ -44,7 +44,7 @@ async def async_setup_entry(
     coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
         "coordinator"
     ]
-    code: str = entry.data[CONF_CODE]
+    code: str = entry.options.get(CONF_CODE)
 
     async_add_entities([SectorAlarmPanel(sector_hub, coordinator, code)])
 
@@ -58,7 +58,7 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         """Initialize the Alarm panel."""
         self._hub = hub
         super().__init__(coordinator)
-        self._code: str = code if code != "" else None
+        self._code: str | None = code
         self._displayname: str = self._hub.alarm_displayname
         self._isonline: str = self._hub.alarm_isonline
         self._attr_name = f"Sector Alarmpanel {self._hub.alarm_id}"
