@@ -13,8 +13,9 @@
                     "username": "E-post adress",
                     "password": "Lösenord",
                     "code": "Kod för att larma/avlarma eller öppna/stänga dörren",
-                    "code_format": "Default 6 siffror",
-                    "temp": "Använd temp sensorer"
+                    "code_format": "Längd på koden för larm och lås",
+                    "temp": "Använd temp sensorer",
+                    "log_name": "Name to use for changed by"
                 },
                 "description": "Integrera med Sector Alarm"
             },
@@ -32,7 +33,7 @@
                 "data": {
                     "timesync": "Uppdateringsfrekvens. Sätt inte för lågt!",
                     "code": "Kod för att larma/avlarma eller öppna/stänga dörren",
-                    "code_format": "Default 6 siffror",
+                    "code_format": "Längd på koden för larm och lås",
                     "log_name": "Namn att använda för changed by"
                 }
             }
