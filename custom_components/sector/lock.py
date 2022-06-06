@@ -26,8 +26,8 @@ async def async_setup_entry(
     coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
         "coordinator"
     ]
-    code: str = entry.data[CONF_CODE]
-    code_format: int = entry.data[CONF_CODE_FORMAT]
+    code: str = entry.options.get(CONF_CODE)
+    code_format: int = entry.options.get(CONF_CODE_FORMAT)
 
     locks = await sector_hub.get_locks()
     if not locks:
@@ -60,8 +60,8 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         self,
         hub: SectorAlarmHub,
         coordinator: DataUpdateCoordinator,
-        code: str,
-        code_format: int,
+        code: str | None,
+        code_format: int | None,
         serial: str,
         autolock: str,
         description: LockEntityDescription,
@@ -71,7 +71,7 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         super().__init__(coordinator)
         self._attr_name = description.name
         self._attr_unique_id: str = "sa_lock_" + str(description.key)
-        self._attr_code_format: str = f"^\\d{code_format}$"
+        self._attr_code_format: str = f"^\\d{code_format}$" if code_format else None
         self._attr_is_locked = bool(
             self._hub.lock_state[description.key] == STATE_LOCKED
         )

@@ -23,7 +23,7 @@ from .const import (
 from .coordinator import SectorAlarmHub
 
 
-async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate old entry."""
     LOGGER.debug("Migrating from version %s", entry.version)
 
@@ -56,7 +56,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         }
         if new_options[CONF_CODE] == "":
             new_options[CONF_CODE] = None
-        if hass.config_entries.async_update_entry(
+        if success := hass.config_entries.async_update_entry(
             entry,
             data=new_data,
             options=new_options,
@@ -64,9 +64,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             unique_id=username,
         ):
             entry.version = 3
-
-    LOGGER.info("Migration to version %s successful", entry.version)
-
+            LOGGER.info("Migration to version %s successful", entry.version)
+            return success
+    return False
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sector Alarm as config entry."""
