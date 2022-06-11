@@ -63,14 +63,14 @@ async def validate_input(
         },
     )
     if login.status == 401:
-        text = await login.text
+        text = await login.text()
         LOGGER.error("Auth failure %s, status %s", text, login.status)
         raise AuthenticationError
 
     try:
         token_data = await login.json()
     except ContentTypeError as error:
-        text = await login.text
+        text = await login.text()
         LOGGER.error("ContentTypeError %s, status %s", text, login.status)
         raise CannotConnect from error
 
