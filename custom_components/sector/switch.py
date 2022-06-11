@@ -29,16 +29,17 @@ async def async_setup_entry(
         "coordinator"
     ]
 
-    switches = await sector_hub.get_switches()
-    if not switches:
-        return
     switchlist: list = []
-    for switch in switches:
-        name = await sector_hub.get_name(switch, "switch")
-        description = SwitchEntityDescription(
-            key=switch, name=name, device_class=SwitchDeviceClass.OUTLET
-        )
-        switchlist.append(SectorAlarmSwitch(sector_hub, coordinator, description))
+    for panel, panel_data in sector_hub.data.items():
+        for switch, switch_data in panel_data["switch"].items():
+            name = switch_data["name"]
+            serial = switch_data["serial"]
+            description = SwitchEntityDescription(
+                key=switch, name=name, device_class=SwitchDeviceClass.OUTLET
+            )
+            switchlist.append(
+                SectorAlarmSwitch(sector_hub, coordinator, description, serial, panel)
+            )
 
     if switchlist:
         async_add_entities(switchlist)
@@ -52,45 +53,52 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
         hub: SectorAlarmHub,
         coordinator: DataUpdateCoordinator,
         description: SwitchEntityDescription,
+        serial: str,
+        panel_id: str,
     ) -> None:
         """Initialize Switch."""
         self._hub = hub
+        self._panel_id = panel_id
         super().__init__(coordinator)
         self._attr_name = description.name
-        self._attr_unique_id: str = "sa_switch_" + str(description.key)
+        self._attr_unique_id = f"sa_switch_{serial}"
         self.entity_description = description
-        self._attr_is_on = bool(self._hub.switch_state[description.key] == "On")
-        self._id: str = self._hub.switch_id[description.key]
+        self._attr_is_on = bool(
+            self._hub.data[panel_id]["switch"][description.key]["status"] == "On"
+        )
+        self.serial = serial
 
     @property
     def device_info(self) -> DeviceInfo:
         """Return device information."""
         return {
-            "identifiers": {(DOMAIN, self._attr_unique_id)},
-            "name": self._attr_name,
+            "identifiers": {(DOMAIN, f"sa_switch_{self.serial}")},
+            "name": self.entity_description.name,
             "manufacturer": "Sector Alarm",
             "model": "Switch",
             "sw_version": "master",
-            "via_device": (DOMAIN, "sa_hub_" + str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, f"sa_hub_{self._panel_id}"),
         }
 
     @property
     def extra_state_attributes(self) -> dict:
         """Additional states for switch."""
         return {
-            "Serial No": self.entity_description.key,
-            "Id": self._id,
+            "Serial No": self.serial,
+            "Id": self.entity_description.key,
         }
 
-    async def async_turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs: str) -> None:
         """Turn the switch on."""
-        await self._hub.triggerswitch(self._id, "On")
+        await self._hub.triggerswitch(self.entity_description.key, "on", self._panel_id)
         self._attr_is_on = True
         self.async_write_ha_state()
 
-    async def async_turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs: str) -> None:
         """Turn the switch off."""
-        await self._hub.triggerswitch(self._id, "Off")
+        await self._hub.triggerswitch(
+            self.entity_description.key, "off", self._panel_id
+        )
         self._attr_is_on = False
         self.async_write_ha_state()
 
@@ -98,6 +106,9 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_is_on = bool(
-            self._hub.switch_state[self.entity_description.key] == "On"
+            self._hub.data[self._panel_id]["switch"][self.entity_description.key][
+                "status"
+            ]
+            == "On"
         )
         self.async_write_ha_state()

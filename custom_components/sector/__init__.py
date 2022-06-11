@@ -12,7 +12,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CONF_CODE_FORMAT,
-    CONF_LOG_NAME,
     CONF_TEMP,
     CONF_USERID,
     DOMAIN,
@@ -43,23 +42,22 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if entry.data.get(CONF_USERNAME)
             else entry.data[CONF_USERID]
         )
-        new_data = {
+        new_data2 = {
             CONF_USERNAME: username,
             CONF_PASSWORD: entry.data[CONF_PASSWORD],
             CONF_TEMP: entry.data[CONF_TEMP],
         }
-        new_options = {
+        new_options2 = {
             UPDATE_INTERVAL: entry.options.get(UPDATE_INTERVAL),
             CONF_CODE: entry.options.get(CONF_CODE),
             CONF_CODE_FORMAT: entry.options.get(CONF_CODE_FORMAT),
-            CONF_LOG_NAME: entry.options.get(CONF_LOG_NAME),
         }
-        if new_options[CONF_CODE] == "":
-            new_options[CONF_CODE] = None
+        if new_options2[CONF_CODE] == "":
+            new_options2[CONF_CODE] = None
         if success := hass.config_entries.async_update_entry(
             entry,
-            data=new_data,
-            options=new_options,
+            data=new_data2,
+            options=new_options2,
             title=username,
             unique_id=username,
         ):
@@ -67,6 +65,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             LOGGER.info("Migration to version %s successful", entry.version)
             return success
     return False
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sector Alarm as config entry."""
@@ -77,7 +76,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_TEMP],
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
-        entry.options.get(CONF_LOG_NAME),
         entry.options.get(UPDATE_INTERVAL, 60),
         websession=websession,
     )
@@ -103,22 +101,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "api": api,
         "coordinator": coordinator,
-        "last_updated": datetime.utcnow() - timedelta(hours=2),
     }
 
     await coordinator.async_config_entry_first_refresh()
 
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    device_registry = dr.async_get(hass)
-    device_registry.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, "sa_hub_" + str(api.alarm_id))},
-        manufacturer="Sector Alarm",
-        name="Sector Hub",
-        model="Hub",
-        sw_version="master",
-    )
+    for key in api.data:
+        device_registry = dr.async_get(hass)
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"sa_hub_{key}")},
+            manufacturer="Sector Alarm",
+            name="Sector Hub",
+            model="Hub",
+            sw_version="master",
+        )
 
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
 
@@ -128,7 +126,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update when config_entry options update."""
     controller: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    controller.update_interval = timedelta(seconds=entry.options.get(UPDATE_INTERVAL))
+    controller.update_interval = timedelta(
+        seconds=entry.options.get(UPDATE_INTERVAL, 60)
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -14,10 +14,8 @@
                     "password": "Passord",
                     "code": "Kode for å aktivere / deaktivere alarm eller åpne / lukke dørlås",
                     "code_format": "Kodelengde for alarm og låser",
-                    "temp": "Aktiver Temp-sensorer",
-                    "log_name": "Name to use for changed by"
-                },
-                "description": "Integrasjon med Sector Alarm"
+                    "temp": "Aktiver Temp-sensorer"
+                }
             },
             "reauth_confirm": {
                 "data": {
@@ -33,8 +31,7 @@
                 "data": {
                     "timesync": "Oppdater frekvensen. Ikke sett for lavt!",
                     "code": "Kode for å aktivere / deaktivere alarm eller åpne / lukke dørlås",
-                    "code_format": "Kodelengde for alarm og låser",
-                    "log_name": "Navn å bruke til changed by"
+                    "code_format": "Kodelengde for alarm og låser"
                 }
             }
         }

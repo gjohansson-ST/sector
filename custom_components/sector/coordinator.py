@@ -6,111 +6,53 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import aiohttp
-from aiohttp import ClientResponse
 import async_timeout
 
-from homeassistant.exceptions import (
-    ConfigEntryAuthFailed,
-    ConfigEntryNotReady,
-    HomeAssistantError,
-)
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from .const import API_URL, LOGGER
+
+TIMEOUT = 8
 
 
 class SectorAlarmHub:
     """Sector connectivity hub."""
+
+    logname: str
 
     def __init__(
         self,
         sector_temp: bool,
         userid: str,
         password: str,
-        log_name: str | None,
         timesync: int,
         websession: aiohttp.ClientSession,
     ) -> None:
         """Initialize the sector hub."""
-        self._lockstatus: dict[str, str] = {}
-        self._tempstatus: dict[str, str] = {}
-        self._switchstatus: dict[str, str] = {}
-        self._switchid: dict[str, str] = {}
-        self._lockdata: list[dict[str, Any]] = []
-        self._tempdata: list[dict[str, Any]] = []
-        self._switchdata: list[dict[str, Any]] = []
-        self._alarmstatus: int = 0
-        self._changed_by: str = ""
+
         self.websession = websession
         self._sector_temp = sector_temp
         self._userid = userid
         self._password = password
-        self._access_token: str = ""
+        self._access_token: str | None = None
         self._last_updated: datetime = datetime.utcnow() - timedelta(hours=2)
         self._last_updated_temp: datetime = datetime.utcnow() - timedelta(hours=2)
-        self._timeout: int = 8
-        self._panel: dict[str, Any] = {}
-        self._temps: list[dict[str, Any]] = []
-        self._locks: list[dict[str, Any]] = []
-        self._switches: list[dict[str, Any]] = []
-        self._panel_id: str = ""
+
         self._update_sensors: bool = True
         self._timesync = timesync
-        self.log_name = log_name
 
-    async def get_thermometers(self) -> list:
-        """Get temp sensors."""
-        if self._temps:
-            return (temp["SerialNo"] for temp in self._temps)
+        self.api_data: dict[str, dict] = {}
 
-    async def get_name(self, serial: str, command: str) -> str:
-        """Get name for sensors or locks."""
-        if command == "temp":
-            names = self._temps
-        if command == "lock":
-            names = self._locks
-        if command == "switch":
-            names = self._switches
-
-        for name in names:
-            if command == "temp":
-                if name["SerialNo"] == serial:
-                    return name["Label"]
-            elif command == "lock":
-                if name["Serial"] == serial:
-                    return name["Label"]
-            elif command == "switch":
-                if name["SerialNo"] == serial:
-                    return name["Label"]
-        return
-
-    async def get_autolock(self, serial: str) -> str:
-        """Check if autolock is enabled."""
-        for autolock in self._locks:
-            if autolock["Serial"] == serial:
-                return autolock["AutoLockEnabled"]
-
-    async def get_locks(self) -> list:
-        """Get locks."""
-        if self._locks:
-            return (lock["Serial"] for lock in self._locks)
-
-    async def get_switches(self) -> list:
-        """Get switches."""
-        if self._switches:
-            return (switch["SerialNo"] for switch in self._switches)
-
-    async def get_panel(self) -> str:
-        """Get Alarm panel."""
-        if self._panel:
-            return self._panel["PanelDisplayName"]
-
-    async def triggerlock(self, lock: str, code: str, command: str) -> None:
+    async def triggerlock(
+        self, lock: str, code: str, command: str, panel_id: str
+    ) -> None:
         """Change status of lock."""
 
         message_json = {
             "LockSerial": lock,
             "PanelCode": code,
-            "PanelId": self._panel_id,
+            "PanelId": panel_id,
             "Platform": "app",
         }
 
@@ -120,32 +62,32 @@ class SectorAlarmHub:
             await self._request(API_URL + "/Panel/Lock", json_data=message_json)
         await self.fetch_info(False)
 
-    async def triggerswitch(self, identity: str, command: str) -> None:
+    async def triggerswitch(self, identity: str, command: str, panel_id: str) -> None:
         """Change status of switch."""
 
         message_json = {
-            "PanelId": self._panel_id,
+            "PanelId": panel_id,
             "Platform": "app",
         }
 
-        if command == "On":
+        if command == "on":
             await self._request(
-                f"{API_URL}/Panel/TurnOnSmartplug?switchId={identity}&panelId={self._panel_id}",
+                f"{API_URL}/Panel/TurnOnSmartplug?switchId={identity}&panelId={panel_id}",
                 json_data=message_json,
             )
-        if command == "Off":
+        if command == "off":
             await self._request(
-                f"{API_URL}/Panel/TurnOffSmartplug?switchId={identity}&panelId={self._panel_id}",
+                f"{API_URL}/Panel/TurnOffSmartplug?switchId={identity}&panelId={panel_id}",
                 json_data=message_json,
             )
         await self.fetch_info(False)
 
-    async def triggeralarm(self, command: str, code: str) -> None:
+    async def triggeralarm(self, command: str, code: str, panel_id: str) -> None:
         """Change status of alarm."""
 
         message_json = {
             "PanelCode": code,
-            "PanelId": self._panel_id,
+            "PanelId": panel_id,
             "Platform": "app",
         }
 
@@ -159,17 +101,18 @@ class SectorAlarmHub:
 
     async def fetch_info(self, tempcheck: bool = True) -> None:
         """Fetch info from API."""
-        if not self._panel:
-            response = await self._request(API_URL + "/Panel/getFullSystem")
-            if response is None:
-                raise ConfigEntryNotReady
-            json_data = await response.json()
-            if json_data is not None:
-                self._panel = json_data["Panel"]
-                self._panel_id = json_data["Panel"]["PanelId"]
-                self._temps: list[dict[str, Any]] = json_data["Temperatures"]
-                self._locks: list[dict[str, Any]] = json_data["Locks"]
-                self._switches: list[dict[str, Any]] = json_data["Smartplugs"]
+        response_panellist: list = await self._request(
+            API_URL + "/account/GetPanelList"
+        )
+        if not response_panellist:
+            raise UpdateFailed("Could not retrieve panels")
+        panels = []
+        for panel in response_panellist:
+            self.api_data[panel["PanelId"]] = {
+                "name": panel["DisplayName"],
+                "alarmstatus": panel["Status"],
+            }
+            panels.append(panel["PanelId"])
 
         now = datetime.utcnow()
         LOGGER.debug("self._last_updated_temp = %s", self._last_updated_temp)
@@ -185,72 +128,95 @@ class SectorAlarmHub:
             self._update_sensors = True
             self._last_updated_temp = now
 
-        response = await self._request(
-            API_URL + "/Panel/GetPanelStatus?panelId={}".format(self._panel_id)
-        )
-        if response:
-            json_data = await response.json()
-            self._alarmstatus: int = json_data["Status"]
-            LOGGER.debug("self._alarmstatus = %s", self._alarmstatus)
-            LOGGER.debug("Full output panelstatus: %s", json_data)
+        response_getuser: dict = await self._request(API_URL + "/Login/GetUser")
+        self.logname = response_getuser["User"]["UserName"]
 
-        if self._temps and self._sector_temp and self._update_sensors:
-            response = await self._request(
-                API_URL + "/Panel/GetTemperatures?panelId={}".format(self._panel_id)
+        for panel in panels:
+            response_getpanel: dict = await self._request(
+                API_URL + "/GetPanel?panelId={}".format(panel)
             )
-            if response:
-                self._tempdata = await response.json()
-                if self._tempdata and self._sector_temp:
-                    self._tempstatus: dict[str, str] = {
-                        temperature["SerialNo"]: temperature["Temprature"]
-                        for temperature in self._tempdata
-                    }
-                LOGGER.debug("self._tempdata = %s", self._tempdata)
 
-        if self._locks:
-            response = await self._request(
-                API_URL + "/Panel/GetLockStatus?panelId={}".format(self._panel_id)
+            self.api_data[panel]["codelength"] = response_getpanel["PanelCodeLength"]
+            self.api_data[panel]["online"] = response_getpanel["IsOnline"]
+            self.api_data[panel]["arm_ready"] = response_getpanel["ReadyToArm"]
+
+            temps = []
+            locks = []
+            switches = []
+            if response_getpanel["Temperatures"]:
+                temps = response_getpanel["Temperatures"]
+            if response_getpanel["Locks"]:
+                locks = response_getpanel["Locks"]
+            if response_getpanel["Smartplugs"]:
+                switches = response_getpanel["Smartplugs"]
+
+            if temps and self._sector_temp and self._update_sensors:
+                response_temp: dict = await self._request(
+                    API_URL + "/Panel/GetTemperatures?panelId={}".format(panel)
+                )
+                if response_temp:
+                    temp_dict = {}
+                    for temp in response_temp:
+                        temp_dict[temp["SerialNo"]] = {
+                            "name": temp["Label"],
+                            "serial": temp["SerialNo"],
+                            "temperature": temp["Temprature"],
+                        }
+
+                    self.api_data[panel]["temp"] = temp_dict
+
+            if locks:
+                response_lock: dict = await self._request(
+                    API_URL + "/Panel/GetLockStatus?panelId={}".format(panel)
+                )
+                if response_lock:
+                    lock_dict = {}
+                    for lock in response_lock:
+                        lock_dict[lock["Serial"]] = {
+                            "name": lock["Label"],
+                            "serial": lock["Serial"],
+                            "status": lock["Status"],
+                            "autolock": lock["AutoLockEnabled"],
+                        }
+
+                    self.api_data[panel]["lock"] = lock_dict
+
+            if switches:
+                response_switch: dict = await self._request(
+                    API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel)
+                )
+                if response_switch:
+                    switch_dict = {}
+                    for switch in response_switch:
+                        switch_dict[switch["Id"]] = {
+                            "name": switch["Label"],
+                            "serial": switch["SerialNo"],
+                            "status": switch["Status"],
+                            "id": switch["Id"],
+                        }
+
+                    self.api_data[panel]["switch"] = switch_dict
+
+            response_logs: list = await self._request(
+                API_URL + "/Panel/GetLogs?panelId={}".format(panel)
             )
-            if response:
-                self._lockdata = await response.json()
-                if self._lockdata:
-                    self._lockstatus: dict[str, str] = {
-                        lock["Serial"]: lock["Status"] for lock in self._lockdata
-                    }
-                LOGGER.debug("self._lockdata = %s", self._lockdata)
-
-        response = await self._request(
-            API_URL + "/Panel/GetLogs?panelId={}".format(self._panel_id)
-        )
-        if response is not None:
-            json_data = await response.json()
-            for users in json_data:
-                if users["User"] != "" and "arm" in users["EventType"]:
-                    self._changed_by = users["User"]
-                    break
-                self._changed_by = "unknown"
-            LOGGER.debug("self._changed_by = %s", self._changed_by)
-
-        response = await self._request(
-            API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(self._panel_id)
-        )
-        if response:
-            self._switchdata = await response.json()
-            if self._switchdata:
-                self._switchstatus: dict[str, str] = {
-                    switch["SerialNo"]: switch["Status"] for switch in self._switchdata
-                }
-                self._switchid: dict[str, str] = {
-                    switch["SerialNo"]: switch["Id"] for switch in self._switchdata
-                }
-            LOGGER.debug("self._switchdata = %s", self._switchdata)
+            if response_logs:
+                for users in response_logs:
+                    if users["User"] != "" and "arm" in users["EventType"]:
+                        self.api_data[panel]["changed_by"] = users["User"]
+                        break
+                    self.api_data[panel]["changed_by"] = self.logname
 
     async def _request(
-        self, url: str, json_data: dict = None, retry: int = 3
-    ) -> ClientResponse:
+        self, url: str, json_data: dict | None = None, retry: int = 3
+    ) -> dict | list:
         if self._access_token is None:
-            result = await self._login()
-            if result is None:
+            try:
+                await self._login()
+            except Exception as error:  # pylint: disable=broad-except
+                if "unauthorized" in str(error.args[0]).lower():
+                    raise ConfigEntryAuthFailed from error
+            if self._access_token is None:
                 raise ConfigEntryAuthFailed
 
         headers = {
@@ -264,7 +230,7 @@ class SectorAlarmHub:
         }
 
         try:
-            with async_timeout.timeout(self._timeout):
+            with async_timeout.timeout(TIMEOUT):
                 if json_data:
                     response = await self.websession.post(
                         url, json=json_data, headers=headers
@@ -281,7 +247,59 @@ class SectorAlarmHub:
             if response.status in (200, 204):
                 LOGGER.debug("Info retrieved successfully URL: %s", url)
                 LOGGER.debug("request status: %s", response.status)
-                return response
+
+                output: dict | list = await response.json()
+
+        except aiohttp.ClientConnectorError as error:
+            raise UpdateFailed from error
+
+        except aiohttp.ContentTypeError as error:
+            text = await response.text()
+            LOGGER.error(
+                "ContentTypeError connecting to Sector: %s, %s ",
+                text,
+                error,
+                exc_info=True,
+            )
+            if "unauthorized" in str(error.args[0]).lower():
+                raise ConfigEntryAuthFailed from error
+            raise UpdateFailed from error
+
+        except asyncio.TimeoutError as error:
+            raise UpdateFailed from error
+
+        except asyncio.CancelledError as error:
+            raise UpdateFailed from error
+
+        return output
+
+    async def _login(self) -> None:
+        """Login to retrieve access token."""
+        try:
+            with async_timeout.timeout(TIMEOUT):
+                response = await self.websession.post(
+                    f"{API_URL}/Login/Login",
+                    headers={
+                        "API-Version": "6",
+                        "Platform": "iOS",
+                        "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                        "Version": "2.0.27",
+                        "Connection": "keep-alive",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "UserId": self._userid,
+                        "Password": self._password,
+                    },
+                )
+
+                if response.status == 401:
+                    self._access_token = None
+                    return
+
+                if response.status in (200, 204):
+                    token_data = await response.json()
+                    self._access_token = token_data["AuthorizationToken"]
 
         except aiohttp.ClientConnectorError as error:
             LOGGER.error("ClientError connecting to Sector: %s ", error, exc_info=True)
@@ -301,93 +319,10 @@ class SectorAlarmHub:
         except asyncio.CancelledError:
             LOGGER.error("Task was cancelled")
 
-    async def _login(self) -> str:
-        """Login to retrieve access token."""
-        try:
-            with async_timeout.timeout(self._timeout):
-                response = await self.websession.post(
-                    f"{API_URL}/Login/Login",
-                    headers={
-                        "API-Version": "6",
-                        "Platform": "iOS",
-                        "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
-                        "Version": "2.0.27",
-                        "Connection": "keep-alive",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "UserId": self._userid,
-                        "Password": self._password,
-                    },
-                )
-
-                if response.status == 401:
-                    self._access_token = None
-                    return None
-
-                if response.status in (200, 204):
-                    token_data = await response.json()
-                    self._access_token = token_data["AuthorizationToken"]
-                    return self._access_token
-
-        except aiohttp.ClientConnectorError as error:
-            LOGGER.error("ClientError connecting to Sector: %s ", error, exc_info=True)
-
-        except aiohttp.ContentTypeError as error:
-            LOGGER.error("ContentTypeError connecting to Sector: %s ", error)
-
-        except asyncio.TimeoutError:
-            LOGGER.error("Timed out when connecting to Sector")
-
-        except asyncio.CancelledError:
-            LOGGER.error("Task was cancelled")
-
     @property
-    def alarm_state(self) -> int:
-        """Check state of alarm."""
-        if self._alarmstatus:
-            return self._alarmstatus
-        return 0
-
-    @property
-    def alarm_changed_by(self) -> str:
-        """Alarm changed by."""
-        return self._changed_by
-
-    @property
-    def temp_state(self) -> dict:
-        """State of temp."""
-        return self._tempstatus
-
-    @property
-    def lock_state(self) -> dict:
-        """State of locks."""
-        return self._lockstatus
-
-    @property
-    def switch_state(self) -> dict:
-        """State of switch."""
-        return self._switchstatus
-
-    @property
-    def switch_id(self) -> dict:
-        """Id of Switch."""
-        return self._switchid
-
-    @property
-    def alarm_id(self) -> str:
-        """Id for Alarm panel."""
-        return self._panel["PanelId"]
-
-    @property
-    def alarm_displayname(self) -> str:
-        """Displayname of alarm panel."""
-        return self._panel["PanelDisplayName"]
-
-    @property
-    def alarm_isonline(self) -> str:
-        """Check alarm online."""
-        return self._panel["IsOnline"]
+    def data(self) -> dict[str, Any]:
+        """Return data."""
+        return self.api_data
 
 
 class UnauthorizedError(HomeAssistantError):
