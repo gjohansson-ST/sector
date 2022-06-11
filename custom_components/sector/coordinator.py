@@ -108,10 +108,7 @@ class SectorAlarmHub:
             raise UpdateFailed("Could not retrieve panels")
         panels = []
         for panel in response_panellist:
-            self.api_data[panel["PanelId"]] = {
-                "name": panel["DisplayName"],
-                "alarmstatus": panel["Status"],
-            }
+            self.api_data[panel["PanelId"]] = {"name": panel["DisplayName"]}
             panels.append(panel["PanelId"])
 
         now = datetime.utcnow()
@@ -122,7 +119,7 @@ class SectorAlarmHub:
         )
         if not tempcheck:
             self._update_sensors = False
-        elif now - self._last_updated_temp < timedelta(seconds=self._timesync * 5):
+        elif now - self._last_updated_temp < timedelta(seconds=self._timesync * 10):
             self._update_sensors = False
         else:
             self._update_sensors = True
@@ -132,23 +129,28 @@ class SectorAlarmHub:
         self.logname = response_getuser["User"]["UserName"]
 
         for panel in panels:
+            response_get_status: dict = await self._request(
+                API_URL + "/Panel/GetPanelStatus?panelId={}".format(panel)
+            )
+            self.api_data[panel]["alarmstatus"] = response_get_status["Status"]
+            self.api_data[panel]["online"] = response_get_status["IsOnline"]
+            self.api_data[panel]["arm_ready"] = response_get_status["ReadyToArm"]
+
             response_getpanel: dict = await self._request(
-                API_URL + "/GetPanel?panelId={}".format(panel)
+                API_URL + "/Panel/GetPanel?panelId={}".format(panel)
             )
 
             self.api_data[panel]["codelength"] = response_getpanel["PanelCodeLength"]
-            self.api_data[panel]["online"] = response_getpanel["IsOnline"]
-            self.api_data[panel]["arm_ready"] = response_getpanel["ReadyToArm"]
 
-            temps = []
-            locks = []
-            switches = []
+            temps = False
+            locks = False
+            switches = False
             if response_getpanel["Temperatures"]:
-                temps = response_getpanel["Temperatures"]
+                temps = True
             if response_getpanel["Locks"]:
-                locks = response_getpanel["Locks"]
+                locks = True
             if response_getpanel["Smartplugs"]:
-                switches = response_getpanel["Smartplugs"]
+                switches = True
 
             if temps and self._sector_temp and self._update_sensors:
                 response_temp: dict = await self._request(
@@ -214,7 +216,7 @@ class SectorAlarmHub:
             try:
                 await self._login()
             except Exception as error:  # pylint: disable=broad-except
-                if "unauthorized" in str(error.args[0]).lower():
+                if "unauthorized" in str(error).lower():
                     raise ConfigEntryAuthFailed from error
             if self._access_token is None:
                 raise ConfigEntryAuthFailed
