@@ -249,6 +249,7 @@ class SectorAlarmHub:
                 LOGGER.debug("request status: %s", response.status)
 
                 output: dict | list = await response.json()
+                return output
 
         except aiohttp.ContentTypeError as error:
             text = await response.text()
@@ -258,11 +259,9 @@ class SectorAlarmHub:
                 error,
                 exc_info=True,
             )
-            if "unauthorized" in str(error.args[0]).lower():
+            if "unauthorized" in error.message.lower():
                 raise ConfigEntryAuthFailed from error
             raise UpdateFailed from error
-
-        return output
 
     async def _login(self) -> None:
         """Login to retrieve access token."""
