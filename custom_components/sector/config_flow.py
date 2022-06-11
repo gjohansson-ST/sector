@@ -14,15 +14,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import (
-    API_URL,
-    CONF_CODE_FORMAT,
-    CONF_LOG_NAME,
-    CONF_TEMP,
-    DOMAIN,
-    LOGGER,
-    UPDATE_INTERVAL,
-)
+from .const import API_URL, CONF_CODE_FORMAT, CONF_TEMP, DOMAIN, LOGGER, UPDATE_INTERVAL
 
 DATA_SCHEMA = vol.Schema(
     {
@@ -31,7 +23,6 @@ DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_CODE): cv.string,
         vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
         vol.Optional(CONF_TEMP, default=False): cv.boolean,
-        vol.Optional(CONF_LOG_NAME): cv.string,
     }
 )
 DATA_SCHEMA_AUTH = vol.Schema(
@@ -73,28 +64,32 @@ async def validate_input(
         text = await login.text()
         LOGGER.error("ContentTypeError %s, status %s", text, login.status)
         raise CannotConnect from error
-
     if not token_data:
         LOGGER.error("Failed to login to retrieve token: %d", login.status)
         raise CannotConnect
 
     access_token = token_data["AuthorizationToken"]
 
-    response = await websession.get(
-        f"{API_URL}/Panel/getFullSystem",
-        headers={
-            "Authorization": access_token,
-            "API-Version": "6",
-            "Platform": "iOS",
-            "User-Agent": "SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-            "Version": "2.0.20",
-            "Connection": "keep-alive",
-            "Content-Type": "application/json",
-        },
-    )
+    try:
+        response = await websession.get(
+            f"{API_URL}/account/GetPanelList",
+            headers={
+                "Authorization": access_token,
+                "API-Version": "6",
+                "Platform": "iOS",
+                "User-Agent": "SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
+                "Version": "2.0.20",
+                "Connection": "keep-alive",
+                "Content-Type": "application/json",
+            },
+        )
+        panel_data = await response.json()
+    except ContentTypeError as error:
+        text = await login.text()
+        LOGGER.error("ContentTypeError %s, status %s", text, response.status)
+        raise CannotConnect from error
 
-    panel_data = await response.json()
-    if response.status not in [200, 204] or panel_data is None:
+    if response.status not in (200, 204) or panel_data is None:
         LOGGER.error("Failed to login to retrieve Panel ID: %d", response.status)
         raise CannotConnect
 
@@ -108,7 +103,9 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> SectorOptionFlow:
         """Get the options flow for this handler."""
         return SectorOptionFlow(config_entry)
 
@@ -160,8 +157,8 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            username = user_input[CONF_USERNAME].replace(" ", "")
-            password = user_input[CONF_PASSWORD].replace(" ", "")
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
             try:
                 await validate_input(self.hass, username, password)
             except CannotConnect:
@@ -184,7 +181,6 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         UPDATE_INTERVAL: 60,
                         CONF_CODE: user_input.get(CONF_CODE),
                         CONF_CODE_FORMAT: user_input.get(CONF_CODE_FORMAT),
-                        CONF_LOG_NAME: user_input.get(CONF_LOG_NAME),
                     },
                 )
 
@@ -211,7 +207,7 @@ class SectorOptionFlow(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
-                vol.Optional(
+                vol.Required(
                     UPDATE_INTERVAL,
                     description={
                         "suggested_value": self.config_entry.options.get(
@@ -233,12 +229,6 @@ class SectorOptionFlow(config_entries.OptionsFlow):
                         )
                     },
                 ): cv.positive_int,
-                vol.Optional(
-                    CONF_LOG_NAME,
-                    description={
-                        "suggested_value": self.config_entry.options.get(CONF_LOG_NAME)
-                    },
-                ): cv.string,
             }
         )
 

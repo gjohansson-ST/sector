@@ -34,20 +34,22 @@ async def async_setup_entry(
     if not entry.data[CONF_TEMP]:
         return
 
-    thermometers = await sector_hub.get_thermometers()
     tempsensors = []
-    for sensor in thermometers:
-        name = await sector_hub.get_name(sensor, "temp")
-        description = SensorEntityDescription(
-            key=sensor,
-            name=name,
-            native_unit_of_measurement=TEMP_CELSIUS,
-            state_class=SensorStateClass.MEASUREMENT,
-            device_class=SensorDeviceClass.TEMPERATURE,
-        )
-        tempsensors.append(
-            SectorAlarmTemperatureSensor(sector_hub, coordinator, description)
-        )
+    for panel, panel_data in sector_hub.data.items():
+        for sensor, sensor_data in panel_data["temp"].items():
+            name = sensor_data["name"]
+            description = SensorEntityDescription(
+                key=sensor,
+                name=name,
+                native_unit_of_measurement=TEMP_CELSIUS,
+                state_class=SensorStateClass.MEASUREMENT,
+                device_class=SensorDeviceClass.TEMPERATURE,
+            )
+            tempsensors.append(
+                SectorAlarmTemperatureSensor(
+                    sector_hub, coordinator, description, panel
+                )
+            )
 
     if tempsensors:
         async_add_entities(tempsensors)
@@ -61,14 +63,18 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
         hub: SectorAlarmHub,
         coordinator: DataUpdateCoordinator,
         description: SensorEntityDescription,
+        panel_id: str,
     ) -> None:
         """Initialize Temp sensor."""
         self._hub = hub
+        self._panel_id = panel_id
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_name = description.name
         self._attr_unique_id: str = "sa_temp_" + str(description.key)
-        self._attr_native_value = self._hub.temp_state[description.key]
+        self._attr_native_value = self._hub.data[panel_id]["temp"][description.key][
+            "temperature"
+        ]
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -79,7 +85,7 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "Sector Alarm",
             "model": "Temperature",
             "sw_version": "master",
-            "via_device": (DOMAIN, "sa_hub_" + str(self._hub.alarm_id)),
+            "via_device": (DOMAIN, f"sa_hub_{self._panel_id}"),
         }
 
     @property
@@ -90,5 +96,7 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_native_value = self._hub.temp_state[self.entity_description.key]
+        self._attr_native_value = self._hub.data[self._panel_id]["temp"][
+            self.entity_description.key
+        ]["temperature"]
         self.async_write_ha_state()
