@@ -250,9 +250,6 @@ class SectorAlarmHub:
 
                 output: dict | list = await response.json()
 
-        except aiohttp.ClientConnectorError as error:
-            raise UpdateFailed from error
-
         except aiohttp.ContentTypeError as error:
             text = await response.text()
             LOGGER.error(
@@ -263,12 +260,6 @@ class SectorAlarmHub:
             )
             if "unauthorized" in str(error.args[0]).lower():
                 raise ConfigEntryAuthFailed from error
-            raise UpdateFailed from error
-
-        except asyncio.TimeoutError as error:
-            raise UpdateFailed from error
-
-        except asyncio.CancelledError as error:
             raise UpdateFailed from error
 
         return output
@@ -301,9 +292,6 @@ class SectorAlarmHub:
                     token_data = await response.json()
                     self._access_token = token_data["AuthorizationToken"]
 
-        except aiohttp.ClientConnectorError as error:
-            LOGGER.error("ClientError connecting to Sector: %s ", error, exc_info=True)
-
         except aiohttp.ContentTypeError as error:
             text = await response.text()
             LOGGER.error(
@@ -312,12 +300,6 @@ class SectorAlarmHub:
                 error,
                 exc_info=True,
             )
-
-        except asyncio.TimeoutError:
-            LOGGER.error("Timed out when connecting to Sector")
-
-        except asyncio.CancelledError:
-            LOGGER.error("Task was cancelled")
 
     @property
     def data(self) -> dict[str, Any]:
