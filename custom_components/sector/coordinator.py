@@ -283,24 +283,23 @@ class SectorAlarmHub:
                 LOGGER.debug("request status: %s", response.status)
                 return response
 
-            text = await response.text
-            LOGGER.error(
-                "Error fetching data status %s with text %s", response.status, text
-            )
-
         except aiohttp.ClientConnectorError as error:
             LOGGER.error("ClientError connecting to Sector: %s ", error, exc_info=True)
 
         except aiohttp.ContentTypeError as error:
-            LOGGER.error("ContentTypeError connecting to Sector: %s ", error)
+            text = await response.text()
+            LOGGER.error(
+                "ContentTypeError connecting to Sector: %s, %s ",
+                text,
+                error,
+                exc_info=True,
+            )
 
         except asyncio.TimeoutError:
             LOGGER.error("Timed out when connecting to Sector")
 
         except asyncio.CancelledError:
             LOGGER.error("Task was cancelled")
-
-        return None
 
     async def _login(self) -> str:
         """Login to retrieve access token."""
@@ -342,8 +341,6 @@ class SectorAlarmHub:
 
         except asyncio.CancelledError:
             LOGGER.error("Task was cancelled")
-
-        return None
 
     @property
     def alarm_state(self) -> int:
