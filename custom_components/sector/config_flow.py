@@ -49,7 +49,7 @@ async def validate_input(
             "Content-Type": "application/json",
         },
         json={
-            "username": username,
+            "UserId": username,
             "Password": password,
         },
     )
@@ -122,8 +122,8 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            username = user_input[CONF_USERNAME].replace(" ", "")
-            password = user_input[CONF_PASSWORD].replace(" ", "")
+            username = user_input[CONF_USERNAME]
+            password = user_input[CONF_PASSWORD]
             try:
                 await validate_input(self.hass, username, password)
             except CannotConnect:
