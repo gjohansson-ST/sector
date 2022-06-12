@@ -96,7 +96,8 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_native_value = self._hub.data[self._panel_id]["temp"][
-            self.entity_description.key
-        ]["temperature"]
+        if "temp" in self._panel_id:
+            self._attr_native_value = self._hub.data[self._panel_id]["temp"][
+                self.entity_description.key
+            ]["temperature"]
         self.async_write_ha_state()
