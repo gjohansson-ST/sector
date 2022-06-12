@@ -19,7 +19,7 @@ TIMEOUT = 8
 class SectorAlarmHub:
     """Sector connectivity hub."""
 
-    logname: str
+    logname: str | None
 
     def __init__(
         self,
@@ -126,7 +126,7 @@ class SectorAlarmHub:
             self._last_updated_temp = now
 
         response_getuser: dict = await self._request(API_URL + "/Login/GetUser")
-        self.logname = response_getuser["User"]["UserName"]
+        self.logname = response_getuser.get("User", {}).get("UserName")
 
         for panel in panels:
             response_get_status: dict = await self._request(
@@ -140,81 +140,94 @@ class SectorAlarmHub:
                 API_URL + "/Panel/GetPanel?panelId={}".format(panel)
             )
 
-            self.api_data[panel]["codelength"] = response_getpanel.get("PanelCodeLength")
+            self.api_data[panel]["codelength"] = response_getpanel.get(
+                "PanelCodeLength"
+            )
 
-            temps = False
-            locks = False
-            switches = False
-            if response_getpanel.get("Temperatures"):
-                temps = True
-            if response_getpanel.get("Locks"):
-                locks = True
-            if response_getpanel.get("Smartplugs"):
-                switches = True
+            if temp_list := response_getpanel.get("Temperatures"):
+                temp_dict = {}
+                for temp in temp_list:
+                    temp_dict[temp.get("SerialNo")] = {
+                        "name": temp.get("Label"),
+                        "serial": temp.get("SerialNo"),
+                    }
+                self.api_data[panel]["temp"] = temp_dict
 
-            if temps and self._sector_temp and self._update_sensors:
-                response_temp: dict = await self._request(
+            if lock_list := response_getpanel.get("Locks"):
+                lock_dict = {}
+                for lock in lock_list:
+                    lock_dict[lock.get("Serial")] = {
+                        "name": lock.get("Label"),
+                        "serial": lock.get("Serial"),
+                        "autolock": lock.get("AutoLockEnabled"),
+                    }
+                self.api_data[panel]["lock"] = lock_dict
+
+            if switch_list := response_getpanel.get("Smartplugs"):
+                switch_dict = {}
+                for switch in switch_list:
+                    switch_dict[switch.get("Id")] = {
+                        "name": switch.get("Label"),
+                        "serial": switch.get("SerialNo"),
+                        "id": switch.get("Id"),
+                    }
+                self.api_data[panel]["switch"] = switch_dict
+
+            if temp_list and self._sector_temp and self._update_sensors:
+                response_temp: list = await self._request(
                     API_URL + "/Panel/GetTemperatures?panelId={}".format(panel)
                 )
                 if response_temp:
-                    temp_dict = {}
                     for temp in response_temp:
-                        if "SerialNo" in temp:
-                            temp_dict[temp.get("SerialNo")] = {
-                                "name": temp.get("Label"),
-                                "serial": temp.get("SerialNo"),
-                                "temperature": temp.get("Temprature"),
-                            }
+                        if serial := temp.get("SerialNo"):
+                            self.api_data[panel]["temp"][serial][
+                                "temperature"
+                            ] = temp.get("Temprature")
 
-                    self.api_data[panel]["temp"] = temp_dict
-
-            if locks:
-                response_lock: dict = await self._request(
+            if lock_list:
+                response_lock: list = await self._request(
                     API_URL + "/Panel/GetLockStatus?panelId={}".format(panel)
                 )
                 if response_lock:
-                    lock_dict = {}
                     for lock in response_lock:
-                        if "Serial" in lock:
-                            lock_dict[lock.get("Serial")] = {
-                                "name": lock.get("Label"),
-                                "serial": lock.get("Serial"),
-                                "status": lock.get("Status"),
-                                "autolock": lock.get("AutoLockEnabled"),
-                            }
+                        if serial := lock.get("Serial"):
+                            self.api_data[panel]["lock"][serial]["status"] = lock.get(
+                                "Status"
+                            )
 
-                    self.api_data[panel]["lock"] = lock_dict
-
-            if switches:
-                response_switch: dict = await self._request(
+            if switch_list:
+                response_switch: list = await self._request(
                     API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel)
                 )
                 if response_switch:
-                    switch_dict = {}
                     for switch in response_switch:
-                        if "Id" in switch:
-                            switch_dict[switch.get("Id")] = {
-                                "name": switch.get("Label"),
-                                "serial": switch.get("SerialNo"),
-                                "status": switch.get("Status"),
-                                "id": switch.get("Id"),
-                            }
-
-                    self.api_data[panel]["switch"] = switch_dict
+                        if switch_id := switch.get("Id"):
+                            self.api_data[panel]["switch"][switch_id][
+                                "status"
+                            ] = switch.get("Status")
 
             response_logs: list = await self._request(
                 API_URL + "/Panel/GetLogs?panelId={}".format(panel)
             )
+            user_to_set: str | None = None
             if response_logs:
-                for users in response_logs:
-                    if "User" in users and users["User"] != "" and "arm" in users["EventType"]:
-                        self.api_data[panel]["changed_by"] = users["User"]
+                log: dict
+                for log in response_logs:
+                    user = log.get("User")
+                    event_type: str | None = log.get("EventType")
+
+                    user_to_set = self.logname
+                    if event_type:
+                        user_to_set = user if "arm" in event_type else self.logname
                         break
-                    self.api_data[panel]["changed_by"] = self.logname
+
+            self.api_data[panel]["changed_by"] = (
+                user_to_set if user_to_set else self.logname
+            )
 
     async def _request(
         self, url: str, json_data: dict | None = None, retry: int = 3
-    ) -> dict | list:
+    ) -> dict | list | None:
         if self._access_token is None:
             try:
                 await self._login()
@@ -267,6 +280,8 @@ class SectorAlarmHub:
             if "unauthorized" in error.message.lower():
                 raise ConfigEntryAuthFailed from error
             raise UpdateFailed from error
+
+        return None
 
     async def _login(self) -> None:
         """Login to retrieve access token."""

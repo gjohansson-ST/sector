@@ -29,7 +29,7 @@ async def async_setup_entry(
         "coordinator"
     ]
 
-    switchlist: list = []
+    switch_list: list = []
     for panel, panel_data in sector_hub.data.items():
         if "switch" in panel_data:
             for switch, switch_data in panel_data["switch"].items():
@@ -38,12 +38,14 @@ async def async_setup_entry(
                 description = SwitchEntityDescription(
                     key=switch, name=name, device_class=SwitchDeviceClass.OUTLET
                 )
-                switchlist.append(
-                    SectorAlarmSwitch(sector_hub, coordinator, description, serial, panel)
+                switch_list.append(
+                    SectorAlarmSwitch(
+                        sector_hub, coordinator, description, serial, panel
+                    )
                 )
 
-    if switchlist:
-        async_add_entities(switchlist)
+    if switch_list:
+        async_add_entities(switch_list)
 
 
 class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
@@ -107,9 +109,9 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_is_on = bool(
-            self._hub.data[self._panel_id]["switch"][self.entity_description.key][
+            self._hub.data[self._panel_id]["switch"][self.entity_description.key].get(
                 "status"
-            ]
+            )
             == "On"
         )
         self.async_write_ha_state()

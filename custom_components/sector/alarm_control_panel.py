@@ -149,8 +149,8 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_changed_by = self._hub.data[self._panel_id]["changed_by"]
+        self._attr_changed_by = self._hub.data[self._panel_id].get("changed_by")
         self._attr_state = ALARM_STATE_TO_HA_STATE[
-            self._hub.data[self._panel_id]["alarmstatus"]
+            self._hub.data[self._panel_id].get("alarmstatus")
         ]
         self.async_write_ha_state()
