@@ -132,24 +132,24 @@ class SectorAlarmHub:
             response_get_status: dict = await self._request(
                 API_URL + "/Panel/GetPanelStatus?panelId={}".format(panel)
             )
-            self.api_data[panel]["alarmstatus"] = response_get_status["Status"]
-            self.api_data[panel]["online"] = response_get_status["IsOnline"]
-            self.api_data[panel]["arm_ready"] = response_get_status["ReadyToArm"]
+            self.api_data[panel]["alarmstatus"] = response_get_status.get("Status")
+            self.api_data[panel]["online"] = response_get_status.get("IsOnline")
+            self.api_data[panel]["arm_ready"] = response_get_status.get("ReadyToArm")
 
             response_getpanel: dict = await self._request(
                 API_URL + "/Panel/GetPanel?panelId={}".format(panel)
             )
 
-            self.api_data[panel]["codelength"] = response_getpanel["PanelCodeLength"]
+            self.api_data[panel]["codelength"] = response_getpanel.get("PanelCodeLength")
 
             temps = False
             locks = False
             switches = False
-            if response_getpanel["Temperatures"]:
+            if response_getpanel.get("Temperatures"):
                 temps = True
-            if response_getpanel["Locks"]:
+            if response_getpanel.get("Locks"):
                 locks = True
-            if response_getpanel["Smartplugs"]:
+            if response_getpanel.get("Smartplugs"):
                 switches = True
 
             if temps and self._sector_temp and self._update_sensors:
@@ -159,11 +159,12 @@ class SectorAlarmHub:
                 if response_temp:
                     temp_dict = {}
                     for temp in response_temp:
-                        temp_dict[temp["SerialNo"]] = {
-                            "name": temp["Label"],
-                            "serial": temp["SerialNo"],
-                            "temperature": temp["Temprature"],
-                        }
+                        if "SerialNo" in temp:
+                            temp_dict[temp.get("SerialNo")] = {
+                                "name": temp.get("Label"),
+                                "serial": temp.get("SerialNo"),
+                                "temperature": temp.get("Temprature"),
+                            }
 
                     self.api_data[panel]["temp"] = temp_dict
 
@@ -174,12 +175,13 @@ class SectorAlarmHub:
                 if response_lock:
                     lock_dict = {}
                     for lock in response_lock:
-                        lock_dict[lock["Serial"]] = {
-                            "name": lock["Label"],
-                            "serial": lock["Serial"],
-                            "status": lock["Status"],
-                            "autolock": lock["AutoLockEnabled"],
-                        }
+                        if "Serial" in lock:
+                            lock_dict[lock.get("Serial")] = {
+                                "name": lock.get("Label"),
+                                "serial": lock.get("Serial"),
+                                "status": lock.get("Status"),
+                                "autolock": lock.get("AutoLockEnabled"),
+                            }
 
                     self.api_data[panel]["lock"] = lock_dict
 
@@ -190,12 +192,13 @@ class SectorAlarmHub:
                 if response_switch:
                     switch_dict = {}
                     for switch in response_switch:
-                        switch_dict[switch["Id"]] = {
-                            "name": switch["Label"],
-                            "serial": switch["SerialNo"],
-                            "status": switch["Status"],
-                            "id": switch["Id"],
-                        }
+                        if "Id" in switch:
+                            switch_dict[switch.get("Id")] = {
+                                "name": switch.get("Label"),
+                                "serial": switch.get("SerialNo"),
+                                "status": switch.get("Status"),
+                                "id": switch.get("Id"),
+                            }
 
                     self.api_data[panel]["switch"] = switch_dict
 
@@ -204,7 +207,7 @@ class SectorAlarmHub:
             )
             if response_logs:
                 for users in response_logs:
-                    if users["User"] != "" and "arm" in users["EventType"]:
+                    if "User" in users and users["User"] != "" and "arm" in users["EventType"]:
                         self.api_data[panel]["changed_by"] = users["User"]
                         break
                     self.api_data[panel]["changed_by"] = self.logname
@@ -291,7 +294,7 @@ class SectorAlarmHub:
 
                 if response.status in (200, 204):
                     token_data = await response.json()
-                    self._access_token = token_data["AuthorizationToken"]
+                    self._access_token = token_data.get("AuthorizationToken")
 
         except aiohttp.ContentTypeError as error:
             text = await response.text()
