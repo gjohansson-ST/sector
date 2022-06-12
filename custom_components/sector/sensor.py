@@ -34,25 +34,26 @@ async def async_setup_entry(
     if not entry.data[CONF_TEMP]:
         return
 
-    tempsensors = []
+    sensor_list = []
     for panel, panel_data in sector_hub.data.items():
-        for sensor, sensor_data in panel_data["temp"].items():
-            name = sensor_data["name"]
-            description = SensorEntityDescription(
-                key=sensor,
-                name=name,
-                native_unit_of_measurement=TEMP_CELSIUS,
-                state_class=SensorStateClass.MEASUREMENT,
-                device_class=SensorDeviceClass.TEMPERATURE,
-            )
-            tempsensors.append(
-                SectorAlarmTemperatureSensor(
-                    sector_hub, coordinator, description, panel
+        if "temp" in panel_data:
+            for sensor, sensor_data in panel_data["temp"].items():
+                name = sensor_data["name"]
+                description = SensorEntityDescription(
+                    key=sensor,
+                    name=name,
+                    native_unit_of_measurement=TEMP_CELSIUS,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    device_class=SensorDeviceClass.TEMPERATURE,
                 )
-            )
+                sensor_list.append(
+                    SectorAlarmTemperatureSensor(
+                        sector_hub, coordinator, description, panel
+                    )
+                )
 
-    if tempsensors:
-        async_add_entities(tempsensors)
+    if sensor_list:
+        async_add_entities(sensor_list)
 
 
 class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
@@ -96,8 +97,9 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        if "temp" in self._panel_id:
-            self._attr_native_value = self._hub.data[self._panel_id]["temp"][
-                self.entity_description.key
-            ]["temperature"]
+        if temp := self._hub.data[self._panel_id]["temp"][
+            self.entity_description.key
+        ].get("temperature"):
+            self._attr_native_value = temp
+
         self.async_write_ha_state()
