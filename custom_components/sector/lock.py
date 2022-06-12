@@ -31,24 +31,25 @@ async def async_setup_entry(
 
     lockdevices: list = []
     for panel, panel_data in sector_hub.data.items():
-        for lock, lock_data in panel_data["lock"].items():
-            name = lock_data["name"]
-            autolock = lock_data["autolock"]
-            serial = lock
-            description = LockEntityDescription(
-                key=lock, name=f"Sector {name} {serial}"
-            )
-            lockdevices.append(
-                SectorAlarmLock(
-                    sector_hub,
-                    coordinator,
-                    code,
-                    code_format,
-                    autolock,
-                    description,
-                    panel,
+        if "lock" in panel_data:
+            for lock, lock_data in panel_data["lock"].items():
+                name = lock_data["name"]
+                autolock = lock_data["autolock"]
+                serial = lock
+                description = LockEntityDescription(
+                    key=lock, name=f"Sector {name} {serial}"
                 )
-            )
+                lockdevices.append(
+                    SectorAlarmLock(
+                        sector_hub,
+                        coordinator,
+                        code,
+                        code_format,
+                        autolock,
+                        description,
+                        panel,
+                    )
+                )
 
     if lockdevices:
         async_add_entities(lockdevices)

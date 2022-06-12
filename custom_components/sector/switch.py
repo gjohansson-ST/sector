@@ -31,15 +31,16 @@ async def async_setup_entry(
 
     switchlist: list = []
     for panel, panel_data in sector_hub.data.items():
-        for switch, switch_data in panel_data["switch"].items():
-            name = switch_data["name"]
-            serial = switch_data["serial"]
-            description = SwitchEntityDescription(
-                key=switch, name=name, device_class=SwitchDeviceClass.OUTLET
-            )
-            switchlist.append(
-                SectorAlarmSwitch(sector_hub, coordinator, description, serial, panel)
-            )
+        if "switch" in panel_data:
+            for switch, switch_data in panel_data["switch"].items():
+                name = switch_data["name"]
+                serial = switch_data["serial"]
+                description = SwitchEntityDescription(
+                    key=switch, name=name, device_class=SwitchDeviceClass.OUTLET
+                )
+                switchlist.append(
+                    SectorAlarmSwitch(sector_hub, coordinator, description, serial, panel)
+                )
 
     if switchlist:
         async_add_entities(switchlist)
