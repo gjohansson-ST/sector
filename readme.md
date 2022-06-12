@@ -14,7 +14,7 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2022-06-05
+**Last update:** 2022-06-12
 
 **Join the Discussion on Development:** [https://discord.gg/uvdxXChg](https://discord.gg/uvdxXChg)
 
@@ -36,7 +36,6 @@ Options that you can change at any time:
 - Update frequency: Set at minimum 60 seconds. Don't set lower as it will probably block your account
 - Code: Code used to alarm and open/close door locks
 - Code Format: Number of digits in code
-- Log Name: Set to user which HA operates via and it will populate changed_by on state changes to the correct user name
 
 ## Installation
 
@@ -55,6 +54,8 @@ Upload the files/folders in `custom_components/sector` directory to the newly cr
 Restart before proceeding
 
 ## Activate integration in HA
+
+[![Add integrations](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start?domain=sector)
 
 After installation go to "Integrations" page in HA, press + and search for Sector Alarm
 Follow onscreen information to type username, password, code etc.
