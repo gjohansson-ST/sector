@@ -14,14 +14,14 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2022-06-12
+**Last update:** 2022-09-24
 
 **Join the Discussion on Development:** [https://discord.gg/VnKkSHfNHc](https://discord.gg/VnKkSHfNHc)
 
 ---
 
 Integrates with Swedish Sector Alarm home alarm system (most likely works in all countries serviced by Sector Alarm).
-Currently supporting Alarm, Locks, Temperature and Smartplugs
+Currently implements Alarm panel, Locks, Temperature and Smartplugs
 
 ## Configuration Options
 
