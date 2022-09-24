@@ -5,7 +5,7 @@ from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     CodeFormat,
 )
-from homeassistant.components.alarm_control_panel.const import (
+from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -19,12 +19,9 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .__init__ import SectorAlarmHub
+from .coordinator import SectorDataUpdateCoordinator
 from .const import CONF_CODE, DOMAIN
 
 ALARM_STATE_TO_HA_STATE = {
@@ -40,39 +37,33 @@ async def async_setup_entry(
 ) -> None:
     """Set up alarm panel from config entry."""
 
-    sector_hub: SectorAlarmHub = hass.data[DOMAIN][entry.entry_id]["api"]
-    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
+    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     code: str | None = entry.options.get(CONF_CODE)
 
     async_add_entities(
-        [
-            SectorAlarmPanel(sector_hub, coordinator, code, key)
-            for key in sector_hub.data
-        ]
+        [SectorAlarmPanel(coordinator, code, key) for key in coordinator.data]
     )
 
 
-class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
+class SectorAlarmPanel(
+    CoordinatorEntity[SectorDataUpdateCoordinator], AlarmControlPanelEntity
+):
     """Sector Alarm Panel."""
 
     def __init__(
         self,
-        hub: SectorAlarmHub,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SectorDataUpdateCoordinator,
         code: str | None,
         panel_id: str,
     ) -> None:
         """Initialize the Alarm panel."""
-        self._hub = hub
-        self._panel_id = panel_id
         super().__init__(coordinator)
+        self._panel_id = panel_id
         self._code: str | None = code
-        self._displayname: str = self._hub.data[panel_id]["name"]
+        self._displayname: str = self.coordinator.data[panel_id]["name"]
         self._attr_name = f"Sector Alarmpanel {panel_id}"
         self._attr_unique_id = f"sa_panel_{panel_id}"
-        self._attr_changed_by = self._hub.data[panel_id]["changed_by"]
+        self._attr_changed_by = self.coordinator.data[panel_id]["changed_by"]
         self._attr_supported_features = (
             AlarmControlPanelEntityFeature.ARM_HOME
             | AlarmControlPanelEntityFeature.ARM_AWAY
@@ -80,7 +71,7 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         self._attr_code_arm_required = False
         self._attr_code_format = CodeFormat.NUMBER
         self._attr_state = ALARM_STATE_TO_HA_STATE[
-            self._hub.data[panel_id]["alarmstatus"]
+            self.coordinator.data[panel_id]["alarmstatus"]
         ]
 
     @property
@@ -100,8 +91,8 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         """Additional states for alarm panel."""
         return {
             "display_name": self._displayname,
-            "is_online": self._hub.data[self._panel_id]["online"],
-            "arm_ready": self._hub.data[self._panel_id]["arm_ready"],
+            "is_online": self.coordinator.data[self._panel_id]["online"],
+            "arm_ready": self.coordinator.data[self._panel_id]["arm_ready"],
         }
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
@@ -109,11 +100,13 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         command = "partial"
         if code is None:
             code = self._code
-        if code and len(code) == self._hub.data[self._panel_id]["codelength"]:
-            await self._hub.triggeralarm(command, code=code, panel_id=self._panel_id)
+        if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
+            await self.coordinator.triggeralarm(
+                command, code=code, panel_id=self._panel_id
+            )
             self._attr_state = STATE_ALARM_ARMED_HOME
-            if self._hub.logname:
-                self._attr_changed_by = self._hub.logname
+            if self.coordinator.logname:
+                self._attr_changed_by = self.coordinator.logname
             self.async_write_ha_state()
             return
         raise HomeAssistantError("No code provided or incorrect length")
@@ -123,11 +116,13 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         command = "disarm"
         if code is None:
             code = self._code
-        if code and len(code) == self._hub.data[self._panel_id]["codelength"]:
-            await self._hub.triggeralarm(command, code=code, panel_id=self._panel_id)
+        if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
+            await self.coordinator.triggeralarm(
+                command, code=code, panel_id=self._panel_id
+            )
             self._attr_state = STATE_ALARM_DISARMED
-            if self._hub.logname:
-                self._attr_changed_by = self._hub.logname
+            if self.coordinator.logname:
+                self._attr_changed_by = self.coordinator.logname
             self.async_write_ha_state()
             return
         raise HomeAssistantError("No code provided or incorrect length")
@@ -137,11 +132,13 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
         command = "full"
         if code is None:
             code = self._code
-        if code and len(code) == self._hub.data[self._panel_id]["codelength"]:
-            await self._hub.triggeralarm(command, code=code, panel_id=self._panel_id)
+        if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
+            await self.coordinator.triggeralarm(
+                command, code=code, panel_id=self._panel_id
+            )
             self._attr_state = STATE_ALARM_ARMED_AWAY
-            if self._hub.logname:
-                self._attr_changed_by = self._hub.logname
+            if self.coordinator.logname:
+                self._attr_changed_by = self.coordinator.logname
             self.async_write_ha_state()
             return
         raise HomeAssistantError("No code provided or incorrect length")
@@ -149,8 +146,8 @@ class SectorAlarmPanel(CoordinatorEntity, AlarmControlPanelEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_changed_by = self._hub.data[self._panel_id].get("changed_by")
+        self._attr_changed_by = self.coordinator.data[self._panel_id].get("changed_by")
         self._attr_state = ALARM_STATE_TO_HA_STATE[
-            self._hub.data[self._panel_id].get("alarmstatus")
+            self.coordinator.data[self._panel_id].get("alarmstatus")
         ]
         self.async_write_ha_state()

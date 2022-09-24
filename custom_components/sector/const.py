@@ -11,7 +11,7 @@ LOGGER = logging.getLogger(__package__)
 
 API_URL = "https://mypagesapi.sectoralarm.net/api"
 
-CONF_USERID = "userid"
+CONF_USERID = "userid"  # Kept for migration purpose
 CONF_CODE_FORMAT = "code_format"
 CONF_CODE = "code"
 CONF_TEMP = "temp"

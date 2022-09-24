@@ -12,13 +12,10 @@ from homeassistant.const import TEMP_CELSIUS
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_TEMP, DOMAIN
-from .coordinator import SectorAlarmHub
+from .coordinator import SectorDataUpdateCoordinator
 
 
 async def async_setup_entry(
@@ -26,16 +23,13 @@ async def async_setup_entry(
 ) -> None:
     """Sensor platform."""
 
-    sector_hub: SectorAlarmHub = hass.data[DOMAIN][entry.entry_id]["api"]
-    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
+    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     if not entry.data[CONF_TEMP]:
         return
 
     sensor_list = []
-    for panel, panel_data in sector_hub.data.items():
+    for panel, panel_data in coordinator.data.items():
         if "temp" in panel_data:
             for sensor, sensor_data in panel_data["temp"].items():
                 name = sensor_data["name"]
@@ -47,35 +41,33 @@ async def async_setup_entry(
                     device_class=SensorDeviceClass.TEMPERATURE,
                 )
                 sensor_list.append(
-                    SectorAlarmTemperatureSensor(
-                        sector_hub, coordinator, description, panel
-                    )
+                    SectorAlarmTemperatureSensor(coordinator, description, panel)
                 )
 
     if sensor_list:
         async_add_entities(sensor_list)
 
 
-class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
+class SectorAlarmTemperatureSensor(
+    CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity
+):
     """Sector Temp sensor."""
 
     def __init__(
         self,
-        hub: SectorAlarmHub,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SectorDataUpdateCoordinator,
         description: SensorEntityDescription,
         panel_id: str,
     ) -> None:
         """Initialize Temp sensor."""
-        self._hub = hub
-        self._panel_id = panel_id
         super().__init__(coordinator)
+        self._panel_id = panel_id
         self.entity_description = description
         self._attr_name = description.name
         self._attr_unique_id: str = "sa_temp_" + str(description.key)
-        self._attr_native_value = self._hub.data[panel_id]["temp"][description.key][
-            "temperature"
-        ]
+        self._attr_native_value = self.coordinator.data[panel_id]["temp"][
+            description.key
+        ]["temperature"]
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -97,7 +89,7 @@ class SectorAlarmTemperatureSensor(CoordinatorEntity, SensorEntity):
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        if temp := self._hub.data[self._panel_id]["temp"][
+        if temp := self.coordinator.data[self._panel_id]["temp"][
             self.entity_description.key
         ].get("temperature"):
             self._attr_native_value = temp
