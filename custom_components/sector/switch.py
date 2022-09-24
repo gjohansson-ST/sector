@@ -10,13 +10,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import SectorAlarmHub
+from .coordinator import SectorDataUpdateCoordinator
 
 
 async def async_setup_entry(
@@ -24,13 +21,10 @@ async def async_setup_entry(
 ) -> None:
     """Switch platform."""
 
-    sector_hub: SectorAlarmHub = hass.data[DOMAIN][entry.entry_id]["api"]
-    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
+    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     switch_list: list = []
-    for panel, panel_data in sector_hub.data.items():
+    for panel, panel_data in coordinator.data.items():
         if "switch" in panel_data:
             for switch, switch_data in panel_data["switch"].items():
                 name = switch_data["name"]
@@ -39,35 +33,31 @@ async def async_setup_entry(
                     key=switch, name=name, device_class=SwitchDeviceClass.OUTLET
                 )
                 switch_list.append(
-                    SectorAlarmSwitch(
-                        sector_hub, coordinator, description, serial, panel
-                    )
+                    SectorAlarmSwitch(coordinator, description, serial, panel)
                 )
 
     if switch_list:
         async_add_entities(switch_list)
 
 
-class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
+class SectorAlarmSwitch(CoordinatorEntity[SectorDataUpdateCoordinator], SwitchEntity):
     """Sector Switch."""
 
     def __init__(
         self,
-        hub: SectorAlarmHub,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SectorDataUpdateCoordinator,
         description: SwitchEntityDescription,
         serial: str,
         panel_id: str,
     ) -> None:
         """Initialize Switch."""
-        self._hub = hub
-        self._panel_id = panel_id
         super().__init__(coordinator)
+        self._panel_id = panel_id
         self._attr_name = description.name
         self._attr_unique_id = f"sa_switch_{serial}"
         self.entity_description = description
         self._attr_is_on = bool(
-            self._hub.data[panel_id]["switch"][description.key]["status"] == "On"
+            self.coordinator.data[panel_id]["switch"][description.key]["status"] == "On"
         )
         self.serial = serial
 
@@ -93,13 +83,15 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs: str) -> None:
         """Turn the switch on."""
-        await self._hub.triggerswitch(self.entity_description.key, "on", self._panel_id)
+        await self.coordinator.triggerswitch(
+            self.entity_description.key, "on", self._panel_id
+        )
         self._attr_is_on = True
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: str) -> None:
         """Turn the switch off."""
-        await self._hub.triggerswitch(
+        await self.coordinator.triggerswitch(
             self.entity_description.key, "off", self._panel_id
         )
         self._attr_is_on = False
@@ -109,9 +101,9 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_is_on = bool(
-            self._hub.data[self._panel_id]["switch"][self.entity_description.key].get(
-                "status"
-            )
+            self.coordinator.data[self._panel_id]["switch"][
+                self.entity_description.key
+            ].get("status")
             == "On"
         )
         self.async_write_ha_state()

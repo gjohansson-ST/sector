@@ -8,13 +8,10 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-    DataUpdateCoordinator,
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_CODE, CONF_CODE_FORMAT, DOMAIN
-from .coordinator import SectorAlarmHub
+from .coordinator import SectorDataUpdateCoordinator
 
 
 async def async_setup_entry(
@@ -22,15 +19,12 @@ async def async_setup_entry(
 ) -> None:
     """Lock platform."""
 
-    sector_hub: SectorAlarmHub = hass.data[DOMAIN][entry.entry_id]["api"]
-    coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
+    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     code: str | None = entry.options.get(CONF_CODE)
     code_format: int | None = entry.options.get(CONF_CODE_FORMAT)
 
     lock_list: list = []
-    for panel, panel_data in sector_hub.data.items():
+    for panel, panel_data in coordinator.data.items():
         if "lock" in panel_data:
             for lock, lock_data in panel_data["lock"].items():
                 name = lock_data["name"]
@@ -41,7 +35,6 @@ async def async_setup_entry(
                 )
                 lock_list.append(
                     SectorAlarmLock(
-                        sector_hub,
                         coordinator,
                         code,
                         code_format,
@@ -55,13 +48,12 @@ async def async_setup_entry(
         async_add_entities(lock_list)
 
 
-class SectorAlarmLock(CoordinatorEntity, LockEntity):
+class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity):
     """Sector lock."""
 
     def __init__(
         self,
-        hub: SectorAlarmHub,
-        coordinator: DataUpdateCoordinator,
+        coordinator: SectorDataUpdateCoordinator,
         code: str | None,
         code_format: int | None,
         autolock: str,
@@ -69,14 +61,13 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         panel_id: str,
     ) -> None:
         """Initialize lock."""
-        self._hub = hub
-        self._panel_id = panel_id
         super().__init__(coordinator)
+        self._panel_id = panel_id
         self._attr_name = description.name
         self._attr_unique_id = f"sa_lock_{description.key}"
         self._attr_code_format = f"^\\d{code_format}$" if code_format else None
         self._attr_is_locked = bool(
-            self._hub.data[panel_id]["lock"][description.key]["status"] == "lock"
+            self.coordinator.data[panel_id]["lock"][description.key]["status"] == "lock"
         )
         self._autolock = autolock
         self._code = code
@@ -108,7 +99,7 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         command = "unlock"
         code = kwargs.get(ATTR_CODE, self._code)
         if code:
-            await self._hub.triggerlock(
+            await self.coordinator.triggerlock(
                 self.entity_description.key, code, command, self._panel_id
             )
             self._attr_is_locked = False
@@ -121,7 +112,7 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         command = "lock"
         code = kwargs.get(ATTR_CODE, self._code)
         if code:
-            await self._hub.triggerlock(
+            await self.coordinator.triggerlock(
                 self.entity_description.key, code, command, self._panel_id
             )
             self._attr_is_locked = True
@@ -133,7 +124,7 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         self._attr_is_locked = bool(
-            self._hub.data[self._panel_id]["lock"][self.entity_description.key][
+            self.coordinator.data[self._panel_id]["lock"][self.entity_description.key][
                 "status"
             ]
             == "lock"
