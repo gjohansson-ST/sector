@@ -53,6 +53,8 @@ class SectorAlarmTemperatureSensor(
 ):
     """Sector Temp sensor."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
@@ -63,23 +65,18 @@ class SectorAlarmTemperatureSensor(
         super().__init__(coordinator)
         self._panel_id = panel_id
         self.entity_description = description
-        self._attr_name = description.name
         self._attr_unique_id: str = "sa_temp_" + str(description.key)
         self._attr_native_value = self.coordinator.data[panel_id]["temp"][
             description.key
-        ]["temperature"]
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self._attr_unique_id)},
-            "name": self._attr_name,
-            "manufacturer": "Sector Alarm",
-            "model": "Temperature",
-            "sw_version": "master",
-            "via_device": (DOMAIN, f"sa_hub_{self._panel_id}"),
-        }
+        ].get("temperature")
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"sa_temp_{description.key}")},
+            name=description.name,
+            manufacturer="Sector Alarm",
+            model="Temperature",
+            sw_version="master",
+            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+        )
 
     @property
     def extra_state_attributes(self) -> dict:

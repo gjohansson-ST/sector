@@ -50,6 +50,8 @@ class SectorAlarmPanel(
 ):
     """Sector Alarm Panel."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
@@ -61,7 +63,6 @@ class SectorAlarmPanel(
         self._panel_id = panel_id
         self._code: str | None = code
         self._displayname: str = self.coordinator.data[panel_id]["name"]
-        self._attr_name = f"Sector Alarmpanel {panel_id}"
         self._attr_unique_id = f"sa_panel_{panel_id}"
         self._attr_changed_by = self.coordinator.data[panel_id]["changed_by"]
         self._attr_supported_features = (
@@ -73,18 +74,14 @@ class SectorAlarmPanel(
         self._attr_state = ALARM_STATE_TO_HA_STATE[
             self.coordinator.data[panel_id]["alarmstatus"]
         ]
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, f"sa_panel_{self._panel_id}")},
-            "name": f"Sector Alarmpanel {self._panel_id}",
-            "manufacturer": "Sector Alarm",
-            "model": "Alarmpanel",
-            "sw_version": "master",
-            "via_device": (DOMAIN, f"sa_hub_{self._panel_id}"),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"sa_panel_{panel_id}")},
+            name=f"Sector Alarmpanel {panel_id}",
+            manufacturer="Sector Alarm",
+            model="Alarmpanel",
+            sw_version="master",
+            via_device=f"sa_hub_{panel_id}",
+        )
 
     @property
     def extra_state_attributes(self) -> dict:
