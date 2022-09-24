@@ -123,10 +123,8 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_is_locked = bool(
-            self.coordinator.data[self._panel_id]["lock"][self.entity_description.key][
-                "status"
-            ]
-            == "lock"
-        )
+        if lock := self.coordinator.data[self._panel_id]["lock"].get(
+            self.entity_description.key
+        ):
+            self._attr_is_locked = bool(lock.get("status") == "lock")
         self.async_write_ha_state()
