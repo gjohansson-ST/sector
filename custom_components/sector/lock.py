@@ -28,7 +28,6 @@ async def async_setup_entry(
         if "lock" in panel_data:
             for lock, lock_data in panel_data["lock"].items():
                 name = lock_data["name"]
-                autolock = lock_data["autolock"]
                 serial = lock
                 description = LockEntityDescription(
                     key=lock, name=f"Sector {name} {serial}"
@@ -38,7 +37,6 @@ async def async_setup_entry(
                         coordinator,
                         code,
                         code_format,
-                        autolock,
                         description,
                         panel,
                     )
@@ -58,7 +56,6 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         coordinator: SectorDataUpdateCoordinator,
         code: str | None,
         code_format: int | None,
-        autolock: str,
         description: LockEntityDescription,
         panel_id: str,
     ) -> None:
@@ -70,7 +67,6 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         self._attr_is_locked = bool(
             self.coordinator.data[panel_id]["lock"][description.key]["status"] == "lock"
         )
-        self._autolock = autolock
         self._code = code
         self.entity_description = description
         self._code_format = code_format
@@ -87,7 +83,6 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
     def extra_state_attributes(self) -> dict:
         """Additional states of lock."""
         return {
-            "Autolock": self._autolock,
             "Serial No": self.entity_description.key,
         }
 

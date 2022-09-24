@@ -23,6 +23,7 @@ MIN_SCAN_INTERVAL = 60
 
 PLATFORMS = [
     Platform.ALARM_CONTROL_PANEL,
+    Platform.BINARY_SENSOR,
     Platform.LOCK,
     Platform.SENSOR,
     Platform.SWITCH,

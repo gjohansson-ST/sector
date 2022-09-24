@@ -80,7 +80,7 @@ class SectorAlarmPanel(
             manufacturer="Sector Alarm",
             model="Alarmpanel",
             sw_version="master",
-            via_device=f"sa_hub_{panel_id}",
+            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
         )
 
     @property
@@ -88,8 +88,6 @@ class SectorAlarmPanel(
         """Additional states for alarm panel."""
         return {
             "display_name": self._displayname,
-            "is_online": self.coordinator.data[self._panel_id]["online"],
-            "arm_ready": self.coordinator.data[self._panel_id]["arm_ready"],
         }
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
