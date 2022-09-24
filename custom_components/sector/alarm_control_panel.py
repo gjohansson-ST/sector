@@ -3,10 +3,8 @@ from __future__ import annotations
 
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
-    CodeFormat,
-)
-from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntityFeature,
+    CodeFormat,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -21,8 +19,8 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .coordinator import SectorDataUpdateCoordinator
 from .const import CONF_CODE, DOMAIN
+from .coordinator import SectorDataUpdateCoordinator
 
 ALARM_STATE_TO_HA_STATE = {
     3: STATE_ALARM_ARMED_AWAY,
