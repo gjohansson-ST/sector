@@ -43,6 +43,8 @@ async def async_setup_entry(
 class SectorAlarmSwitch(CoordinatorEntity[SectorDataUpdateCoordinator], SwitchEntity):
     """Sector Switch."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
@@ -53,25 +55,20 @@ class SectorAlarmSwitch(CoordinatorEntity[SectorDataUpdateCoordinator], SwitchEn
         """Initialize Switch."""
         super().__init__(coordinator)
         self._panel_id = panel_id
-        self._attr_name = description.name
         self._attr_unique_id = f"sa_switch_{serial}"
         self.entity_description = description
         self._attr_is_on = bool(
             self.coordinator.data[panel_id]["switch"][description.key]["status"] == "On"
         )
         self.serial = serial
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, f"sa_switch_{self.serial}")},
-            "name": self.entity_description.name,
-            "manufacturer": "Sector Alarm",
-            "model": "Switch",
-            "sw_version": "master",
-            "via_device": (DOMAIN, f"sa_hub_{self._panel_id}"),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"sa_switch_{serial}")},
+            name=description.name,
+            manufacturer="Sector Alarm",
+            model="Switch",
+            sw_version="master",
+            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+        )
 
     @property
     def extra_state_attributes(self) -> dict:

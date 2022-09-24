@@ -51,6 +51,8 @@ async def async_setup_entry(
 class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity):
     """Sector lock."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
@@ -63,7 +65,6 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         """Initialize lock."""
         super().__init__(coordinator)
         self._panel_id = panel_id
-        self._attr_name = description.name
         self._attr_unique_id = f"sa_lock_{description.key}"
         self._attr_code_format = f"^\\d{code_format}$" if code_format else None
         self._attr_is_locked = bool(
@@ -73,18 +74,14 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         self._code = code
         self.entity_description = description
         self._code_format = code_format
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, f"sa_lock_{self.entity_description.key}")},
-            "name": self.entity_description.name,
-            "manufacturer": "Sector Alarm",
-            "model": "Lock",
-            "sw_version": "master",
-            "via_device": (DOMAIN, f"sa_hub_{self._panel_id}"),
-        }
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"sa_lock_{description.key}")},
+            name=description.name,
+            manufacturer="Sector Alarm",
+            model="Lock",
+            sw_version="master",
+            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+        )
 
     @property
     def extra_state_attributes(self) -> dict:
