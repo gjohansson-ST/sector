@@ -8,14 +8,14 @@ from typing import Any
 import aiohttp
 import async_timeout
 
-from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import API_URL, LOGGER, DOMAIN, UPDATE_INTERVAL, CONF_TEMP
+from .const import API_URL, CONF_TEMP, DOMAIN, LOGGER, UPDATE_INTERVAL
 
 TIMEOUT = 8
 
@@ -59,10 +59,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             "Platform": "app",
         }
 
-        if command == "unlock":
-            await self._request(API_URL + "/Panel/Unlock", json_data=message_json)
-        if command == "lock":
-            await self._request(API_URL + "/Panel/Lock", json_data=message_json)
+        try:
+            if command == "unlock":
+                await self._request(API_URL + "/Panel/Unlock", json_data=message_json)
+            if command == "lock":
+                await self._request(API_URL + "/Panel/Lock", json_data=message_json)
+        except (UpdateFailed, ConfigEntryAuthFailed) as error:
+            raise HomeAssistantError from error
         await self.async_request_refresh()
 
     async def triggerswitch(self, identity: str, command: str, panel_id: str) -> None:
@@ -73,16 +76,20 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             "Platform": "app",
         }
 
-        if command == "on":
-            await self._request(
-                f"{API_URL}/Panel/TurnOnSmartplug?switchId={identity}&panelId={panel_id}",
-                json_data=message_json,
-            )
-        if command == "off":
-            await self._request(
-                f"{API_URL}/Panel/TurnOffSmartplug?switchId={identity}&panelId={panel_id}",
-                json_data=message_json,
-            )
+        try:
+            if command == "on":
+                await self._request(
+                    f"{API_URL}/Panel/TurnOnSmartplug?switchId={identity}&panelId={panel_id}",
+                    json_data=message_json,
+                )
+            if command == "off":
+                await self._request(
+                    f"{API_URL}/Panel/TurnOffSmartplug?switchId={identity}&panelId={panel_id}",
+                    json_data=message_json,
+                )
+        except (UpdateFailed, ConfigEntryAuthFailed) as error:
+            raise HomeAssistantError from error
+
         await self.async_request_refresh()
 
     async def triggeralarm(self, command: str, code: str, panel_id: str) -> None:
@@ -94,12 +101,18 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             "Platform": "app",
         }
 
-        if command == "full":
-            await self._request(API_URL + "/Panel/Arm", json_data=message_json)
-        if command == "partial":
-            await self._request(API_URL + "/Panel/PartialArm", json_data=message_json)
-        if command == "disarm":
-            await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
+        try:
+            if command == "full":
+                await self._request(API_URL + "/Panel/Arm", json_data=message_json)
+            if command == "partial":
+                await self._request(
+                    API_URL + "/Panel/PartialArm", json_data=message_json
+                )
+            if command == "disarm":
+                await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
+        except (UpdateFailed, ConfigEntryAuthFailed) as error:
+            raise HomeAssistantError from error
+
         await self.async_request_refresh()
 
     async def async_first_refresh(self) -> dict[str, Any]:
