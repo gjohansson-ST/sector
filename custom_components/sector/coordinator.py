@@ -285,7 +285,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             "Connection": "keep-alive",
             "Content-Type": "application/json",
         }
-        with async_timeout.timeout(TIMEOUT):
+        async with async_timeout.timeout(TIMEOUT):
             try:
                 if json_data:
                     response = await self.websession.post(
@@ -326,7 +326,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     async def _login(self) -> None:
         """Login to retrieve access token."""
         try:
-            with async_timeout.timeout(TIMEOUT):
+            async with async_timeout.timeout(TIMEOUT):
                 response = await self.websession.post(
                     f"{API_URL}/Login/Login",
                     headers={
