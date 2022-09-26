@@ -29,9 +29,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize the sector hub."""
 
         self.websession = async_get_clientsession(hass)
-        self._sector_temp = entry.data[CONF_TEMP]
-        self._userid = entry.data[CONF_USERNAME]
-        self._password = entry.data[CONF_PASSWORD]
+        self._sector_temp: bool = entry.data[CONF_TEMP]
+        self._userid: str = entry.data[CONF_USERNAME]
+        self._password: str = entry.data[CONF_PASSWORD]
         self._access_token: str | None = None
         self._last_updated: datetime = datetime.utcnow() - timedelta(hours=2)
         self._last_updated_temp: datetime = datetime.utcnow() - timedelta(hours=2)
@@ -117,14 +117,17 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def async_first_refresh(self) -> dict[str, Any]:
         """First refresh to get alarm system"""
+        LOGGER.debug("Trying to get panels")
         response_panellist = await self._request(API_URL + "/account/GetPanelList")
         if not response_panellist:
             raise UpdateFailed("Could not retrieve panels")
+        LOGGER.debug("Panels retrieved: %s", response_panellist)
         for panel in response_panellist:
             data: dict[str, Any] = {panel["PanelId"]: {}}
             data[panel["PanelId"]]["name"] = panel["DisplayName"]
             data[panel["PanelId"]]["id"] = panel["PanelId"]
 
+            LOGGER.debug("trying to get Panel")
             response_getpanel = await self._request(
                 API_URL + "/Panel/GetPanel?panelId={}".format(panel)
             )
@@ -132,11 +135,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if not response_getpanel or not isinstance(response_getpanel, dict):
                 raise UpdateFailed("Could not retrieve panel")
 
+            LOGGER.debug("Panel retrieved: %s", response_getpanel)
             data[panel["PanelId"]]["codelength"] = response_getpanel.get(
                 "PanelCodeLength"
             )
 
             if temp_list := response_getpanel.get("Temperatures"):
+                LOGGER.debug("Extract Temperature info: %s", temp_list)
                 temp_dict = {}
                 for temp in temp_list:
                     temp_dict[temp.get("SerialNo")] = {
@@ -146,6 +151,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 data[panel["PanelId"]]["temp"] = temp_dict
 
             if lock_list := response_getpanel.get("Locks"):
+                LOGGER.debug("Extract Locks info: %s", lock_list)
                 lock_dict = {}
                 for lock in lock_list:
                     lock_dict[lock.get("Serial")] = {
@@ -156,6 +162,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 data[panel["PanelId"]]["lock"] = lock_dict
 
             if switch_list := response_getpanel.get("Smartplugs"):
+                LOGGER.debug("Extract Switch info: %s", switch_list)
                 switch_dict = {}
                 for switch in switch_list:
                     switch_dict[switch.get("Id")] = {
@@ -165,9 +172,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     }
                 data[panel["PanelId"]]["switch"] = switch_dict
 
+        LOGGER.debug("Trying to get user info")
         response_getuser = await self._request(API_URL + "/Login/GetUser")
         if not response_getuser or not isinstance(response_getuser, dict):
             raise UpdateFailed("Could not retrieve username")
+        LOGGER.debug("User info retrieved %s", response_getuser)
         self.logname = response_getuser.get("User", {}).get("UserName")
 
         return data
@@ -175,8 +184,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch info from API."""
         data = self.data
+        LOGGER.debug("Set data")
         if not data:
+            LOGGER.debug("Data empty, going for first refresh")
             data = await self.async_first_refresh()
+            LOGGER.debug("First refresh complete: %s", data)
 
         now = datetime.utcnow()
         LOGGER.debug("self._last_updated_temp = %s", self._last_updated_temp)
@@ -191,24 +203,29 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             self._update_sensors = True
             self._last_updated_temp = now
+        LOGGER.debug("Should refresh Temp: %s", self._update_sensors)
 
         for panel in data:
+            LOGGER.debug("Trying to get Panel status")
             response_get_status = await self._request(
                 API_URL + "/Panel/GetPanelStatus?panelId={}".format(panel)
             )
             if not response_get_status or not isinstance(response_get_status, dict):
                 raise UpdateFailed("Could not retrieve status")
+            LOGGER.debug("Retrieved Panel status %s", response_get_status)
 
             data[panel]["alarmstatus"] = response_get_status.get("Status")
             data[panel]["online"] = response_get_status.get("IsOnline")
             data[panel]["arm_ready"] = response_get_status.get("ReadyToArm")
 
-            if data[panel]["temp"] and self._sector_temp and self._update_sensors:
+            if data[panel]["temp"] and self._update_sensors:
+                LOGGER.debug("Trying to refresh temperatures")
                 response_temp = await self._request(
                     API_URL + "/Panel/GetTemperatures?panelId={}".format(panel)
                 )
                 if not response_temp:
                     raise UpdateFailed("Could not retrieve temp data")
+                LOGGER.debug("Temps refreshed: %s", response_temp)
                 if response_temp:
                     for temp in response_temp:
                         if serial := temp.get("SerialNo"):
@@ -217,22 +234,26 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             )
 
             if data[panel]["lock"]:
+                LOGGER.debug("Trying to refresh locks")
                 response_lock = await self._request(
                     API_URL + "/Panel/GetLockStatus?panelId={}".format(panel)
                 )
                 if not response_lock:
                     raise UpdateFailed("Could not retrieve lock data")
+                LOGGER.debug("Locks refreshed: %s", response_lock)
                 if response_lock:
                     for lock in response_lock:
                         if serial := lock.get("Serial"):
                             data[panel]["lock"][serial]["status"] = lock.get("Status")
 
             if data[panel]["switch"]:
+                LOGGER.debug("Trying to refresh switches")
                 response_switch = await self._request(
                     API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel)
                 )
                 if not response_switch:
                     raise UpdateFailed("Could not retrieve switch data")
+                LOGGER.debug("Switches refreshed: %s", response_switch)
                 if response_switch:
                     for switch in response_switch:
                         if switch_id := switch.get("Id"):
@@ -240,11 +261,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                 "Status"
                             )
 
+            LOGGER.debug("Trying to refresh logs")
             response_logs = await self._request(
                 API_URL + "/Panel/GetLogs?panelId={}".format(panel)
             )
             if not response_logs:
                 raise UpdateFailed("Could not retrieve logs")
+            LOGGER.debug("Logs refreshed: %s", response_logs)
             user_to_set: str | None = None
             if response_logs:
                 log: dict
@@ -258,6 +281,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         break
 
             data[panel]["changed_by"] = user_to_set if user_to_set else self.logname
+            LOGGER.debug("Log name set to: %s", data[panel]["changed_by"])
 
         return data
 
@@ -265,16 +289,28 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         self, url: str, json_data: dict | None = None, retry: int = 3
     ) -> dict | list | None:
         if self._access_token is None:
+            LOGGER.debug("Access token None, trying to refresh")
             try:
                 await self._login()
+            except aiohttp.ContentTypeError as error:
+                LOGGER.error(
+                    "ContentTypeError connecting to Sector: %s, %s ",
+                    error.message,
+                    error,
+                    exc_info=True,
+                )
             except Exception as error:  # pylint: disable=broad-except
+                LOGGER.error("Exception on login: %s", str(error).lower())
                 if "unauthorized" in str(error).lower():
                     raise ConfigEntryAuthFailed from error
             if self._access_token is None:
+                LOGGER.debug("Access token still None, retry %d", retry)
                 await asyncio.sleep(5)
                 if retry > 0:
                     return await self._request(url, json_data, retry=retry - 1)
                 raise ConfigEntryAuthFailed
+
+        LOGGER.debug("Login passed")
 
         headers = {
             "Authorization": self._access_token,
@@ -288,20 +324,25 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         async with async_timeout.timeout(TIMEOUT):
             try:
                 if json_data:
+                    LOGGER.debug("Request with post: %s and data %s", url, json_data)
                     response = await self.websession.post(
                         url, json=json_data, headers=headers
                     )
                 else:
+                    LOGGER.debug("Request with get: %s", url)
                     response = await self.websession.get(url, headers=headers)
 
             except aiohttp.ContentTypeError as error:
+                LOGGER.debug("ContentTypeError: %s", error.message)
                 if "unauthorized" in error.message.lower():
                     raise ConfigEntryAuthFailed from error
                 raise UpdateFailed from error
             except Exception as error:
+                LOGGER.debug("Exception on request: %s", error)
                 raise UpdateFailed from error
 
         if response.status == 401:
+            LOGGER.debug("Response unauth, retry: %d", retry)
             self._access_token = None
             await asyncio.sleep(2)
             if retry > 0:
@@ -314,50 +355,52 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 output: dict | list = await response.json()
             except aiohttp.ContentTypeError as error:
+                LOGGER.debug("ContentTypeError on ok status: %s", error.message)
                 raise UpdateFailed from error
             return output
 
         LOGGER.debug("Did not retrieve information properly")
         LOGGER.debug("request status: %s", response.status)
-        LOGGER.debug("request text: %s", response.text())
+        response_text = await response.text()
+        LOGGER.debug("request text: %s", response_text)
 
         return None
 
     async def _login(self) -> None:
         """Login to retrieve access token."""
-        try:
-            async with async_timeout.timeout(TIMEOUT):
-                response = await self.websession.post(
-                    f"{API_URL}/Login/Login",
-                    headers={
-                        "API-Version": "6",
-                        "Platform": "iOS",
-                        "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
-                        "Version": "2.0.27",
-                        "Connection": "keep-alive",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "UserId": self._userid,
-                        "Password": self._password,
-                    },
-                )
 
-                if response.status == 401:
-                    self._access_token = None
-
-                if response.status in (200, 204):
-                    token_data = await response.json()
-                    self._access_token = token_data.get("AuthorizationToken")
-
-        except aiohttp.ContentTypeError as error:
-            text = await response.text()
-            LOGGER.error(
-                "ContentTypeError connecting to Sector: %s, %s ",
-                text,
-                error,
-                exc_info=True,
+        async with async_timeout.timeout(TIMEOUT):
+            LOGGER.debug("Trying to login")
+            response = await self.websession.post(
+                f"{API_URL}/Login/Login",
+                headers={
+                    "API-Version": "6",
+                    "Platform": "iOS",
+                    "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                    "Version": "2.0.27",
+                    "Connection": "keep-alive",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "UserId": self._userid,
+                    "Password": self._password,
+                },
             )
+
+            response_text = await response.text()
+
+            if response.status == 401:
+                LOGGER.debug("Response status 401: %s", response_text)
+                self._access_token = None
+
+            if response.status in (200, 204):
+                token_data = await response.json()
+                LOGGER.debug("Response status ok: %s", token_data)
+                self._access_token = token_data.get("AuthorizationToken")
+
+        LOGGER.debug("Final exit login")
+        LOGGER.debug("Status: %d", response.status)
+        LOGGER.debug("Text: %s", response_text)
 
 
 class UnauthorizedError(HomeAssistantError):
