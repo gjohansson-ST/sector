@@ -127,9 +127,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             data[panel["PanelId"]]["name"] = panel["DisplayName"]
             data[panel["PanelId"]]["id"] = panel["PanelId"]
 
-            LOGGER.debug("trying to get Panel")
+            LOGGER.debug("trying to get Panel for panel_id: %s", panel_id)
+            panel_id = panel["PanelId"]
+            if panel_id is None:
+                raise UpdateFailed("No panel_id found")
+
             response_getpanel = await self._request(
-                API_URL + "/Panel/GetPanel?panelId={}".format(panel)
+                API_URL + "/Panel/GetPanel?panelId={}".format(panel_id)
             )
 
             if not response_getpanel or not isinstance(response_getpanel, dict):
@@ -206,9 +210,14 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         LOGGER.debug("Should refresh Temp: %s", self._update_sensors)
 
         for panel in data:
-            LOGGER.debug("Trying to get Panel status")
+            panel_id = panel.get("PanelId")
+
+            LOGGER.debug("Trying to get Panel status for panel_id: %s", panel_id)
+            if panel_id is None:
+                raise UpdateFailed("Missing panel_id")
+
             response_get_status = await self._request(
-                API_URL + "/Panel/GetPanelStatus?panelId={}".format(panel)
+                API_URL + "/Panel/GetPanelStatus?panelId={}".format(panel_id)
             )
             if not response_get_status or not isinstance(response_get_status, dict):
                 raise UpdateFailed("Could not retrieve status")
@@ -221,7 +230,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if data[panel]["temp"] and self._update_sensors:
                 LOGGER.debug("Trying to refresh temperatures")
                 response_temp = await self._request(
-                    API_URL + "/Panel/GetTemperatures?panelId={}".format(panel)
+                    API_URL + "/Panel/GetTemperatures?panelId={}".format(panel_id)
                 )
                 if not response_temp:
                     raise UpdateFailed("Could not retrieve temp data")
@@ -236,7 +245,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if data[panel]["lock"]:
                 LOGGER.debug("Trying to refresh locks")
                 response_lock = await self._request(
-                    API_URL + "/Panel/GetLockStatus?panelId={}".format(panel)
+                    API_URL + "/Panel/GetLockStatus?panelId={}".format(panel_id)
                 )
                 if not response_lock:
                     raise UpdateFailed("Could not retrieve lock data")
@@ -249,7 +258,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if data[panel]["switch"]:
                 LOGGER.debug("Trying to refresh switches")
                 response_switch = await self._request(
-                    API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel)
+                    API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel_id)
                 )
                 if not response_switch:
                     raise UpdateFailed("Could not retrieve switch data")
@@ -263,7 +272,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             LOGGER.debug("Trying to refresh logs")
             response_logs = await self._request(
-                API_URL + "/Panel/GetLogs?panelId={}".format(panel)
+                API_URL + "/Panel/GetLogs?panelId={}".format(panel_id)
             )
             if not response_logs:
                 raise UpdateFailed("Could not retrieve logs")
