@@ -209,7 +209,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             self._last_updated_temp = now
         LOGGER.debug("Should refresh Temp: %s", self._update_sensors)
 
-        for panel in data:
+        for key, panel in data.items():
+            LOGGER.debug("Panel data: %s", panel)
             panel_id = panel.get("PanelId")
 
             LOGGER.debug("Trying to get Panel status for panel_id: %s", panel_id)
