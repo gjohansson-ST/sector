@@ -224,11 +224,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed("Could not retrieve status")
             LOGGER.debug("Retrieved Panel status %s", response_get_status)
 
-            data[panel]["alarmstatus"] = response_get_status.get("Status")
-            data[panel]["online"] = response_get_status.get("IsOnline")
-            data[panel]["arm_ready"] = response_get_status.get("ReadyToArm")
+            data[key]["alarmstatus"] = response_get_status.get("Status")
+            data[key]["online"] = response_get_status.get("IsOnline")
+            data[key]["arm_ready"] = response_get_status.get("ReadyToArm")
 
-            if data[panel]["temp"] and self._update_sensors:
+            if data[key]["temp"] and self._update_sensors:
                 LOGGER.debug("Trying to refresh temperatures")
                 response_temp = await self._request(
                     API_URL + "/Panel/GetTemperatures?panelId={}".format(panel_id)
@@ -239,11 +239,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 if response_temp:
                     for temp in response_temp:
                         if serial := temp.get("SerialNo"):
-                            data[panel]["temp"][serial]["temperature"] = temp.get(
+                            data[key]["temp"][serial]["temperature"] = temp.get(
                                 "Temprature"
                             )
 
-            if data[panel]["lock"]:
+            if data[key]["lock"]:
                 LOGGER.debug("Trying to refresh locks")
                 response_lock = await self._request(
                     API_URL + "/Panel/GetLockStatus?panelId={}".format(panel_id)
@@ -254,9 +254,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 if response_lock:
                     for lock in response_lock:
                         if serial := lock.get("Serial"):
-                            data[panel]["lock"][serial]["status"] = lock.get("Status")
+                            data[key]["lock"][serial]["status"] = lock.get("Status")
 
-            if data[panel]["switch"]:
+            if data[key]["switch"]:
                 LOGGER.debug("Trying to refresh switches")
                 response_switch = await self._request(
                     API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel_id)
@@ -267,7 +267,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 if response_switch:
                     for switch in response_switch:
                         if switch_id := switch.get("Id"):
-                            data[panel]["switch"][switch_id]["status"] = switch.get(
+                            data[key]["switch"][switch_id]["status"] = switch.get(
                                 "Status"
                             )
 
