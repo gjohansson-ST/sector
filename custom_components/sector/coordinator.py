@@ -211,7 +211,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
         for key, panel in data.items():
             LOGGER.debug("Panel data: %s", panel)
-            panel_id = panel.get("PanelId")
+            panel_id = panel.get("id")
 
             LOGGER.debug("Trying to get Panel status for panel_id: %s", panel_id)
             if panel_id is None:
