@@ -228,7 +228,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             data[key]["online"] = response_get_status.get("IsOnline")
             data[key]["arm_ready"] = response_get_status.get("ReadyToArm")
 
-            if data[key]["temp"] and self._update_sensors:
+            if data[key].get("temp") and self._update_sensors:
                 LOGGER.debug("Trying to refresh temperatures")
                 response_temp = await self._request(
                     API_URL + "/Panel/GetTemperatures?panelId={}".format(panel_id)
@@ -243,7 +243,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                 "Temprature"
                             )
 
-            if data[key]["lock"]:
+            if data[key].get("lock"):
                 LOGGER.debug("Trying to refresh locks")
                 response_lock = await self._request(
                     API_URL + "/Panel/GetLockStatus?panelId={}".format(panel_id)
@@ -256,7 +256,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         if serial := lock.get("Serial"):
                             data[key]["lock"][serial]["status"] = lock.get("Status")
 
-            if data[key]["switch"]:
+            if data[key].get("switch"):
                 LOGGER.debug("Trying to refresh switches")
                 response_switch = await self._request(
                     API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel_id)
