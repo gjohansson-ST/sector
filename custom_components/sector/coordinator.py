@@ -127,8 +127,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             data[panel["PanelId"]]["name"] = panel["DisplayName"]
             data[panel["PanelId"]]["id"] = panel["PanelId"]
 
-            LOGGER.debug("trying to get Panel for panel_id: %s", panel_id)
             panel_id = panel["PanelId"]
+            LOGGER.debug("trying to get Panel for panel_id: %s", panel_id)
             if panel_id is None:
                 raise UpdateFailed("No panel_id found")
 
