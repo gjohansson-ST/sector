@@ -290,8 +290,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         user_to_set = user if "arm" in event_type else self.logname
                         break
 
-            data[panel]["changed_by"] = user_to_set if user_to_set else self.logname
-            LOGGER.debug("Log name set to: %s", data[panel]["changed_by"])
+            data[key]["changed_by"] = user_to_set if user_to_set else self.logname
+            LOGGER.debug("Log name set to: %s", data[key]["changed_by"])
 
         return data
 
