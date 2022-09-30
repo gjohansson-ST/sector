@@ -366,6 +366,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 output: dict | list = await response.json()
             except aiohttp.ContentTypeError as error:
                 LOGGER.debug("ContentTypeError on ok status: %s", error.message)
+                response_text = await response.text()
+                LOGGER.debug("Response text is: %s", response_text)
                 raise UpdateFailed from error
             return output
 
