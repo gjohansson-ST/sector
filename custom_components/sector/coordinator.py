@@ -65,7 +65,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if command == "lock":
                 await self._request(API_URL + "/Panel/Lock", json_data=message_json)
         except (UpdateFailed, ConfigEntryAuthFailed) as error:
-            raise HomeAssistantError from error
+            raise HomeAssistantError(
+                f"Could not lock {lock} on error {str(error)}"
+            ) from error
         await self.async_request_refresh()
 
     async def triggerswitch(self, identity: str, command: str, panel_id: str) -> None:
@@ -88,7 +90,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     json_data=message_json,
                 )
         except (UpdateFailed, ConfigEntryAuthFailed) as error:
-            raise HomeAssistantError from error
+            raise HomeAssistantError(
+                f"Could not change switch {identity} on error {str(error)}"
+            ) from error
 
         await self.async_request_refresh()
 
@@ -111,7 +115,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if command == "disarm":
                 await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
         except (UpdateFailed, ConfigEntryAuthFailed) as error:
-            raise HomeAssistantError from error
+            raise HomeAssistantError(
+                f"Could not arm/disarm {panel_id} on error {str(error)}"
+            ) from error
 
         await self.async_request_refresh()
 
@@ -358,7 +364,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if retry > 0:
                 return await self._request(url, json_data, retry=retry - 1)
 
-        if response.status in (200, 204):
+        if response.status == 200:
             LOGGER.debug("Info retrieved successfully URL: %s", url)
             LOGGER.debug("request status: %s", response.status)
 
@@ -367,9 +373,14 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             except aiohttp.ContentTypeError as error:
                 LOGGER.debug("ContentTypeError on ok status: %s", error.message)
                 response_text = await response.text()
-                LOGGER.debug("Response text is: %s", response_text)
+                LOGGER.debug("Response (200) text is: %s", response_text)
                 raise UpdateFailed from error
             return output
+
+        if response.status == 204:
+            LOGGER.debug("Info retrieved successfully URL: %s", url)
+            LOGGER.debug("request status: %s", response.status)
+            return None
 
         LOGGER.debug("Did not retrieve information properly")
         LOGGER.debug("request status: %s", response.status)
@@ -405,7 +416,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 LOGGER.debug("Response status 401: %s", response_text)
                 self._access_token = None
 
-            if response.status in (200, 204):
+            if response.status == 200:
                 token_data = await response.json()
                 LOGGER.debug("Response status ok: %s", token_data)
                 self._access_token = token_data.get("AuthorizationToken")
