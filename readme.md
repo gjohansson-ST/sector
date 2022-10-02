@@ -14,7 +14,7 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2022-09-24
+**Last update:** 2022-10-02
 
 **Join the Discussion on Development:** [https://discord.gg/VnKkSHfNHc](https://discord.gg/VnKkSHfNHc)
 
@@ -29,7 +29,7 @@ Set once:
 
 - Username: Your e-mail address linked to Sector Alarm account
 - Password: Password used for app or Sector website
-- Enable Temp sensors (Not recommended and turned off by default)
+- Enable Temp sensors (Not recommended and turned off by default due to long api response time)
 
 Options that you can change at any time:
 
