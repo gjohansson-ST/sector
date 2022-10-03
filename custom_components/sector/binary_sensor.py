@@ -109,3 +109,8 @@ class SectorBinarySensor(
                     self._attr_is_on = lock_data["autolock"]
 
         self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        """Return entity available."""
+        return True

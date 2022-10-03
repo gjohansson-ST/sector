@@ -143,3 +143,8 @@ class SectorAlarmPanel(
         if alarm_state := self.coordinator.data[self._panel_id].get("alarmstatus"):
             self._attr_state = ALARM_STATE_TO_HA_STATE[alarm_state]
         self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        """Return entity available."""
+        return True

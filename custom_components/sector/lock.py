@@ -120,3 +120,8 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         ):
             self._attr_is_locked = bool(lock.get("status") == "lock")
         self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        """Return entity available."""
+        return True
