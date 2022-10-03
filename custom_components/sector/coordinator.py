@@ -131,6 +131,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             data: dict[str, Any] = {panel["PanelId"]: {}}
             data[panel["PanelId"]]["name"] = panel["DisplayName"]
             data[panel["PanelId"]]["id"] = panel["PanelId"]
+            data[panel["PanelId"]]["alarmstatus"] = 0
 
             panel_id = panel["PanelId"]
             LOGGER.debug("trying to get Panel for panel_id: %s", panel_id)
@@ -227,11 +228,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             )
             if not response_get_status or not isinstance(response_get_status, dict):
                 LOGGER.warning("Could not retrieve status for panel %s", panel_id)
-            LOGGER.debug("Retrieved Panel status %s", response_get_status)
-
-            data[key]["alarmstatus"] = response_get_status.get("Status")
-            data[key]["online"] = response_get_status.get("IsOnline")
-            data[key]["arm_ready"] = response_get_status.get("ReadyToArm")
+            else:
+                LOGGER.debug("Retrieved Panel status %s", response_get_status)
+                data[key]["online"] = response_get_status.get("IsOnline")
+                if data[key]["online"] is True:
+                    data[key]["alarmstatus"] = response_get_status.get("Status")
+                data[key]["arm_ready"] = response_get_status.get("ReadyToArm")
 
             if data[key].get("temp") and self._update_sensors:
                 LOGGER.debug("Trying to refresh temperatures")
@@ -242,8 +244,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     LOGGER.warning(
                         "Could not retrieve temp data for panel %s", panel_id
                     )
-                LOGGER.debug("Temps refreshed: %s", response_temp)
-                if response_temp:
+                else:
+                    LOGGER.debug("Temps refreshed: %s", response_temp)
                     for temp in response_temp:
                         if serial := temp.get("SerialNo"):
                             data[key]["temp"][serial]["temperature"] = temp.get(
@@ -259,8 +261,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     LOGGER.warning(
                         "Could not retrieve lock data for panel %s", panel_id
                     )
-                LOGGER.debug("Locks refreshed: %s", response_lock)
-                if response_lock:
+                else:
+                    LOGGER.debug("Locks refreshed: %s", response_lock)
                     for lock in response_lock:
                         if serial := lock.get("Serial"):
                             data[key]["lock"][serial]["status"] = lock.get("Status")
@@ -274,8 +276,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     LOGGER.warning(
                         "Could not retrieve switch data for panel %s", panel_id
                     )
-                LOGGER.debug("Switches refreshed: %s", response_switch)
-                if response_switch:
+                else:
+                    LOGGER.debug("Switches refreshed: %s", response_switch)
                     for switch in response_switch:
                         if switch_id := switch.get("Id"):
                             data[key]["switch"][switch_id]["status"] = switch.get(
@@ -288,18 +290,19 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             )
             if not response_logs:
                 LOGGER.warning("Could not retrieve logs for panel %s", panel_id)
-            LOGGER.debug("Logs refreshed: %s", response_logs)
-            user_to_set: str | None = None
-            if response_logs:
-                log: dict
-                for log in response_logs:
-                    user = log.get("User")
-                    event_type: str | None = log.get("EventType")
+            else:
+                LOGGER.debug("Logs refreshed: %s", response_logs)
+                user_to_set: str | None = None
+                if response_logs:
+                    log: dict
+                    for log in response_logs:
+                        user = log.get("User")
+                        event_type: str | None = log.get("EventType")
 
-                    user_to_set = self.logname
-                    if event_type:
-                        user_to_set = user if "arm" in event_type else self.logname
-                        break
+                        user_to_set = self.logname
+                        if event_type:
+                            user_to_set = user if "arm" in event_type else self.logname
+                            break
 
             data[key]["changed_by"] = user_to_set if user_to_set else self.logname
             LOGGER.debug("Log name set to: %s", data[key]["changed_by"])
