@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import aiohttp
-import async_timeout
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
@@ -17,7 +16,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import API_URL, CONF_TEMP, DOMAIN, LOGGER, UPDATE_INTERVAL
 
-TIMEOUT = 8
+TIMEOUT = 10
 
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
@@ -227,7 +226,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 API_URL + "/Panel/GetPanelStatus?panelId={}".format(panel_id)
             )
             if not response_get_status or not isinstance(response_get_status, dict):
-                raise UpdateFailed("Could not retrieve status")
+                LOGGER.warning("Could not retrieve status for panel %s", panel_id)
             LOGGER.debug("Retrieved Panel status %s", response_get_status)
 
             data[key]["alarmstatus"] = response_get_status.get("Status")
@@ -240,7 +239,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     API_URL + "/Panel/GetTemperatures?panelId={}".format(panel_id)
                 )
                 if not response_temp:
-                    raise UpdateFailed("Could not retrieve temp data")
+                    LOGGER.warning(
+                        "Could not retrieve temp data for panel %s", panel_id
+                    )
                 LOGGER.debug("Temps refreshed: %s", response_temp)
                 if response_temp:
                     for temp in response_temp:
@@ -255,7 +256,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     API_URL + "/Panel/GetLockStatus?panelId={}".format(panel_id)
                 )
                 if not response_lock:
-                    raise UpdateFailed("Could not retrieve lock data")
+                    LOGGER.warning(
+                        "Could not retrieve lock data for panel %s", panel_id
+                    )
                 LOGGER.debug("Locks refreshed: %s", response_lock)
                 if response_lock:
                     for lock in response_lock:
@@ -268,7 +271,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel_id)
                 )
                 if not response_switch:
-                    raise UpdateFailed("Could not retrieve switch data")
+                    LOGGER.warning(
+                        "Could not retrieve switch data for panel %s", panel_id
+                    )
                 LOGGER.debug("Switches refreshed: %s", response_switch)
                 if response_switch:
                     for switch in response_switch:
@@ -282,7 +287,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 API_URL + "/Panel/GetLogs?panelId={}".format(panel_id)
             )
             if not response_logs:
-                raise UpdateFailed("Could not retrieve logs")
+                LOGGER.warning("Could not retrieve logs for panel %s", panel_id)
             LOGGER.debug("Logs refreshed: %s", response_logs)
             user_to_set: str | None = None
             if response_logs:
@@ -315,10 +320,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     error,
                     exc_info=True,
                 )
+            except asyncio.TimeoutError as error:
+                LOGGER.warning("Timeout on during login %s", str(error))
             except Exception as error:  # pylint: disable=broad-except
                 LOGGER.error("Exception on login: %s", str(error).lower())
                 if "unauthorized" in str(error).lower():
                     raise ConfigEntryAuthFailed from error
+
             if self._access_token is None:
                 LOGGER.debug("Access token still None, retry %d", retry)
                 await asyncio.sleep(5)
@@ -337,25 +345,33 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             "Connection": "keep-alive",
             "Content-Type": "application/json",
         }
-        async with async_timeout.timeout(TIMEOUT):
-            try:
-                if json_data:
-                    LOGGER.debug("Request with post: %s and data %s", url, json_data)
-                    response = await self.websession.post(
-                        url, json=json_data, headers=headers
-                    )
-                else:
-                    LOGGER.debug("Request with get: %s", url)
-                    response = await self.websession.get(url, headers=headers)
+        try:
+            if json_data:
+                LOGGER.debug("Request with post: %s and data %s", url, json_data)
+                response = await self.websession.post(
+                    url,
+                    json=json_data,
+                    headers=headers,
+                    timeout=TIMEOUT,
+                )
+            else:
+                LOGGER.debug("Request with get: %s", url)
+                response = await self.websession.get(
+                    url,
+                    headers=headers,
+                    timeout=TIMEOUT,
+                )
 
-            except aiohttp.ContentTypeError as error:
-                LOGGER.debug("ContentTypeError: %s", error.message)
-                if "unauthorized" in error.message.lower():
-                    raise ConfigEntryAuthFailed from error
-                raise UpdateFailed from error
-            except Exception as error:
-                LOGGER.debug("Exception on request: %s", error)
-                raise UpdateFailed from error
+        except asyncio.TimeoutError as error:
+            LOGGER.warning("Timeout on during login %s", str(error))
+        except aiohttp.ContentTypeError as error:
+            LOGGER.debug("ContentTypeError: %s", error.message)
+            if "unauthorized" in error.message.lower():
+                raise ConfigEntryAuthFailed from error
+            raise UpdateFailed from error
+        except Exception as error:
+            LOGGER.debug("Exception on request: %s", error)
+            raise UpdateFailed from error
 
         if response.status == 401:
             LOGGER.debug("Response unauth, retry: %d", retry)
@@ -392,34 +408,34 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     async def _login(self) -> None:
         """Login to retrieve access token."""
 
-        async with async_timeout.timeout(TIMEOUT):
-            LOGGER.debug("Trying to login")
-            response = await self.websession.post(
-                f"{API_URL}/Login/Login",
-                headers={
-                    "API-Version": "6",
-                    "Platform": "iOS",
-                    "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
-                    "Version": "2.0.27",
-                    "Connection": "keep-alive",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "UserId": self._userid,
-                    "Password": self._password,
-                },
-            )
+        LOGGER.debug("Trying to login")
+        response = await self.websession.post(
+            f"{API_URL}/Login/Login",
+            headers={
+                "API-Version": "6",
+                "Platform": "iOS",
+                "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                "Version": "2.0.27",
+                "Connection": "keep-alive",
+                "Content-Type": "application/json",
+            },
+            json={
+                "UserId": self._userid,
+                "Password": self._password,
+            },
+            timeout=TIMEOUT,
+        )
 
-            response_text = await response.text()
+        response_text = await response.text()
 
-            if response.status == 401:
-                LOGGER.debug("Response status 401: %s", response_text)
-                self._access_token = None
+        if response.status == 401:
+            LOGGER.debug("Response status 401: %s", response_text)
+            self._access_token = None
 
-            if response.status == 200:
-                token_data = await response.json()
-                LOGGER.debug("Response status ok: %s", token_data)
-                self._access_token = token_data.get("AuthorizationToken")
+        if response.status == 200:
+            token_data = await response.json()
+            LOGGER.debug("Response status ok: %s", token_data)
+            self._access_token = token_data.get("AuthorizationToken")
 
         LOGGER.debug("Final exit login")
         LOGGER.debug("Status: %d", response.status)
