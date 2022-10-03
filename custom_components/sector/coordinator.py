@@ -61,8 +61,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             if command == "unlock":
                 await self._request(API_URL + "/Panel/Unlock", json_data=message_json)
+                self.data[panel_id]["lock"][lock]["status"] = "unlock"
             if command == "lock":
                 await self._request(API_URL + "/Panel/Lock", json_data=message_json)
+                self.data[panel_id]["lock"][lock]["status"] = "lock"
         except (UpdateFailed, ConfigEntryAuthFailed) as error:
             raise HomeAssistantError(
                 f"Could not lock {lock} on error {str(error)}"
@@ -83,11 +85,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     f"{API_URL}/Panel/TurnOnSmartplug?switchId={identity}&panelId={panel_id}",
                     json_data=message_json,
                 )
+                self.data[panel_id]["switch"][identity]["status"] = "On"
             if command == "off":
                 await self._request(
                     f"{API_URL}/Panel/TurnOffSmartplug?switchId={identity}&panelId={panel_id}",
                     json_data=message_json,
                 )
+                self.data[panel_id]["switch"][identity]["status"] = "Off"
         except (UpdateFailed, ConfigEntryAuthFailed) as error:
             raise HomeAssistantError(
                 f"Could not change switch {identity} on error {str(error)}"
@@ -107,12 +111,15 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             if command == "full":
                 await self._request(API_URL + "/Panel/Arm", json_data=message_json)
+                self.data[panel_id]["alarmstatus"] = 3
             if command == "partial":
                 await self._request(
                     API_URL + "/Panel/PartialArm", json_data=message_json
                 )
+                self.data[panel_id]["alarmstatus"] = 2
             if command == "disarm":
                 await self._request(API_URL + "/Panel/Disarm", json_data=message_json)
+                self.data[panel_id]["alarmstatus"] = 1
         except (UpdateFailed, ConfigEntryAuthFailed) as error:
             raise HomeAssistantError(
                 f"Could not arm/disarm {panel_id} on error {str(error)}"
