@@ -14,7 +14,7 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2022-10-02
+**Last update:** 2022-10-03
 
 **Join the Discussion on Development:** [https://discord.gg/VnKkSHfNHc](https://discord.gg/VnKkSHfNHc)
 
@@ -22,6 +22,12 @@
 
 Integrates with Swedish Sector Alarm home alarm system (most likely works in all countries serviced by Sector Alarm).
 Currently implements Alarm panel, Locks, Temperature and Smartplugs
+
+**NOTE**
+
+On alarm installation which are not wired make sure you take the binary sensor "Online" into account to ensure the alarm state is a trusted state
+
+The entity for alarm panel will only update it's state on alarms which are online
 
 ## Configuration Options
 
