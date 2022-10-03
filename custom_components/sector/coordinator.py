@@ -323,7 +323,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             except asyncio.TimeoutError as error:
                 LOGGER.warning("Timeout on during login %s", str(error))
             except Exception as error:  # pylint: disable=broad-except
-                LOGGER.error("Exception on login: %s", str(error).lower())
+                if retry == 0:
+                    LOGGER.error(
+                        "Exception on last login attempt %s", str(error).lower()
+                    )
                 if "unauthorized" in str(error).lower():
                     raise ConfigEntryAuthFailed from error
 
