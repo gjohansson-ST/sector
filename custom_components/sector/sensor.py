@@ -94,3 +94,8 @@ class SectorAlarmTemperatureSensor(
             self._attr_native_value = temp
 
         self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        """Return entity available."""
+        return True
