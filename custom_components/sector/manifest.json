@@ -4,7 +4,7 @@
     "documentation": "https://github.com/gjohansson-ST/sector/blob/master/readme.md",
     "issue_tracker": "https://github.com/gjohansson-ST/sector/issues",
     "codeowners": ["@gjohansson-ST"],
-    "version": "v0.3.6",
+    "version": "v0.3.7",
     "config_flow": true,
     "iot_class": "cloud_polling"
 }
