@@ -292,11 +292,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             response_logs = await self._request(
                 API_URL + "/Panel/GetLogs?panelId={}".format(panel_id)
             )
+            user_to_set: str | None = None
             if not response_logs:
                 LOGGER.debug("Could not retrieve logs for panel %s", panel_id)
             else:
                 LOGGER.debug("Logs refreshed: %s", response_logs)
-                user_to_set: str | None = None
                 if response_logs:
                     log: dict
                     for log in response_logs:
