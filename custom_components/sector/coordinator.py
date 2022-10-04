@@ -235,7 +235,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 API_URL + "/Panel/GetPanelStatus?panelId={}".format(panel_id)
             )
             if not response_get_status or not isinstance(response_get_status, dict):
-                LOGGER.warning("Could not retrieve status for panel %s", panel_id)
+                LOGGER.debug("Could not retrieve status for panel %s", panel_id)
             else:
                 LOGGER.debug("Retrieved Panel status %s", response_get_status)
                 data[key]["online"] = response_get_status.get("IsOnline")
@@ -249,9 +249,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     API_URL + "/Panel/GetTemperatures?panelId={}".format(panel_id)
                 )
                 if not response_temp:
-                    LOGGER.warning(
-                        "Could not retrieve temp data for panel %s", panel_id
-                    )
+                    LOGGER.debug("Could not retrieve temp data for panel %s", panel_id)
                 else:
                     LOGGER.debug("Temps refreshed: %s", response_temp)
                     for temp in response_temp:
@@ -266,9 +264,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     API_URL + "/Panel/GetLockStatus?panelId={}".format(panel_id)
                 )
                 if not response_lock:
-                    LOGGER.warning(
-                        "Could not retrieve lock data for panel %s", panel_id
-                    )
+                    LOGGER.debug("Could not retrieve lock data for panel %s", panel_id)
                 else:
                     LOGGER.debug("Locks refreshed: %s", response_lock)
                     for lock in response_lock:
@@ -281,7 +277,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel_id)
                 )
                 if not response_switch:
-                    LOGGER.warning(
+                    LOGGER.debug(
                         "Could not retrieve switch data for panel %s", panel_id
                     )
                 else:
@@ -297,7 +293,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 API_URL + "/Panel/GetLogs?panelId={}".format(panel_id)
             )
             if not response_logs:
-                LOGGER.warning("Could not retrieve logs for panel %s", panel_id)
+                LOGGER.debug("Could not retrieve logs for panel %s", panel_id)
             else:
                 LOGGER.debug("Logs refreshed: %s", response_logs)
                 user_to_set: str | None = None
