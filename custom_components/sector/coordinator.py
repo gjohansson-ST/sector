@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 from typing import Any
+import async_timeout
 
 import aiohttp
 
@@ -322,7 +323,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         if self._access_token is None:
             LOGGER.debug("Access token None, trying to refresh")
             try:
-                await self._login()
+                async with async_timeout.timeout(TIMEOUT):
+                    await self._login()
             except aiohttp.ContentTypeError as error:
                 LOGGER.error(
                     "ContentTypeError connecting to Sector: %s, %s ",
@@ -331,7 +333,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     exc_info=True,
                 )
             except asyncio.TimeoutError as error:
-                LOGGER.warning("Timeout on during login %s", str(error))
+                LOGGER.warning("Timeout during login %s", str(error))
             except Exception as error:  # pylint: disable=broad-except
                 if retry == 0:
                     LOGGER.error(
@@ -359,24 +361,26 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             "Content-Type": "application/json",
         }
         try:
-            if json_data:
-                LOGGER.debug("Request with post: %s and data %s", url, json_data)
-                response = await self.websession.post(
-                    url,
-                    json=json_data,
-                    headers=headers,
-                    timeout=TIMEOUT,
-                )
-            else:
-                LOGGER.debug("Request with get: %s", url)
-                response = await self.websession.get(
-                    url,
-                    headers=headers,
-                    timeout=TIMEOUT,
-                )
+            async with async_timeout.timeout(TIMEOUT):
+                if json_data:
+                    LOGGER.debug("Request with post: %s and data %s", url, json_data)
+                    response = await self.websession.post(
+                        url,
+                        json=json_data,
+                        headers=headers,
+                        timeout=TIMEOUT,
+                    )
+                else:
+                    LOGGER.debug("Request with get: %s", url)
+                    response = await self.websession.get(
+                        url,
+                        headers=headers,
+                        timeout=TIMEOUT,
+                    )
 
         except asyncio.TimeoutError as error:
-            LOGGER.warning("Timeout on during login %s", str(error))
+            LOGGER.warning("Timeout during fetching %s with data %s", url, json_data)
+            return None
         except aiohttp.ContentTypeError as error:
             LOGGER.debug("ContentTypeError: %s", error.message)
             if "unauthorized" in error.message.lower():
@@ -422,22 +426,22 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Login to retrieve access token."""
 
         LOGGER.debug("Trying to login")
-        response = await self.websession.post(
-            f"{API_URL}/Login/Login",
-            headers={
-                "API-Version": "6",
-                "Platform": "iOS",
-                "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
-                "Version": "2.0.27",
-                "Connection": "keep-alive",
-                "Content-Type": "application/json",
-            },
-            json={
-                "UserId": self._userid,
-                "Password": self._password,
-            },
-            timeout=TIMEOUT,
-        )
+        async with async_timeout.timeout(TIMEOUT):
+            response = await self.websession.post(
+                f"{API_URL}/Login/Login",
+                headers={
+                    "API-Version": "6",
+                    "Platform": "iOS",
+                    "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                    "Version": "2.0.27",
+                    "Connection": "keep-alive",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "UserId": self._userid,
+                    "Password": self._password,
+                },
+            )
 
         response_text = await response.text()
 
@@ -450,7 +454,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             LOGGER.debug("Response status ok: %s", token_data)
             self._access_token = token_data.get("AuthorizationToken")
 
-        LOGGER.debug("Final exit login")
+        LOGGER.debug("Exiting login")
         LOGGER.debug("Status: %d", response.status)
         LOGGER.debug("Text: %s", response_text)
 
