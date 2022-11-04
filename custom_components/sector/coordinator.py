@@ -239,8 +239,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 LOGGER.debug("Retrieved Panel status %s", response_get_status)
                 data[key]["online"] = response_get_status.get("IsOnline")
-                if data[key]["online"] is True:
-                    data[key]["alarmstatus"] = response_get_status.get("Status")
+                data[key]["alarmstatus"] = response_get_status.get("Status")
                 data[key]["arm_ready"] = response_get_status.get("ReadyToArm")
 
             if data[key].get("temp") and self._update_sensors:
