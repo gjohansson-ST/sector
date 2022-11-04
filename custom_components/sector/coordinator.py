@@ -8,6 +8,7 @@ import async_timeout
 
 import aiohttp
 
+from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
@@ -15,9 +16,14 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+
 from .const import API_URL, CONF_TEMP, DOMAIN, LOGGER, UPDATE_INTERVAL
 
 TIMEOUT = 10
+TO_REDACT = {
+    "PanelCode",
+    "PanelId",
+}
 
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
@@ -358,7 +364,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             async with async_timeout.timeout(TIMEOUT):
                 if json_data:
-                    LOGGER.debug("Request with post: %s and data %s", url, json_data)
+                    LOGGER.debug(
+                        "Request with post: %s and data %s",
+                        url,
+                        async_redact_data(json_data, TO_REDACT),
+                    )
                     response = await self.websession.post(
                         url,
                         json=json_data,
@@ -374,7 +384,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     )
 
         except asyncio.TimeoutError as error:
-            LOGGER.warning("Timeout during fetching %s with data %s", url, json_data)
+            LOGGER.warning(
+                "Timeout during fetching %s with data %s",
+                url,
+                async_redact_data(json_data, TO_REDACT),
+            )
             return None
         except aiohttp.ContentTypeError as error:
             LOGGER.debug("ContentTypeError: %s", error.message)
