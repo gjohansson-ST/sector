@@ -19,7 +19,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import API_URL, CONF_TEMP, DOMAIN, LOGGER, UPDATE_INTERVAL
 
-TIMEOUT = 10
+TIMEOUT = 15
 TO_REDACT = {
     "PanelCode",
     "PanelId",
