@@ -41,7 +41,7 @@ LOCK_TYPES: BinarySensorEntityDescription = BinarySensorEntityDescription(
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up Sensibo binary sensor platform."""
+    """Set up binary sensor platform."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
@@ -77,7 +77,7 @@ async def async_setup_entry(
 class SectorBinarySensor(
     CoordinatorEntity[SectorDataUpdateCoordinator], BinarySensorEntity
 ):
-    """Representation of a Sensibo Motion Binary Sensor."""
+    """Representation of a Binary Sensor."""
 
     entity_description: BinarySensorEntityDescription
 
@@ -89,12 +89,12 @@ class SectorBinarySensor(
         autolock: bool | None,
         description: BinarySensorEntityDescription,
     ) -> None:
-        """Initiate Sensibo Motion Binary Sensor."""
+        """Initiate Binary Sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
         self._lock_id = lock_id
         self.entity_description = description
-        self._attr_unique_id: str = "sa_bs_" + str(description.key)
+        self._attr_unique_id = f"sa_bs_{panel_id}_{str(lock_id)}"
         self._attr_is_on = autolock
         if lock_id:
             self._attr_device_info = DeviceInfo(
