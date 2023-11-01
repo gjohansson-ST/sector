@@ -63,7 +63,7 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         super().__init__(coordinator)
         self._panel_id = panel_id
         self._attr_unique_id = f"sa_lock_{description.key}"
-        self._attr_code_format = f"^\\d{{{code_format}}}$" if code_format else None
+        self._attr_code_format = rf"^\d{{{code_format}}}$" if code_format else None
         self._attr_is_locked = bool(
             self.coordinator.data[panel_id]["lock"][description.key]["status"] == "lock"
         )
