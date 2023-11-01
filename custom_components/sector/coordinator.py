@@ -25,7 +25,7 @@ TO_REDACT = {
 }
 
 
-class SectorDataUpdateCoordinator(DataUpdateCoordinator):
+class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Sector Coordinator."""
 
     data: dict[str, Any]
