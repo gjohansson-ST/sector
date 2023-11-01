@@ -14,7 +14,7 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2022-11-04
+**Last update:** 2023-11-01
 
 **Join the Discussion on Development:** [https://discord.gg/VnKkSHfNHc](https://discord.gg/VnKkSHfNHc)
 
@@ -39,8 +39,6 @@ Set once:
 
 Options that you can change at any time:
 
-- Update frequency: Set at minimum 60 seconds. Don't set lower as it will probably block your account
-- Code: Code used to alarm and open/close door locks
 - Code Format: Number of digits in code
 
 ## Installation
