@@ -86,6 +86,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             sw_version="master",
         )
 
+    if entry.options.get(CONF_CODE):
+        new_options = entry.options.copy()
+        new_options.pop(CONF_CODE)
+        hass.config_entries.async_update_entry(entry, options=new_options)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True

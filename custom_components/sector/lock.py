@@ -5,12 +5,11 @@ from homeassistant.components.lock import LockEntity, LockEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_CODE
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_CODE, CONF_CODE_FORMAT, DOMAIN
+from .const import CONF_CODE_FORMAT, DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
 
@@ -20,7 +19,6 @@ async def async_setup_entry(
     """Lock platform."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    code: str | None = entry.options.get(CONF_CODE)
     code_format: int | None = entry.options.get(CONF_CODE_FORMAT)
 
     lock_list: list = []
@@ -35,7 +33,6 @@ async def async_setup_entry(
                 lock_list.append(
                     SectorAlarmLock(
                         coordinator,
-                        code,
                         code_format,
                         description,
                         panel,
@@ -54,7 +51,6 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
-        code: str | None,
         code_format: int | None,
         description: LockEntityDescription,
         panel_id: str,
@@ -67,9 +63,7 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         self._attr_is_locked = bool(
             self.coordinator.data[panel_id]["lock"][description.key]["status"] == "lock"
         )
-        self._code = code
         self.entity_description = description
-        self._code_format = code_format
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, f"sa_lock_{description.key}")},
             name=description.name,
@@ -89,28 +83,22 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
     async def async_unlock(self, **kwargs: str) -> None:
         """Unlock lock."""
         command = "unlock"
-        code = kwargs.get(ATTR_CODE, self._code)
-        if code:
-            await self.coordinator.triggerlock(
-                self.entity_description.key, code, command, self._panel_id
-            )
-            self._attr_is_locked = False
-            self.async_write_ha_state()
-            return
-        raise HomeAssistantError("No code provided")
+        code = kwargs.get(ATTR_CODE)
+        await self.coordinator.triggerlock(
+            self.entity_description.key, code, command, self._panel_id
+        )
+        self._attr_is_locked = False
+        self.async_write_ha_state()
 
     async def async_lock(self, **kwargs: str) -> None:
         """Lock lock."""
         command = "lock"
         code = kwargs.get(ATTR_CODE, self._code)
-        if code:
-            await self.coordinator.triggerlock(
-                self.entity_description.key, code, command, self._panel_id
-            )
-            self._attr_is_locked = True
-            self.async_write_ha_state()
-            return
-        raise HomeAssistantError("No code provided")
+        await self.coordinator.triggerlock(
+            self.entity_description.key, code, command, self._panel_id
+        )
+        self._attr_is_locked = True
+        self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
