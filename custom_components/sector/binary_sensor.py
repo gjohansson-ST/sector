@@ -126,7 +126,7 @@ class SectorBinarySensor(
                 if lock == self._lock_id:
                     self._attr_is_on = lock_data["autolock"]
 
-        self.async_write_ha_state()
+        super()._handle_coordinator_update()
 
     @property
     def available(self) -> bool:

@@ -101,7 +101,7 @@ class SectorAlarmSwitch(CoordinatorEntity[SectorDataUpdateCoordinator], SwitchEn
             self.entity_description.key
         ):
             self._attr_is_on = bool(switch.get("status") == "On")
-        self.async_write_ha_state()
+        super()._handle_coordinator_update()
 
     @property
     def available(self) -> bool:
