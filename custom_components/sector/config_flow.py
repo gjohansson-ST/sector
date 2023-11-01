@@ -8,19 +8,18 @@ from aiohttp.client_exceptions import ContentTypeError
 import voluptuous as vol
 
 from homeassistant import config_entries, core, exceptions
-from homeassistant.const import CONF_CODE, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 
-from .const import API_URL, CONF_CODE_FORMAT, CONF_TEMP, DOMAIN, LOGGER, UPDATE_INTERVAL
+from .const import API_URL, CONF_CODE_FORMAT, CONF_TEMP, DOMAIN, LOGGER
 
 DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_CODE): cv.string,
         vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
         vol.Optional(CONF_TEMP, default=False): cv.boolean,
     }
@@ -178,8 +177,6 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_TEMP: user_input[CONF_TEMP],
                     },
                     options={
-                        UPDATE_INTERVAL: 60,
-                        CONF_CODE: user_input.get(CONF_CODE),
                         CONF_CODE_FORMAT: user_input.get(CONF_CODE_FORMAT),
                     },
                 )
@@ -201,28 +198,21 @@ class SectorOptionFlow(config_entries.OptionsFlowWithConfigEntry):
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
-        data_schema = vol.Schema(
-            {
-                vol.Required(
-                    UPDATE_INTERVAL,
-                    description={
-                        "suggested_value": self.config_entry.options.get(
-                            UPDATE_INTERVAL, 60
-                        )
-                    },
-                ): cv.positive_int,
-                vol.Optional(
-                    CONF_CODE_FORMAT,
-                    description={
-                        "suggested_value": self.config_entry.options.get(
-                            CONF_CODE_FORMAT, 6
-                        )
-                    },
-                ): cv.positive_int,
-            }
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_CODE_FORMAT,
+                        description={
+                            "suggested_value": self.config_entry.options.get(
+                                CONF_CODE_FORMAT, 6
+                            )
+                        },
+                    ): cv.positive_int,
+                }
+            ),
         )
-
-        return self.async_show_form(step_id="init", data_schema=data_schema)
 
 
 class CannotConnect(exceptions.HomeAssistantError):

@@ -12,7 +12,6 @@
         "data": {
           "username": "[%key:common::config_flow::data::username%]",
           "password": "[%key:common::config_flow::data::password%]",
-          "code": "Code to arm/disarm alarm or open/close doorlock",
           "code_format": "Code length for alarm and locks",
           "temp": "Enable Temp sensors"
         }
@@ -29,8 +28,6 @@
       "step": {
           "init": {
               "data": {
-                  "timesync": "Update frequency. Don't set too low!",
-                  "code": "Code to arm/disarm alarm or open/close doorlock",
                   "code_format": "Code length for alarm and locks"
                 }
             }

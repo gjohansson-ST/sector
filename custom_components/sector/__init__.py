@@ -27,7 +27,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if entry.version == 1:
         new_data = {**entry.data, CONF_CODE_FORMAT: 6}
-        new_options = {**entry.options, UPDATE_INTERVAL: 60}
+        new_options = {**entry.options}
 
         if hass.config_entries.async_update_entry(
             entry, data=new_data, options=new_options
@@ -46,12 +46,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             CONF_TEMP: entry.data[CONF_TEMP],
         }
         new_options2 = {
-            UPDATE_INTERVAL: entry.options.get(UPDATE_INTERVAL),
-            CONF_CODE: entry.options.get(CONF_CODE),
             CONF_CODE_FORMAT: entry.options.get(CONF_CODE_FORMAT),
         }
-        if new_options2[CONF_CODE] == "":
-            new_options2[CONF_CODE] = None
         if success := hass.config_entries.async_update_entry(
             entry,
             data=new_data2,
@@ -89,6 +85,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.options.get(CONF_CODE):
         new_options = entry.options.copy()
         new_options.pop(CONF_CODE)
+        hass.config_entries.async_update_entry(entry, options=new_options)
+    if entry.options.get(UPDATE_INTERVAL):
+        new_options = entry.options.copy()
+        new_options.pop(UPDATE_INTERVAL)
         hass.config_entries.async_update_entry(entry, options=new_options)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

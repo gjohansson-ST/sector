@@ -16,7 +16,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .const import API_URL, CONF_TEMP, DOMAIN, LOGGER, UPDATE_INTERVAL
+from .const import API_URL, CONF_TEMP, DOMAIN, LOGGER, MIN_SCAN_INTERVAL
 
 TIMEOUT = 15
 TO_REDACT = {
@@ -45,13 +45,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.logname: str | None = None
 
         self._update_sensors: bool = True
-        self._timesync = entry.options.get(UPDATE_INTERVAL, 60)
+        self._timesync = MIN_SCAN_INTERVAL
 
         super().__init__(
             hass,
             LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=entry.options.get(UPDATE_INTERVAL, 60)),
+            update_interval=timedelta(seconds=MIN_SCAN_INTERVAL),
         )
 
     async def triggerlock(

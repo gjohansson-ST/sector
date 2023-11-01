@@ -61,7 +61,7 @@ class SectorAlarmPanel(
             AlarmControlPanelEntityFeature.ARM_HOME
             | AlarmControlPanelEntityFeature.ARM_AWAY
         )
-        self._attr_code_arm_required = False
+        self._attr_code_arm_required = True
         self._attr_code_format = CodeFormat.NUMBER
         self._attr_state = ALARM_STATE_TO_HA_STATE[
             self.coordinator.data[panel_id]["alarmstatus"]
