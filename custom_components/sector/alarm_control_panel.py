@@ -19,7 +19,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_CODE, DOMAIN
+from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
 ALARM_STATE_TO_HA_STATE = {

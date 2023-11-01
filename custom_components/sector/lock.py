@@ -5,12 +5,11 @@ from homeassistant.components.lock import LockEntity, LockEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_CODE
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_CODE, CONF_CODE_FORMAT, DOMAIN
+from .const import CONF_CODE_FORMAT, DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
 
