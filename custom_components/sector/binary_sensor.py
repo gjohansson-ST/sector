@@ -8,6 +8,7 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -95,6 +96,23 @@ class SectorBinarySensor(
         self.entity_description = description
         self._attr_unique_id: str = "sa_bs_" + str(description.key)
         self._attr_is_on = autolock
+        if lock_id:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, f"sa_lock_{lock_id}")},
+                manufacturer="Sector Alarm",
+                model="Lock",
+                sw_version="master",
+                via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+            )
+        else:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, f"sa_panel_{panel_id}")},
+                name=f"Sector Alarmpanel {panel_id}",
+                manufacturer="Sector Alarm",
+                model="Alarmpanel",
+                sw_version="master",
+                via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+            )
 
     @callback
     def _handle_coordinator_update(self) -> None:

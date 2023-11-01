@@ -26,7 +26,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     LOGGER.debug("Migrating from version %s", entry.version)
 
     if entry.version == 1:
-
         new_data = {**entry.data, CONF_CODE_FORMAT: 6}
         new_options = {**entry.options, UPDATE_INTERVAL: 60}
 
