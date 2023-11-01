@@ -93,7 +93,7 @@ class SectorAlarmTemperatureSensor(
         ):
             self._attr_native_value = temp
 
-        self.async_write_ha_state()
+        super()._handle_coordinator_update()
 
     @property
     def available(self) -> bool:
