@@ -12,7 +12,6 @@
                 "data": {
                     "username": "E-post adress",
                     "password": "Lösenord",
-                    "code": "Kod för att larma/avlarma eller öppna/stänga dörren",
                     "code_format": "Längd på koden för larm och lås",
                     "temp": "Använd temp sensorer"
                 }
@@ -29,8 +28,6 @@
         "step": {
             "init": {
                 "data": {
-                    "timesync": "Uppdateringsfrekvens. Sätt inte för lågt!",
-                    "code": "Kod för att larma/avlarma eller öppna/stänga dörren",
                     "code_format": "Längd på koden för larm och lås"
                 }
             }

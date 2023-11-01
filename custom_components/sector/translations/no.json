@@ -12,7 +12,6 @@
                 "data": {
                     "username": "Epostadresse",
                     "password": "Passord",
-                    "code": "Kode for å aktivere / deaktivere alarm eller åpne / lukke dørlås",
                     "code_format": "Kodelengde for alarm og låser",
                     "temp": "Aktiver Temp-sensorer"
                 }
@@ -29,8 +28,6 @@
         "step": {
             "init": {
                 "data": {
-                    "timesync": "Oppdater frekvensen. Ikke sett for lavt!",
-                    "code": "Kode for å aktivere / deaktivere alarm eller åpne / lukke dørlås",
                     "code_format": "Kodelengde for alarm og låser"
                 }
             }
