@@ -118,7 +118,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Confirm re-authentication with Sensibo."""
+        """Confirm re-authentication with Sector."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -169,7 +169,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(username)
                 self._abort_if_unique_id_configured()
 
-                LOGGER.info("Login succesful. Config entry created")
+                LOGGER.debug("Login succesful. Config entry created")
                 return self.async_create_entry(
                     title=username,
                     data={
@@ -191,19 +191,15 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
 
-class SectorOptionFlow(config_entries.OptionsFlow):
+class SectorOptionFlow(config_entries.OptionsFlowWithConfigEntry):
     """Handle a options config flow for Sector integration."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize config flow."""
-        self.config_entry: config_entries.ConfigEntry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, str] | None = None
     ) -> FlowResult:
         """Manage the Sector options."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self.async_create_entry(data=user_input)
 
         data_schema = vol.Schema(
             {
@@ -215,12 +211,6 @@ class SectorOptionFlow(config_entries.OptionsFlow):
                         )
                     },
                 ): cv.positive_int,
-                vol.Optional(
-                    CONF_CODE,
-                    description={
-                        "suggested_value": self.config_entry.options.get(CONF_CODE)
-                    },
-                ): cv.string,
                 vol.Optional(
                     CONF_CODE_FORMAT,
                     description={

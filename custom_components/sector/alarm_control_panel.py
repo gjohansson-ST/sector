@@ -36,11 +36,7 @@ async def async_setup_entry(
     """Set up alarm panel from config entry."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    code: str | None = entry.options.get(CONF_CODE)
-
-    async_add_entities(
-        [SectorAlarmPanel(coordinator, code, key) for key in coordinator.data]
-    )
+    async_add_entities([SectorAlarmPanel(coordinator, key) for key in coordinator.data])
 
 
 class SectorAlarmPanel(
@@ -53,13 +49,11 @@ class SectorAlarmPanel(
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
-        code: str | None,
         panel_id: str,
     ) -> None:
         """Initialize the Alarm panel."""
         super().__init__(coordinator)
         self._panel_id = panel_id
-        self._code: str | None = code
         self._displayname: str = self.coordinator.data[panel_id]["name"]
         self._attr_unique_id = f"sa_panel_{panel_id}"
         self._attr_changed_by = self.coordinator.data[panel_id]["changed_by"]
@@ -91,8 +85,6 @@ class SectorAlarmPanel(
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Arm alarm home."""
         command = "partial"
-        if code is None:
-            code = self._code
         if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
             await self.coordinator.triggeralarm(
                 command, code=code, panel_id=self._panel_id
@@ -107,8 +99,6 @@ class SectorAlarmPanel(
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Arm alarm off."""
         command = "disarm"
-        if code is None:
-            code = self._code
         if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
             await self.coordinator.triggeralarm(
                 command, code=code, panel_id=self._panel_id
@@ -123,8 +113,6 @@ class SectorAlarmPanel(
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
         """Arm alarm away."""
         command = "full"
-        if code is None:
-            code = self._code
         if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
             await self.coordinator.triggeralarm(
                 command, code=code, panel_id=self._panel_id
