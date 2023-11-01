@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta
 from typing import Any
-import async_timeout
 
 import aiohttp
 
@@ -15,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-
+from homeassistant.util import dt as dt_util
 
 from .const import API_URL, CONF_TEMP, DOMAIN, LOGGER, UPDATE_INTERVAL
 
@@ -39,8 +38,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         self._userid: str = entry.data[CONF_USERNAME]
         self._password: str = entry.data[CONF_PASSWORD]
         self._access_token: str | None = None
-        self._last_updated: datetime = datetime.utcnow() - timedelta(hours=2)
-        self._last_updated_temp: datetime = datetime.utcnow() - timedelta(hours=2)
+        self._last_updated: datetime = datetime.now(tz=dt_util.UTC) - timedelta(hours=2)
+        self._last_updated_temp: datetime = datetime.now(tz=dt_util.UTC) - timedelta(
+            hours=2
+        )
         self.logname: str | None = None
 
         self._update_sensors: bool = True
@@ -135,7 +136,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         await self.async_request_refresh()
 
     async def async_first_refresh(self) -> dict[str, Any]:
-        """First refresh to get alarm system"""
+        """First refresh to get alarm system."""
         LOGGER.debug("Trying to get panels")
         response_panellist = await self._request(API_URL + "/account/GetPanelList")
         if not response_panellist:
@@ -153,7 +154,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed("No panel_id found")
 
             response_getpanel = await self._request(
-                API_URL + "/Panel/GetPanel?panelId={}".format(panel_id)
+                API_URL + f"/Panel/GetPanel?panelId={panel_id}"
             )
 
             if not response_getpanel or not isinstance(response_getpanel, dict):
@@ -214,7 +215,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             data = await self.async_first_refresh()
             LOGGER.debug("First refresh complete: %s", data)
 
-        now = datetime.utcnow()
+        now = datetime.now(tz=dt_util.UTC)
         LOGGER.debug("self._last_updated_temp = %s", self._last_updated_temp)
         LOGGER.debug("self._timesync * 5 = %s", self._timesync * 5)
         LOGGER.debug(
@@ -238,7 +239,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed("Missing panel_id")
 
             response_get_status = await self._request(
-                API_URL + "/Panel/GetPanelStatus?panelId={}".format(panel_id)
+                API_URL + f"/Panel/GetPanelStatus?panelId={panel_id}"
             )
             if not response_get_status or not isinstance(response_get_status, dict):
                 LOGGER.debug("Could not retrieve status for panel %s", panel_id)
@@ -251,7 +252,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if data[key].get("temp") and self._update_sensors:
                 LOGGER.debug("Trying to refresh temperatures")
                 response_temp = await self._request(
-                    API_URL + "/Panel/GetTemperatures?panelId={}".format(panel_id)
+                    API_URL + f"/Panel/GetTemperatures?panelId={panel_id}"
                 )
                 if not response_temp:
                     LOGGER.debug("Could not retrieve temp data for panel %s", panel_id)
@@ -266,7 +267,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if data[key].get("lock"):
                 LOGGER.debug("Trying to refresh locks")
                 response_lock = await self._request(
-                    API_URL + "/Panel/GetLockStatus?panelId={}".format(panel_id)
+                    API_URL + f"/Panel/GetLockStatus?panelId={panel_id}"
                 )
                 if not response_lock:
                     LOGGER.debug("Could not retrieve lock data for panel %s", panel_id)
@@ -279,7 +280,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if data[key].get("switch"):
                 LOGGER.debug("Trying to refresh switches")
                 response_switch = await self._request(
-                    API_URL + "/Panel/GetSmartplugStatus?panelId={}".format(panel_id)
+                    API_URL + f"/Panel/GetSmartplugStatus?panelId={panel_id}"
                 )
                 if not response_switch:
                     LOGGER.debug(
@@ -295,7 +296,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             LOGGER.debug("Trying to refresh logs")
             response_logs = await self._request(
-                API_URL + "/Panel/GetLogs?panelId={}".format(panel_id)
+                API_URL + f"/Panel/GetLogs?panelId={panel_id}"
             )
             user_to_set: str | None = None
             if not response_logs:
@@ -324,7 +325,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         if self._access_token is None:
             LOGGER.debug("Access token None, trying to refresh")
             try:
-                async with async_timeout.timeout(TIMEOUT):
+                async with asyncio.timeout(TIMEOUT):
                     await self._login()
             except aiohttp.ContentTypeError as error:
                 LOGGER.error(
@@ -362,7 +363,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             "Content-Type": "application/json",
         }
         try:
-            async with async_timeout.timeout(TIMEOUT):
+            async with asyncio.timeout(TIMEOUT):
                 if json_data:
                     LOGGER.debug(
                         "Request with post: %s and data %s",
@@ -383,7 +384,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         timeout=TIMEOUT,
                     )
 
-        except asyncio.TimeoutError as error:
+        except asyncio.TimeoutError:
             LOGGER.warning(
                 "Timeout during fetching %s with data %s",
                 url,
@@ -435,7 +436,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Login to retrieve access token."""
 
         LOGGER.debug("Trying to login")
-        async with async_timeout.timeout(TIMEOUT):
+        async with asyncio.timeout(TIMEOUT):
             response = await self.websession.post(
                 f"{API_URL}/Login/Login",
                 headers={

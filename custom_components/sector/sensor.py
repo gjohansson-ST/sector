@@ -8,7 +8,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import TEMP_CELSIUS
+from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -36,7 +36,7 @@ async def async_setup_entry(
                 description = SensorEntityDescription(
                     key=sensor,
                     name=name,
-                    native_unit_of_measurement=TEMP_CELSIUS,
+                    native_unit_of_measurement=UnitOfTemperature.CELSIUS,
                     state_class=SensorStateClass.MEASUREMENT,
                     device_class=SensorDeviceClass.TEMPERATURE,
                 )
