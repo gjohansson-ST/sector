@@ -177,7 +177,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_TEMP: user_input[CONF_TEMP],
                     },
                     options={
-                        CONF_CODE_FORMAT: user_input.get(CONF_CODE_FORMAT),
+                        CONF_CODE_FORMAT: user_input[CONF_CODE_FORMAT],
                     },
                 )
 
