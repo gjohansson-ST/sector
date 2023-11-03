@@ -26,13 +26,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     LOGGER.debug("Migrating from version %s", entry.version)
 
     if entry.version == 1:
-        new_data = {**entry.data, CONF_CODE_FORMAT: 6}
-        new_options = {**entry.options}
-
-        if hass.config_entries.async_update_entry(
-            entry, data=new_data, options=new_options
-        ):
-            entry.version = 2
+        entry.version = 2
 
     if entry.version == 2:
         username = (
@@ -46,7 +40,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             CONF_TEMP: entry.data[CONF_TEMP],
         }
         new_options2 = {
-            CONF_CODE_FORMAT: entry.options.get(CONF_CODE_FORMAT),
+            CONF_CODE_FORMAT: entry.options.get(CONF_CODE_FORMAT, 6),
         }
         if success := hass.config_entries.async_update_entry(
             entry,

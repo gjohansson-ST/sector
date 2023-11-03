@@ -19,7 +19,7 @@ async def async_setup_entry(
     """Lock platform."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    code_format: int | None = entry.options.get(CONF_CODE_FORMAT)
+    code_format: int | None = entry.options.get(CONF_CODE_FORMAT, 6)
 
     lock_list: list = []
     for panel, panel_data in coordinator.data.items():
@@ -59,7 +59,7 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         super().__init__(coordinator)
         self._panel_id = panel_id
         self._attr_unique_id = f"sa_lock_{description.key}"
-        self._attr_code_format = rf"^\d{{{code_format}}}$" if code_format else None
+        self._attr_code_format = rf"^\d{{{code_format}}}$"
         self._attr_is_locked = bool(
             self.coordinator.data[panel_id]["lock"][description.key]["status"] == "lock"
         )
@@ -83,22 +83,22 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
     async def async_unlock(self, **kwargs: str) -> None:
         """Unlock lock."""
         command = "unlock"
-        code = kwargs.get(ATTR_CODE)
-        await self.coordinator.triggerlock(
-            self.entity_description.key, code, command, self._panel_id
-        )
-        self._attr_is_locked = False
-        self.async_write_ha_state()
+        if code := kwargs.get(ATTR_CODE):
+            await self.coordinator.triggerlock(
+                self.entity_description.key, code, command, self._panel_id
+            )
+            self._attr_is_locked = False
+            self.async_write_ha_state()
 
     async def async_lock(self, **kwargs: str) -> None:
         """Lock lock."""
         command = "lock"
-        code = kwargs.get(ATTR_CODE, self._code)
-        await self.coordinator.triggerlock(
-            self.entity_description.key, code, command, self._panel_id
-        )
-        self._attr_is_locked = True
-        self.async_write_ha_state()
+        if code := kwargs.get(ATTR_CODE):
+            await self.coordinator.triggerlock(
+                self.entity_description.key, code, command, self._panel_id
+            )
+            self._attr_is_locked = True
+            self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:
