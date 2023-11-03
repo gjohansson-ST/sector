@@ -19,7 +19,7 @@ async def async_setup_entry(
     """Lock platform."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    code_format: int | None = entry.options.get(CONF_CODE_FORMAT, 6)
+    code_format: int | None = entry.options[CONF_CODE_FORMAT]
 
     lock_list: list = []
     for panel, panel_data in coordinator.data.items():

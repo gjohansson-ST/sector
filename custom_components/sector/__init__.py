@@ -84,6 +84,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         new_options = entry.options.copy()
         new_options.pop(UPDATE_INTERVAL)
         hass.config_entries.async_update_entry(entry, options=new_options)
+    if not entry.options.get(CONF_CODE_FORMAT):
+        new_options = entry.options.copy()
+        new_options[CONF_CODE_FORMAT] = 6
+        hass.config_entries.async_update_entry(entry, options=new_options)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
