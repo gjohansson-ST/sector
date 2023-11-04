@@ -1,10 +1,11 @@
 {
     "domain": "sector",
     "name": "Sector Alarm",
-    "documentation": "https://github.com/gjohansson-ST/sector/blob/master/readme.md",
-    "issue_tracker": "https://github.com/gjohansson-ST/sector/issues",
     "codeowners": ["@gjohansson-ST"],
-    "version": "v0.3.9",
     "config_flow": true,
-    "iot_class": "cloud_polling"
+    "documentation": "https://github.com/gjohansson-ST/sector/blob/master/readme.md",
+    "integration_type": "hub",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/gjohansson-ST/sector/issues",
+    "version": "v0.4.2"
 }
