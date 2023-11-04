@@ -12,22 +12,40 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .const import API_URL, CONF_CODE_FORMAT, CONF_TEMP, DOMAIN, LOGGER
 
 DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_CODE_FORMAT, default=6): cv.positive_int,
-        vol.Optional(CONF_TEMP, default=False): cv.boolean,
+        vol.Required(CONF_USERNAME): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.EMAIL)
+        ),
+        vol.Required(CONF_PASSWORD): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        ),
+        vol.Optional(CONF_CODE_FORMAT, default=6): NumberSelector(
+            NumberSelectorConfig(min=0, max=6, step=1, mode=NumberSelectorMode.BOX)
+        ),
+        vol.Optional(CONF_TEMP, default=False): BooleanSelector(),
     }
 )
 DATA_SCHEMA_AUTH = vol.Schema(
     {
-        vol.Required(CONF_USERNAME): cv.string,
-        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CONF_USERNAME): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.EMAIL)
+        ),
+        vol.Required(CONF_PASSWORD): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        ),
     }
 )
 
@@ -108,7 +126,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow for this handler."""
         return SectorOptionFlow(config_entry)
 
-    async def async_step_reauth(self, data: Mapping[str, Any]) -> FlowResult:
+    async def async_step_reauth(self, user_input: Mapping[str, Any]) -> FlowResult:
         """Handle re-authentication."""
 
         self.entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
@@ -150,14 +168,15 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_user(
-        self, user_input: dict[str, str] | None = None
+        self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step."""
-        errors = {}
+        errors: dict[str, str] = {}
 
         if user_input is not None:
             username = user_input[CONF_USERNAME]
             password = user_input[CONF_PASSWORD]
+            code_format = user_input[CONF_CODE_FORMAT]
             try:
                 await validate_input(self.hass, username, password)
             except CannotConnect:
@@ -177,7 +196,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_TEMP: user_input[CONF_TEMP],
                     },
                     options={
-                        CONF_CODE_FORMAT: user_input[CONF_CODE_FORMAT],
+                        CONF_CODE_FORMAT: int(code_format),
                     },
                 )
 
@@ -192,11 +211,12 @@ class SectorOptionFlow(config_entries.OptionsFlowWithConfigEntry):
     """Handle a options config flow for Sector integration."""
 
     async def async_step_init(
-        self, user_input: dict[str, str] | None = None
+        self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the Sector options."""
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
+            data = {**user_input, CONF_CODE_FORMAT: int(user_input[CONF_CODE_FORMAT])}
+            return self.async_create_entry(data=data)
 
         return self.async_show_form(
             step_id="init",
@@ -209,7 +229,11 @@ class SectorOptionFlow(config_entries.OptionsFlowWithConfigEntry):
                                 CONF_CODE_FORMAT, 6
                             )
                         },
-                    ): cv.positive_int,
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=0, max=6, step=1, mode=NumberSelectorMode.BOX
+                        )
+                    ),
                 }
             ),
         )
