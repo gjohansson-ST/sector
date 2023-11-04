@@ -96,10 +96,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update when config_entry options update."""
-    controller: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    controller.update_interval = timedelta(
-        seconds=entry.options.get(UPDATE_INTERVAL, 60)
-    )
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
