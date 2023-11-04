@@ -1,7 +1,8 @@
 {
   "config": {
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_account%]"
+      "already_configured": "[%key:common::config_flow::abort::already_configured_account%]",
+      "reauth_successful": "[%key:common::config_flow::abort::reauth_successful%]"
     },
     "error": {
       "auth_error": "[%key:common::config_flow::error::invalid_auth%]",
@@ -25,12 +26,12 @@
     }
   },
   "options": {
-      "step": {
-          "init": {
-              "data": {
-                  "code_format": "Code length for alarm and locks"
-                }
-            }
+    "step": {
+      "init": {
+        "data": {
+            "code_format": "Code length for alarm and locks"
         }
+      }
     }
+  }
 }

@@ -1,7 +1,8 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Account is already configured"
+            "already_configured": "Account is already configured",
+            "reauth_successful": "Reauthentication successful"
         },
         "error": {
             "auth_error": "Username and/or password is incorrect",
