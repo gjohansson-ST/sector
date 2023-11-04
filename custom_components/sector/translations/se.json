@@ -1,7 +1,8 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Kontot existerar redan"
+            "already_configured": "Kontot existerar redan",
+            "reauth_successful": "Återautentisering lyckades"
         },
         "error": {
             "auth_error": "Användarnamn eller lösenord är inte korrekt",

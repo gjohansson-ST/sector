@@ -1,7 +1,8 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Kontoen er allerede konfigurert"
+            "already_configured": "Kontoen er allerede konfigurert",
+            "reauth_successful": "Reautentisering vellykket"
         },
         "error": {
             "auth_error": "Brukernavn og / eller passord er feil",
