@@ -142,11 +142,14 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not response_panellist:
             raise UpdateFailed("Could not retrieve panels")
         LOGGER.debug("Panels retrieved: %s", response_panellist)
+        data2 = {}
         for panel in response_panellist:
-            data: dict[str, Any] = {panel["PanelId"]: {}}
-            data[panel["PanelId"]]["name"] = panel["DisplayName"]
-            data[panel["PanelId"]]["id"] = panel["PanelId"]
-            data[panel["PanelId"]]["alarmstatus"] = 0
+            data1: dict[str, Any] = {panel["PanelId"]: {}}
+            data1[panel["PanelId"]]["name"] = panel["DisplayName"]
+            data1[panel["PanelId"]]["id"] = panel["PanelId"]
+            data1[panel["PanelId"]]["alarmstatus"] = 0
+            data2.update(data1.copy())
+            data: dict[str, Any] = data2
 
             panel_id = panel["PanelId"]
             LOGGER.debug("trying to get Panel for panel_id: %s", panel_id)
