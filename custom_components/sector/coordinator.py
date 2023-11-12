@@ -142,6 +142,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not response_panellist:
             raise UpdateFailed("Could not retrieve panels")
         LOGGER.debug("Panels retrieved: %s", response_panellist)
+        return_data = {}
         for panel in response_panellist:
             data: dict[str, Any] = {panel["PanelId"]: {}}
             data[panel["PanelId"]]["name"] = panel["DisplayName"]
@@ -197,6 +198,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     }
                 data[panel["PanelId"]]["switch"] = switch_dict
 
+            return_data.update(data.copy())
+
         LOGGER.debug("Trying to get user info")
         response_getuser = await self._request(API_URL + "/Login/GetUser")
         if not response_getuser or not isinstance(response_getuser, dict):
@@ -204,7 +207,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         LOGGER.debug("User info retrieved %s", response_getuser)
         self.logname = response_getuser.get("User", {}).get("UserName")
 
-        return data
+        return return_data
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch info from API."""
