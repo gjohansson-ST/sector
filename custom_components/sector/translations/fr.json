@@ -1,0 +1,37 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Votre compte est déjà configuré",
+            "reauth_successful": "Nouvelle tentative d'authentification réussie"
+        },
+        "error": {
+            "auth_error": "Nom d'utilisateur et/ou mot de passe incorrect",
+            "connection_error": "Erreur lors de la connection"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "username": "Adresse mail",
+                    "password": "Mot de passe",
+                    "code_format": "Longueur du code pour armer et désarmer l'alarme",
+                    "temp": "Activer la récupération des capteurs de températures"
+                }
+            },
+            "reauth_confirm": {
+                "data": {
+                    "username": "Adresse mail",
+                    "password": "Mot de passe"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "code_format": "Longueur du code pour armer et désarmer l'alarme"
+                }
+            }
+        }
+    }
+}
