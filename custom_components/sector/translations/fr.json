@@ -6,7 +6,7 @@
         },
         "error": {
             "auth_error": "Nom d'utilisateur et/ou mot de passe incorrect",
-            "connection_error": "Erreur lors de la connection"
+            "connection_error": "Erreur lors de la connexion"
         },
         "step": {
             "user": {
