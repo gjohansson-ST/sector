@@ -14,7 +14,7 @@
                     "username": "Adresse mail",
                     "password": "Mot de passe",
                     "code_format": "Longueur du code pour armer et désarmer l'alarme",
-                    "temp": "Activer la récupération des capteurs de températures"
+                    "temp": "Activer la récupération des capteurs de température"
                 }
             },
             "reauth_confirm": {
