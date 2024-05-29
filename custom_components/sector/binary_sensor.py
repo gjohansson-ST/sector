@@ -70,6 +70,20 @@ async def async_setup_entry(
                         description=LOCK_TYPES,
                     )
                 )
+        if "doorsandwindows" in panel_data:
+            for device, device_data in panel_data["doorsandwindows"].items():
+                entities.append(
+                    SectorContactAndShockDetectorLock(
+                        coordinator=coordinator,
+                        panel_id=panel,
+                        id=device,
+                        entity_description = BinarySensorEntityDescription(
+                            key=device,
+                            name=device_data.get("name"),
+                            device_class=BinarySensorDeviceClass.LOCK
+                        ),
+                    )
+                )
 
     async_add_entities(entities)
 
@@ -132,3 +146,34 @@ class SectorBinarySensor(
     def available(self) -> bool:
         """Return entity available."""
         return True
+
+class SectorContactAndShockDetectorLock(CoordinatorEntity[SectorDataUpdateCoordinator], BinarySensorEntity):
+    """Representation of contact and shock detector lock position."""
+
+    def __init__(
+        self,
+        panel_id: str,
+        id: str,
+        coordinator: SectorDataUpdateCoordinator,
+        entity_description: BinarySensorEntityDescription,
+    ) -> None:
+        """Initiate Binary Sensor."""
+        super().__init__(coordinator)
+        self.entity_description = entity_description
+        self._panel_id = panel_id
+        self._id = id
+        self._attr_unique_id = f"sa_csd_{panel_id}_{str(id)}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"sa_accesory_{id}")},
+            name="Contact and Shock Detector",
+            manufacturer="Sector Alarm",
+            model="Accessory",
+            sw_version="master",
+            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+        )
+
+
+    @property
+    def is_on(self) -> bool:
+        """Return status."""
+        return not self.coordinator.data[self._panel_id].get("doorsandwindows").get(self._id).get("closed")

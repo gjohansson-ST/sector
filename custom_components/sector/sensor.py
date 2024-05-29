@@ -70,10 +70,10 @@ class SectorAlarmTemperatureSensor(
             description.key
         ].get("temperature")
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_temp_{description.key}")},
+            identifiers={(DOMAIN, f"sa_accesory_{description.key}")},
             name=description.name,
             manufacturer="Sector Alarm",
-            model="Temperature",
+            model="Accessory",
             sw_version="master",
             via_device=(DOMAIN, f"sa_hub_{panel_id}"),
         )

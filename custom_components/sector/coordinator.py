@@ -198,6 +198,28 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     }
                 data[panel["PanelId"]]["switch"] = switch_dict
 
+            json_panelId = {
+                "panelId": panel_id
+            }
+            response_doorsandwindows = await self._request(
+                API_URL + "/housecheck/doorsandwindows",json_panelId
+            )
+            if not response_doorsandwindows or not isinstance(response_doorsandwindows, dict):
+                raise UpdateFailed("Could not retrieve doors and windows")
+            if floors_list := response_doorsandwindows.get('Floors'):
+                LOGGER.debug("Extract doors and windows info: %s", floors_list)
+                doorsandwindows_dict = {}
+                for floor in floors_list:
+                    rooms_list = floor.get('Rooms')
+                    for room in rooms_list:
+                        devices_list = room.get('Devices')
+                        for device in devices_list:
+                            doorsandwindows_dict[device.get("SerialString")] = {
+                                "name": device.get("Name"),
+                                "closed": device.get("Closed"),
+                            }
+                data[panel["PanelId"]]["doorsandwindows"] = doorsandwindows_dict
+
             return_data.update(data.copy())
 
         LOGGER.debug("Trying to get user info")
@@ -279,6 +301,27 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     for lock in response_lock:
                         if serial := lock.get("Serial"):
                             data[key]["lock"][serial]["status"] = lock.get("Status")
+
+            if data[key].get("doorsandwindows"):
+                LOGGER.debug("Trying to refresh doors and windows")
+                json_panelId = {
+                    "panelId": panel_id
+                }
+                response_doorsandwindows = await self._request(
+                    API_URL + "/housecheck/doorsandwindows",json_panelId
+                )
+                if not response_doorsandwindows:
+                    LOGGER.debug("Could not retrieve doors and windows for panel %s", panel_id)
+                else:
+                    LOGGER.debug("Doors and windows refreshed: %s", response_doorsandwindows)
+                    floors_list = response_doorsandwindows.get('Floors')
+                    for floor in floors_list:
+                        rooms_list = floor.get('Rooms')
+                        for room in rooms_list:
+                            devices_list = room.get('Devices')
+                            for device in devices_list:
+                                if device_id := device.get("SerialString"):
+                                    data[key]["doorsandwindows"][device_id]["closed"]=device.get("Closed")
 
             if data[key].get("switch"):
                 LOGGER.debug("Trying to refresh switches")
