@@ -299,7 +299,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             LOGGER.debug("Trying to refresh logs")
             response_logs = await self._request(
-                API_URL + f"/Panel/GetLogs?panelId={panel_id}"
+                API_URL + f"/Panel/GetLogs?panelId={panel_id}&take=100"
             )
             user_to_set: str | None = None
 
