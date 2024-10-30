@@ -302,22 +302,47 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 API_URL + f"/Panel/GetLogs?panelId={panel_id}"
             )
             user_to_set: str | None = None
+
             if not response_logs:
                 LOGGER.debug("Could not retrieve logs for panel %s", panel_id)
             else:
                 LOGGER.debug("Logs refreshed: %s", response_logs)
-                if response_logs:
-                    log: dict
-                    for log in response_logs:
-                        user = log.get("User")
-                        event_type: str | None = log.get("EventType")
 
-                        user_to_set = self.logname
-                        if event_type:
-                            user_to_set = user if "arm" in event_type else self.logname
-                            break
+                for log in response_logs:
+                    user = log.get("User")
+                    event_type: str | None = log.get("EventType")
+                    channel = log.get("Channel")
 
-            data[key]["changed_by"] = user_to_set if user_to_set else self.logname
+                    # Default user to logname if not specified in the log
+                    user_to_set = user or self.logname
+
+                    # Check for specific event types and handle accordingly
+                    if event_type == "lock":
+                        data[key]["lock_status"] = "locked"
+                        data[key]["changed_by"] = user_to_set if user else "Automatic" if channel == "Auto" else "Local"
+                    elif event_type == "unlock":
+                        data[key]["lock_status"] = "unlocked"
+                        data[key]["changed_by"] = user_to_set if user else "Local"
+                    elif event_type == "lock_failed":
+                        data[key]["lock_failed"] = True
+                        data[key]["changed_by"] = user_to_set
+                    elif event_type == "arm":
+                        data[key]["alarm_status"] = "armed"
+                        data[key]["changed_by"] = user_to_set
+                    elif event_type == "disarm":
+                        data[key]["alarm_status"] = "disarmed"
+                        data[key]["changed_by"] = user_to_set
+
+                    # Store channel context for additional information
+                    data[key]["last_channel"] = channel
+                    LOGGER.debug("Log event processed: %s, User: %s, Channel: %s", event_type, user, channel)
+
+                    # Break after processing the first relevant event for efficiency
+                    if event_type in ["lock", "unlock", "lock_failed", "arm", "disarm"]:
+                        break
+
+            # Set final user if no specific log event was processed
+            data[key]["changed_by"] = user_to_set or self.logname
             LOGGER.debug("Log name set to: %s", data[key]["changed_by"])
 
         return data
