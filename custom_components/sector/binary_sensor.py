@@ -106,7 +106,7 @@ class SectorBinarySensor(
         self._panel_id = panel_id
         self._lock_id = lock_id
         self.entity_description = description
-        self._attr_unique_id = f"sa_bs_{panel_id}_{str(lock_id)}"
+        self._attr_unique_id = f"sa_bs_{panel_id}_{description.key}_{str(lock_id)}"
         self._attr_is_on = autolock if lock_id else False
         if lock_id:
             self._attr_device_info = DeviceInfo(
