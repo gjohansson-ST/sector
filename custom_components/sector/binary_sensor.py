@@ -70,7 +70,20 @@ async def async_setup_entry(
                 )
             )
     for panel, panel_data in coordinator.data.items():
-        if "lock" in panel_data:
+        if "doors_and_windows" in panel_data:
+            for sensor_id, sensor_data in panel_data["doors_and_windows"].items():
+                for description in SENSOR_TYPES:
+                    entities.append(
+                        SectorBinarySensor(
+                            coordinator=coordinator,
+                            panel_id=panel,
+                            sensor_id=sensor_id,
+                            lock_id=None,
+                            autolock=None,
+                            description=description,
+                        )
+                    )
+        elif "lock" in panel_data:
             for lock, lock_data in panel_data["lock"].items():
                 entities.append(
                     SectorBinarySensor(
@@ -110,15 +123,15 @@ class SectorBinarySensor(
         self._attr_unique_id = f"sa_bs_{panel_id}_{str(lock_id)}"
         self._attr_is_on = autolock if lock_id else False
         if description.key in ["closed", "low_battery"]:
-           self._attr_unique_id = f"sa_contact_shock_detector_{panel_id}_{sensor_id}_{description.key}"
-           self._attr_device_info = DeviceInfo(
-               identifiers={(DOMAIN, f"sa_contact_shock_detector_{panel_id}_{sensor_id}")},
-               name=f"Contact and Shock Detector {sensor_id} on Panel {panel_id}",
-               manufacturer="Sector Alarm",
-               model="Contact and Shock Detector",
-               sw_version="master",
-               via_device=(DOMAIN, f"sa_hub_{panel_id}"),
-           )
+            self._attr_unique_id = f"sa_contact_shock_detector_{panel_id}_{sensor_id}_{description.key}"
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, f"sa_contact_shock_detector_{panel_id}_{sensor_id}")},
+                name=f"Contact and Shock Detector {sensor_id} on Panel {panel_id}",
+                manufacturer="Sector Alarm",
+                model="Contact and Shock Detector",
+                sw_version="master",
+                via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+            )
         elif lock_id:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, f"sa_lock_{lock_id}")},
@@ -142,15 +155,17 @@ class SectorBinarySensor(
         """Handle updated data from the coordinator."""
         data = self.coordinator.data[self._panel_id]
 
+        door_window_data = data.get("doors_and_windows", {}).get(self._sensor_id, {})
+
         if active := self.coordinator.data[self._panel_id].get(
             self.entity_description.key
         ):
             self._attr_is_on = active
 
         if self.entity_description.key == "closed":
-            self._attr_is_on = data.get("Closed", True)
+            self._attr_is_on = door_window_data.get("Closed", True)
         elif self.entity_description.key == "low_battery":
-            self._attr_is_on = data.get("LowBattery", False)
+            self._attr_is_on = doow_window_data.get("LowBattery", False)
         elif self.entity_description.key == "online":
             self._attr_is_on = data.get("online")
         elif self.entity_description.key == "arm_ready":

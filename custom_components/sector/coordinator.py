@@ -166,6 +166,25 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "PanelCodeLength"
             )
 
+        response_doors_windows = await self._request(
+            API_URL + "/api/v2/housecheck/doorsandwindows",
+            json_data={"PanelId": panel_id}
+        )
+        if not response_doors_windows:
+            LOGGER.warning("Could not retrieve doors and windows data for panel %s", panel_id)
+        else:
+            LOGGER.debug("Doors and windows data retrieved: %s", response_doors_windows)
+            doors_windows_dict = {}
+            for item in response_doors_windows.get("DoorsAndWindows", []):
+                item_id = item.get("Id")
+                if item_id:
+                    doors_windows_dict[item_id] = {
+                        "name": item.get("Name"),
+                        "closed": item.get("Closed", True),
+                        "low_battery": item.get("LowBattery", False),
+                    }
+            data[panel["PanelId"]]["doors_and_windows"] = doors_windows_dict
+
             if temp_list := response_getpanel.get("Temperatures"):
                 LOGGER.debug("Extract Temperature info: %s", temp_list)
                 temp_dict = {}
