@@ -175,7 +175,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         else:
             LOGGER.debug("Doors and windows data retrieved: %s", response_doors_windows)
             doors_windows_dict = {}
-            for section in response.get("Sections", []):
+            for section in response_doors_windows.get("Sections", []):
                 for place in section.get("Places", []):
                     for component in place.get("Components", []):
                         serial_str = component.get("SerialString")
