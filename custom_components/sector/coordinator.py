@@ -168,21 +168,23 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         response_doors_windows = await self._request(
             API_URL + "/api/v2/housecheck/doorsandwindows",
-            json_data={"PanelId": panel_id}
+            json_data={"panelId": panel_id}
         )
         if not response_doors_windows:
             LOGGER.warning("Could not retrieve doors and windows data for panel %s", panel_id)
         else:
             LOGGER.debug("Doors and windows data retrieved: %s", response_doors_windows)
             doors_windows_dict = {}
-            for item in response_doors_windows.get("DoorsAndWindows", []):
-                item_id = item.get("Id")
-                if item_id:
-                    doors_windows_dict[item_id] = {
-                        "name": item.get("Name"),
-                        "closed": item.get("Closed", True),
-                        "low_battery": item.get("LowBattery", False),
-                    }
+            for section in response.get("Sections", []):
+                for place in section.get("Places", []):
+                    for component in place.get("Components", []):
+                        serial_str = component.get("SerialString")
+                        doors_windows_dict[serial_str] = {
+                            "closed": component.get("Closed"),
+                            "low_battery": component.get("LowBattery"),
+                            "name": component.get("Name"),
+                            "location": place.get("Name"),
+                        }
             data[panel["PanelId"]]["doors_and_windows"] = doors_windows_dict
 
             if temp_list := response_getpanel.get("Temperatures"):
