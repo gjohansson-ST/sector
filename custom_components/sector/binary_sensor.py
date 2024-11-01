@@ -77,7 +77,7 @@ async def async_setup_entry(
                         SectorBinarySensor(
                             coordinator=coordinator,
                             panel_id=panel,
-                            sensor_id=sensor_id,
+                            sensor_id=serial_str,
                             lock_id=None,
                             autolock=None,
                             description=description,
@@ -155,7 +155,7 @@ class SectorBinarySensor(
         """Handle updated data from the coordinator."""
         data = self.coordinator.data[self._panel_id]
 
-        door_window_data = data.get("doors_and_windows", {}).get(self._sensor_id, {})
+        door_window_data = self.coordinator.data["doors_and_windows"].get(self._sensor_id, {})
 
         if active := self.coordinator.data[self._panel_id].get(
             self.entity_description.key
