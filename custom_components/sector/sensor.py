@@ -41,7 +41,7 @@ async def async_setup_entry(
                     device_class=SensorDeviceClass.TEMPERATURE,
                 )
                 sensor_list.append(
-                    SectorAlarmTemperatureSensor(coordinator, description, panel)
+                    SectorAlarmTemperatureSensor(coordinator, description, panel, sensor)
                 )
 
     if sensor_list:
