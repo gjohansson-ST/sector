@@ -60,18 +60,20 @@ class SectorAlarmTemperatureSensor(
         coordinator: SectorDataUpdateCoordinator,
         description: SensorEntityDescription,
         panel_id: str,
+        sensor_id: str  # New parameter to uniquely identify each detector
     ) -> None:
         """Initialize Temp sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
+        self._sensor_id = sensor_id
         self.entity_description = description
-        self._attr_unique_id: str = "sa_temp_" + str(description.key)
+        self._attr_unique_id: str = f"sa_temp_{panel_id}_{sensor_id}"  # Make unique per panel and sensor
         self._attr_native_value = self.coordinator.data[panel_id]["temp"][
             description.key
         ].get("temperature")
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_contact_shock_detector_{description.key}")},
-            name=f"{description.name} {panel_id}",
+            identifiers={(DOMAIN, f"sa_contact_shock_detector_{panel_id}_{sensor_id}")},
+            name=f"Contact and Shock Detector {sensor_id} on Panel {panel_id}",
             manufacturer="Sector Alarm",
             model="Contact and Shock Detector",
             sw_version="master",

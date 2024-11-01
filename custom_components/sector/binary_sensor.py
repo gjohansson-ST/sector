@@ -97,6 +97,7 @@ class SectorBinarySensor(
         self,
         coordinator: SectorDataUpdateCoordinator,
         panel_id: str,
+        sensor_id: str,
         lock_id: str | None,
         autolock: bool | None,
         description: BinarySensorEntityDescription,
@@ -104,15 +105,16 @@ class SectorBinarySensor(
         """Initiate Binary Sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
+        self._sensor_id = sensor_id
         self._lock_id = lock_id
         self.entity_description = description
         self._attr_unique_id = f"sa_bs_{panel_id}_{str(lock_id)}"
         self._attr_is_on = autolock if lock_id else False
         if description.key in ["closed", "low_battery"]:
-           self._attr_unique_id = f"sa_contact_shock_detector_{description.key}"
+           self._attr_unique_id = f"sa_contact_shock_detector_{panel_id}_{sensor_id}_{description.key}"
            self._attr_device_info = DeviceInfo(
-               identifiers={(DOMAIN, f"contact_and_shock_detector_{description.key}")},
-               name=f"{description.name} {panel_id}",
+               identifiers={(DOMAIN, f"sa_contact_shock_detector_{panel_id}_{sensor_id}")},
+               name=f"Contact and Shock Detector {sensor_id} on Panel {panel_id}",
                manufacturer="Sector Alarm",
                model="Contact and Shock Detector",
                sw_version="master",
