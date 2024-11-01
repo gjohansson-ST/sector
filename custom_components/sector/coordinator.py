@@ -167,7 +167,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
         response_doors_windows = await self._request(
-            API_URL + "/api/v2/housecheck/doorsandwindows",
+            API_URL + "/v2/housecheck/doorsandwindows",
             json_data={"panelId": panel_id}
         )
         if not response_doors_windows:
