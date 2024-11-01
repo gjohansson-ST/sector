@@ -109,7 +109,7 @@ class SectorBinarySensor(
         self._attr_unique_id = f"sa_bs_{panel_id}_{str(lock_id)}"
         self._attr_is_on = autolock if lock_id else False
         if description.key in ["closed", "low_battery"]:
-           self._attr_unique_id = f"sa_contact_shock_{description.key}"
+           self._attr_unique_id = f"sa_contact_shock_detector_{description.key}"
            self._attr_device_info = DeviceInfo(
                identifiers={(DOMAIN, f"contact_and_shock_detector_{description.key}")},
                name=f"{description.name} {panel_id}",
