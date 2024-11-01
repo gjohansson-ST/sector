@@ -6,6 +6,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.const import EntityCategory
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -28,6 +29,17 @@ SENSOR_TYPES: tuple[BinarySensorEntityDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         name="Arm ready",
         icon="mdi:shield-home",
+    ),
+    BinarySensorEntityDescription(
+        key="closed",
+        device_class=BinarySensorDeviceClass.DOOR,
+        name="Closed",
+    ),
+    BinarySensorEntityDescription(
+        key="low_battery",
+        device_class=BinarySensorDeviceClass.BATTERY,
+        name="Battery Low",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 LOCK_TYPES: BinarySensorEntityDescription = BinarySensorEntityDescription(
@@ -95,7 +107,7 @@ class SectorBinarySensor(
         self._lock_id = lock_id
         self.entity_description = description
         self._attr_unique_id = f"sa_bs_{panel_id}_{str(lock_id)}"
-        self._attr_is_on = autolock
+        self._attr_is_on = autolock if lock_id else False
         if lock_id:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, f"sa_lock_{lock_id}")},
@@ -117,10 +129,22 @@ class SectorBinarySensor(
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
+        data = self.coordinator.data[self._panel_id]
+
         if active := self.coordinator.data[self._panel_id].get(
             self.entity_description.key
         ):
             self._attr_is_on = active
+
+        if self.entity_description.key == "closed":
+            self._attr_is_on = data.get("Closed", True)
+        elif self.entity_description.key == "low_battery":
+            self._attr_is_on = data.get("LowBattery", False)
+        elif self.entity_description.key == "online":
+            self._attr_is_on = data.get("online")
+        elif self.entity_description.key == "arm_ready":
+            self._attr_is_on = data.get("arm_ready")
+
         if locks := self.coordinator.data[self._panel_id].get("lock"):
             for lock, lock_data in locks.items():
                 if lock == self._lock_id:
