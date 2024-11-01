@@ -179,7 +179,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for place in section.get("Places", []):
                     for component in place.get("Components", []):
                         serial_str = component.get("SerialString")
-                        doors_window_dict[serial_str] = {
+                        doors_windows_dict[serial_str] = {
                             "closed": component.get("Closed"),
                             "low_battery": component.get("LowBattery"),
                             "name": component.get("Name"),
