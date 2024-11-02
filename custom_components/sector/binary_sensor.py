@@ -78,6 +78,7 @@ async def async_setup_entry(
         if "doors_and_windows" in panel_data:
             for sensor_id, sensor_data in panel_data["doors_and_windows"].items():
                 sensor_name = sensor_data.get("name", "Unnamed Sensor")
+                sensor_type = sensor_data.get("type", "Contact and Shock Detector")
                 for description in SENSOR_TYPES:
                     if description.key in ["closed", "low_battery"]:
                         entities.append(
@@ -87,15 +88,16 @@ async def async_setup_entry(
                                 sensor_id=sensor_id,
                                 lock_id=None,
                                 autolock=None,
-                                name=sensor_name,
+                                name=f"{sensor_type} {sensor_id} on Panel {panel}",
                                 description=description,
-                                model=sensor_data.get("type", "Contact Sensor"),
+                                model=sensor_type,
                             )
                         )
 
         # Add lock sensors
         if "lock" in panel_data:
             for lock, lock_data in panel_data["lock"].items():
+                lock_name = lock_data.get("name", "Unnamed Lock")
                 entities.append(
                     SectorBinarySensor(
                         coordinator=coordinator,
@@ -103,7 +105,7 @@ async def async_setup_entry(
                         sensor_id=None,
                         lock_id=lock,
                         autolock=lock_data.get("autolock"),
-                        name=lock_data.get("name", "Unnamed Lock"),
+                        name=f"{lock_name} {lock} on Panel {panel}",
                         description=LOCK_TYPES,
                         model="Lock",
                     )
