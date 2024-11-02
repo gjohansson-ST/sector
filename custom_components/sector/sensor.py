@@ -31,21 +31,20 @@ async def async_setup_entry(
     sensor_list = []
     for panel, panel_data in coordinator.data.items():
         if "temp" in panel_data:
-            for sensor, sensor_data in panel_data["temp"].items():
+            for sensor_id, sensor_data in panel_data["temp"].items():
                 name = sensor_data["name"]
                 description = SensorEntityDescription(
-                    key=sensor,
+                    key=sensor_id,
                     name=name,
                     native_unit_of_measurement=UnitOfTemperature.CELSIUS,
                     state_class=SensorStateClass.MEASUREMENT,
                     device_class=SensorDeviceClass.TEMPERATURE,
                 )
                 sensor_list.append(
-                    SectorAlarmTemperatureSensor(coordinator, description, panel, sensor)
+                    SectorAlarmTemperatureSensor(coordinator, description, panel, sensor_id)
                 )
 
-    if sensor_list:
-        async_add_entities(sensor_list)
+    async_add_entities(sensor_list)
 
 
 class SectorAlarmTemperatureSensor(
@@ -60,14 +59,14 @@ class SectorAlarmTemperatureSensor(
         coordinator: SectorDataUpdateCoordinator,
         description: SensorEntityDescription,
         panel_id: str,
-        sensor_id: str  # New parameter to uniquely identify each detector
+        sensor_id: str,
     ) -> None:
         """Initialize Temp sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
         self._sensor_id = sensor_id
         self.entity_description = description
-        self._attr_unique_id: str = f"sa_temp_{panel_id}_{sensor_id}"  # Make unique per panel and sensor
+        self._attr_unique_id: str = f"sa_temp_{panel_id}_{sensor_id}"
         self._attr_native_value = self.coordinator.data[panel_id]["temp"][
             description.key
         ].get("temperature")
