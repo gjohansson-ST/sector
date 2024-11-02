@@ -166,26 +166,26 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "PanelCodeLength"
             )
 
-        response_doors_windows = await self._request(
-            API_URL + "/v2/housecheck/doorsandwindows",
-            json_data={"panelId": panel_id}
-        )
-        if not response_doors_windows:
-            LOGGER.warning("Could not retrieve doors and windows data for panel %s", panel_id)
-        else:
-            LOGGER.debug("Doors and windows data retrieved: %s", response_doors_windows)
-            doors_windows_dict = {}
-            for section in response_doors_windows.get("Sections", []):
-                for place in section.get("Places", []):
-                    for component in place.get("Components", []):
-                        serial_str = component.get("SerialString")
-                        doors_windows_dict[serial_str] = {
-                            "closed": component.get("Closed"),
-                            "low_battery": component.get("LowBattery"),
-                            "name": component.get("Name"),
-                            "location": place.get("Name"),
-                        }
-            data[panel["PanelId"]]["doors_and_windows"] = doors_windows_dict
+            response_doors_windows = await self._request(
+                API_URL + "/v2/housecheck/doorsandwindows",
+                json_data={"panelId": panel_id}
+            )
+            if not response_doors_windows:
+                LOGGER.warning("Could not retrieve doors and windows data for panel %s", panel_id)
+            else:
+                LOGGER.debug("Doors and windows data retrieved: %s", response_doors_windows)
+                doors_windows_dict = {}
+                for section in response_doors_windows.get("Sections", []):
+                    for place in section.get("Places", []):
+                        for component in place.get("Components", []):
+                            serial_str = component.get("SerialString")
+                            doors_windows_dict[serial_str] = {
+                                "Closed": component.get("Closed"),
+                                "LowBattery": component.get("LowBattery"),
+                                "Name": component.get("Name"),
+                                "Location": place.get("Name"),
+                            }
+                data[panel["PanelId"]]["doors_and_windows"] = doors_windows_dict
 
             if temp_list := response_getpanel.get("Temperatures"):
                 LOGGER.debug("Extract Temperature info: %s", temp_list)
@@ -406,7 +406,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "Authorization": self._access_token,
             "API-Version": "6",
             "Platform": "iOS",
-            "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+            "User-Agent": "SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
             "Version": "2.0.27",
             "Connection": "keep-alive",
             "Content-Type": "application/json",
@@ -491,7 +491,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 headers={
                     "API-Version": "6",
                     "Platform": "iOS",
-                    "User-Agent": "  SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                    "User-Agent": "SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
                     "Version": "2.0.27",
                     "Connection": "keep-alive",
                     "Content-Type": "application/json",

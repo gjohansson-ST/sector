@@ -10,7 +10,6 @@ from homeassistant.const import EntityCategory
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -53,13 +52,13 @@ LOCK_TYPES: BinarySensorEntityDescription = BinarySensorEntityDescription(
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up binary sensor platform."""
+    """Set up the binary sensor platform."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[SectorBinarySensor] = []
 
-    for panel in coordinator.data:
+    for panel, panel_data in coordinator.data.items():
         for description in SENSOR_TYPES:
             entities.append(
                 SectorBinarySensor(
@@ -72,7 +71,7 @@ async def async_setup_entry(
                 )
             )
         for component_id, component_data in coordinator.data.get("doors_and_windows", {}).items():
-            sensor_id = component_data.get("SerialString")  # Use SerialString as sensor_id
+            sensor_id = component_data.get("SerialString")
             for description in SENSOR_TYPES:
                 if description.key in ["closed", "low_battery"]:
                     entities.append(
@@ -92,7 +91,7 @@ async def async_setup_entry(
                         SectorBinarySensor(
                             coordinator=coordinator,
                             panel_id=panel,
-                            sensor_id=serial_str,
+                            sensor_id=sensor_id,
                             lock_id=None,
                             autolock=None,
                             description=description,
@@ -130,7 +129,7 @@ class SectorBinarySensor(
         autolock: bool | None,
         description: BinarySensorEntityDescription,
     ) -> None:
-        """Initiate Binary Sensor."""
+        """Initialize Binary Sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
         self._sensor_id = sensor_id
@@ -181,7 +180,7 @@ class SectorBinarySensor(
         if self.entity_description.key == "closed":
             self._attr_is_on = door_window_data.get("Closed", True)
         elif self.entity_description.key == "low_battery":
-            self._attr_is_on = doow_window_data.get("LowBattery", False)
+            self._attr_is_on = door_window_data.get("LowBattery", False)
         elif self.entity_description.key == "online":
             self._attr_is_on = data.get("online")
         elif self.entity_description.key == "arm_ready":
@@ -196,5 +195,5 @@ class SectorBinarySensor(
 
     @property
     def available(self) -> bool:
-        """Return entity available."""
+        """Return if entity is available."""
         return True
