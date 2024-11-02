@@ -72,19 +72,19 @@ async def async_setup_entry(
                 )
             )
         for component_id, component_data in coordinator.data.get("doors_and_windows", {}).items():
-        sensor_id = component_data.get("SerialString")  # Use SerialString as sensor_id
-        for description in SENSOR_TYPES:
-            if description.key in ["closed", "low_battery"]:
-                entities.append(
-                    SectorBinarySensor(
-                        coordinator=coordinator,
-                        panel_id=panel,
-                        sensor_id=sensor_id,
-                        lock_id=None,
-                        autolock=None,
-                        description=description,
+            sensor_id = component_data.get("SerialString")  # Use SerialString as sensor_id
+            for description in SENSOR_TYPES:
+                if description.key in ["closed", "low_battery"]:
+                    entities.append(
+                        SectorBinarySensor(
+                            coordinator=coordinator,
+                            panel_id=panel,
+                            sensor_id=sensor_id,
+                            lock_id=None,
+                            autolock=None,
+                            description=description,
+                        )
                     )
-                )
         if "doors_and_windows" in panel_data:
             for sensor_id, sensor_data in panel_data["doors_and_windows"].items():
                 for description in SENSOR_TYPES:
