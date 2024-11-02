@@ -65,6 +65,7 @@ async def async_setup_entry(
                 SectorBinarySensor(
                     coordinator=coordinator,
                     panel_id=panel,
+                    sensor_id=None,
                     lock_id=None,
                     autolock=None,
                     description=description,
@@ -90,6 +91,7 @@ async def async_setup_entry(
                     SectorBinarySensor(
                         coordinator=coordinator,
                         panel_id=panel,
+                        sensor_id=None,
                         lock_id=lock,
                         autolock=lock_data.get("autolock"),
                         description=LOCK_TYPES,
