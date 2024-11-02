@@ -59,6 +59,7 @@ async def async_setup_entry(
     entities: list[SectorBinarySensor] = []
 
     for panel, panel_data in coordinator.data.items():
+        # Add panel-related sensors
         for description in SENSOR_TYPES:
             entities.append(
                 SectorBinarySensor(
@@ -69,10 +70,14 @@ async def async_setup_entry(
                     autolock=None,
                     name=panel_data.get("name", "Unnamed Panel"),
                     description=description,
+                    model="Alarm Panel",
                 )
             )
+
+        # Add door and window sensors
         if "doors_and_windows" in panel_data:
             for sensor_id, sensor_data in panel_data["doors_and_windows"].items():
+                sensor_name = sensor_data.get("name", "Unnamed Sensor")
                 for description in SENSOR_TYPES:
                     if description.key in ["closed", "low_battery"]:
                         entities.append(
@@ -82,10 +87,13 @@ async def async_setup_entry(
                                 sensor_id=sensor_id,
                                 lock_id=None,
                                 autolock=None,
-                                name=sensor_data.get("name", "Unnamed Sensor"),
+                                name=sensor_name,
                                 description=description,
+                                model=sensor_data.get("type", "Contact Sensor"),
                             )
                         )
+
+        # Add lock sensors
         if "lock" in panel_data:
             for lock, lock_data in panel_data["lock"].items():
                 entities.append(
@@ -97,6 +105,7 @@ async def async_setup_entry(
                         autolock=lock_data.get("autolock"),
                         name=lock_data.get("name", "Unnamed Lock"),
                         description=LOCK_TYPES,
+                        model="Lock",
                     )
                 )
 
@@ -119,6 +128,7 @@ class SectorBinarySensor(
         autolock: bool | None,
         name: str,
         description: BinarySensorEntityDescription,
+        model: str,
     ) -> None:
         """Initialize Binary Sensor."""
         super().__init__(coordinator)
@@ -130,40 +140,22 @@ class SectorBinarySensor(
         self._attr_is_on = autolock if lock_id else False
         self._attr_name = name
 
-        if description.key in ["closed", "low_battery"] and sensor_id:
-            self._attr_unique_id = f"sa_contact_shock_detector_{panel_id}_{sensor_id}_{description.key}"
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, f"sa_contact_shock_detector_{panel_id}_{sensor_id}")},
-                name=name,
-                manufacturer="Sector Alarm",
-                model="Contact and Shock Detector",
-                sw_version="master",
-                via_device=(DOMAIN, f"sa_hub_{panel_id}"),
-            )
-        elif lock_id:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, f"sa_lock_{lock_id}")},
-                name=name,
-                manufacturer="Sector Alarm",
-                model="Lock",
-                sw_version="master",
-                via_device=(DOMAIN, f"sa_hub_{panel_id}"),
-            )
-        else:
-            self._attr_device_info = DeviceInfo(
-                identifiers={(DOMAIN, f"sa_panel_{panel_id}")},
-                name=name,
-                manufacturer="Sector Alarm",
-                model="Alarmpanel",
-                sw_version="master",
-                via_device=(DOMAIN, f"sa_hub_{panel_id}"),
-            )
+        # Set dynamic device information based on the sensor type and model
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{panel_id}_{sensor_id or lock_id or 'panel'}")},
+            name=name,
+            manufacturer="Sector Alarm",
+            model=model,
+            sw_version="master",
+            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+        )
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         data = self.coordinator.data[self._panel_id]
 
+        # Handle updates for door and window sensors
         door_window_data = (
             self.coordinator.data["doors_and_windows"].get(self._sensor_id, {})
             if self._sensor_id
