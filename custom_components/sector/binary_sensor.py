@@ -142,6 +142,13 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         """Return True if entity is available."""
         return True
 
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "serial_number": self._serial_no,
+        }
+
 
 class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """Representation of the Sector Alarm panel online status."""
@@ -189,3 +196,10 @@ class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
     def available(self) -> bool:
         """Return True if entity is available."""
         return True
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "serial_number": self._serial_no,
+        }

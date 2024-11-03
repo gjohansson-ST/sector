@@ -106,3 +106,10 @@ class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
             manufacturer="Sector Alarm",
             model=device_model,
         )
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "serial_number": self._serial_no,
+        }

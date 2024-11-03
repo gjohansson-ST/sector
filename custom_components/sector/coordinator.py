@@ -51,6 +51,25 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             panel_status = data.get("Panel Status", {})
             locks_data = data.get("Lock Status", [])
 
+            # Process locks
+            if locks_data:
+                for lock in locks_data:
+                    serial_no = str(lock.get("Serial"))
+                    if serial_no:
+                        if serial_no not in devices:
+                            devices[serial_no] = {
+                                "name": lock.get("Label"),
+                                "serial_no": serial_no,
+                                "sensors": {},
+                                "model": "Smart Lock",
+                            }
+                            devices[serial_no]["sensors"]["lock_status"] = lock.get("Status")
+                            devices[serial_no]["sensors"]["low_battery"] = lock.get("BatteryLow")
+                    else:
+                        _LOGGER.warning(f"Lock missing Serial: {lock}")
+            else:
+                _LOGGER.debug("No locks data found.")
+
             # Process devices from different categories
             for category_name, category_data in data.items():
                 if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors"]:
@@ -150,25 +169,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
                 else:
                     _LOGGER.debug(f"Unhandled category {category_name}")
-
-            # Process locks
-            if locks_data:
-                for lock in locks_data:
-                    serial_no = str(lock.get("Serial"))
-                    if serial_no:
-                        if serial_no not in devices:
-                            devices[serial_no] = {
-                                "name": lock.get("Label"),
-                                "serial_no": serial_no,
-                                "sensors": {},
-                                "model": "Smart Lock",
-                            }
-                            devices[serial_no]["sensors"]["lock_status"] = lock.get("Status")
-                            devices[serial_no]["sensors"]["low_battery"] = lock.get("BatteryLow")
-                        else:
-                            _LOGGER.warning(f"Lock missing Serial: {lock}")
-            else:
-                _LOGGER.debug("No locks data found.")
 
             return {
                 "devices": devices,

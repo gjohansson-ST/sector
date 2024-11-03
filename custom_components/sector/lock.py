@@ -68,3 +68,10 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
             manufacturer="Sector Alarm",
             model=self._device_info["model"],
         )
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "serial_number": self._serial_no,
+        }

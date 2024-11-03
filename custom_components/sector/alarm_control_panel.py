@@ -93,3 +93,10 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     def available(self) -> bool:
         """Return entity availability."""
         return True
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "serial_number": self._serial_no,
+        }
