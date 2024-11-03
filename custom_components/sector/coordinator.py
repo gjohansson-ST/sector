@@ -81,7 +81,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                 else:
                                     _LOGGER.warning(f"Component missing SerialNo: {component}")
 
-                elif category_name == "Temperatures":
+                elif category_name in ["Temperature"]:
                     _LOGGER.debug(f"Temperatures data received: {category_data}")
                     if isinstance(category_data, list):
                         for temp_device in category_data:
@@ -121,7 +121,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     else:
                         _LOGGER.error(f"Unexpected data format for Temperatures: {category_data}")
 
-                elif category_name == "Humidity":
+                if category_name in ["Humidity"]:
                     _LOGGER.debug(f"Humidity data received: {category_data}")
                     if isinstance(category_data, list):
                         for humidity_device in category_data:
