@@ -81,43 +81,29 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                 else:
                                     _LOGGER.warning(f"Component missing SerialNo: {component}")
 
-                elif category_name in ["Temperature"]:
+                elif category_name == "Temperatures":
                     _LOGGER.debug(f"Temperatures data received: {category_data}")
-                    if isinstance(category_data, list):
-                        for temp_device in category_data:
-                            if isinstance(temp_device, dict):
-                                serial_no = str(temp_device.get("DeviceId") or temp_device.get("SerialNo"))
-                                if serial_no:
-                                    if serial_no not in devices:
-                                        devices[serial_no] = {
-                                            "name": temp_device.get("Label") or temp_device.get("Name"),
-                                            "serial_no": serial_no,
-                                            "sensors": {},
-                                        }
-                                    temperature = temp_device.get("Temperature")
-                                    if temperature is not None:
-                                        devices[serial_no]["sensors"]["temperature"] = float(temperature)
-                                else:
-                                    _LOGGER.warning(f"Temperature device missing SerialNo: {temp_device}")
-                            else:
-                                _LOGGER.warning(f"Unexpected temp_device format: {temp_device}")
-                    elif isinstance(category_data, dict):
-                        temp_device = category_data
-                        serial_no = str(temp_device.get("DeviceId") or temp_device.get("SerialNo"))
-                        if serial_no:
-                            if serial_no not in devices:
-                                devices[serial_no] = {
-                                    "name": temp_device.get("Label") or temp_device.get("Name"),
-                                    "serial_no": serial_no,
-                                    "sensors": {},
-                                }
-                            temperature = temp_device.get("Temperature")
-                            if temperature is not None:
-                                devices[serial_no]["sensors"]["temperature"] = float(temperature)
-                        else:
-                            _LOGGER.warning(f"Temperature device missing SerialNo: {temp_device}")
-                    elif isinstance(category_data, str):
-                        _LOGGER.info(f"No temperature data available: {category_data}")
+                    if isinstance(category_data, dict) and "Sections" in category_data:
+                        for section in category_data["Sections"]:
+                            for place in section.get("Places", []):
+                                for component in place.get("Components", []):
+                                    serial_no = str(component.get("SerialNo") or component.get("Serial"))
+                                    if serial_no:
+                                        if serial_no not in devices:
+                                            devices[serial_no] = {
+                                                "name": component.get("Label") or component.get("Name"),
+                                                "serial_no": serial_no,
+                                                "sensors": {},
+                                                "model": component.get("DeviceTypeName", "Temperature Sensor"),
+                                            }
+                                        temperature = component.get("Temperature")
+                                        if temperature is not None:
+                                            devices[serial_no]["sensors"]["temperature"] = float(temperature)
+                                            _LOGGER.debug(f"Stored temperature {temperature} for device {serial_no}")
+                                        else:
+                                            _LOGGER.debug(f"No temperature value for device {serial_no}")
+                                    else:
+                                        _LOGGER.warning(f"Component missing SerialNo: {component}")
                     else:
                         _LOGGER.error(f"Unexpected data format for Temperatures: {category_data}")
 
