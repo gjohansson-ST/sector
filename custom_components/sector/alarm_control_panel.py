@@ -20,7 +20,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
-LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -37,7 +37,6 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     _attr_supported_features = (
         AlarmControlPanelEntityFeature.ARM_AWAY
         | AlarmControlPanelEntityFeature.ARM_HOME
-        | AlarmControlPanelEntityFeature.DISARM
     )
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
@@ -47,7 +46,7 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
         self._serial_no = panel_status.get("SerialNo") or coordinator.entry.data.get("panel_id")
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
         self._attr_name = "Sector Alarm Panel"
-        LOGGER.debug(f"Initialized alarm control panel with unique_id: {self._attr_unique_id}")
+        _LOGGER.debug(f"Initialized alarm control panel with unique_id: {self._attr_unique_id}")
 
     @property
     def state(self):
