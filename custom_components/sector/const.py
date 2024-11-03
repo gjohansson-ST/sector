@@ -1,13 +1,15 @@
 # const.py
 """Constants for the Sector Alarm integration."""
 
+import logging
+
 DOMAIN = "sector"
 API_URL = "https://api.sectoralarm.com"
 
 CONF_CODE_FORMAT = "code_format"
 CONF_TEMP = "temperature_setting"
 
-LOGGER_NAME = "custom_components.sector"
+LOGGER = logging.getLogger(__package__)
 
 DEFAULT_CODE_FORMAT = 6
 PLATFORMS = ["lock", "alarm_control_panel", "sensor", "binary_sensor"]
