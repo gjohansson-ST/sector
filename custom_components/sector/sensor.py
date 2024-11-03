@@ -1,101 +1,107 @@
-"""Adds Temp sensors for Sector integration."""
+"""Sensor platform for Sector Alarm integration."""
 from __future__ import annotations
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
-    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_TEMP, DOMAIN
+from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
-    """Sensor platform."""
-
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-
-    if not entry.data[CONF_TEMP]:
-        return
-
-    sensor_list = []
-    for panel, panel_data in coordinator.data.items():
-        if "temp" in panel_data:
-            for sensor, sensor_data in panel_data["temp"].items():
-                name = sensor_data["name"]
-                description = SensorEntityDescription(
-                    key=sensor,
-                    name=name,
-                    native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                    state_class=SensorStateClass.MEASUREMENT,
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                )
-                sensor_list.append(
-                    SectorAlarmTemperatureSensor(coordinator, description, panel)
-                )
-
-    if sensor_list:
-        async_add_entities(sensor_list)
-
-
-class SectorAlarmTemperatureSensor(
-    CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
-    """Sector Temp sensor."""
+    """Set up Sector Alarm sensors."""
+    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    devices = coordinator.data.get("devices", {})
+    entities = []
 
-    _attr_has_entity_name = True
+    for device in devices.values():
+        serial_no = device["serial_no"]
+        sensors = device.get("sensors", {})
+
+        if "temperature" in sensors:
+            entities.append(
+                SectorAlarmSensor(
+                    coordinator,
+                    serial_no,
+                    "temperature",
+                    device,
+                    SensorEntityDescription(
+                        key="temperature",
+                        device_class=SensorDeviceClass.TEMPERATURE,
+                        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                    ),
+                )
+            )
+        if "humidity" in sensors:
+            entities.append(
+                SectorAlarmSensor(
+                    coordinator,
+                    serial_no,
+                    "humidity",
+                    device,
+                    SensorEntityDescription(
+                        key="humidity",
+                        device_class=SensorDeviceClass.HUMIDITY,
+                        native_unit_of_measurement=PERCENTAGE,
+                    ),
+                )
+            )
+
+    async_add_entities(entities)
+
+
+class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Sector Alarm sensor."""
 
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
+        serial_no: str,
+        sensor_type: str,
+        device_info: dict,
         description: SensorEntityDescription,
-        panel_id: str,
     ) -> None:
-        """Initialize Temp sensor."""
+        """Initialize the sensor."""
         super().__init__(coordinator)
-        self._panel_id = panel_id
         self.entity_description = description
-        self._attr_unique_id: str = "sa_temp_" + str(description.key)
-        self._attr_native_value = self.coordinator.data[panel_id]["temp"][
-            description.key
-        ].get("temperature")
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_temp_{description.key}")},
-            name=description.name,
+        self._serial_no = serial_no
+        self._sensor_type = sensor_type
+        self._device_info = device_info
+        self._attr_unique_id = f"{serial_no}_{sensor_type}"
+        self._attr_name = f"{device_info['name']} {sensor_type.capitalize()}"
+
+    @property
+    def native_value(self):
+        """Return the sensor value."""
+        value = self._device_info["sensors"].get(self._sensor_type)
+        if value is not None:
+            try:
+                return float(value)
+            except ValueError:
+                return None
+        return None
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._serial_no)},
+            name=self._device_info["name"],
             manufacturer="Sector Alarm",
-            model="Temperature",
-            sw_version="master",
-            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+            model="Sensor",
         )
 
     @property
-    def extra_state_attributes(self) -> dict:
-        """Extra states for sensor."""
-        return {"Serial No": self.entity_description.key}
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        if (
-            temp := self.coordinator.data[self._panel_id]["temp"]
-            .get(self.entity_description.key, {})
-            .get("temperature")
-        ):
-            self._attr_native_value = temp
-
-        super()._handle_coordinator_update()
-
-    @property
     def available(self) -> bool:
-        """Return entity available."""
+        """Return entity availability."""
         return True

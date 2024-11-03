@@ -1,24 +1,15 @@
-"""SECTOR ALARM INTEGRATION CONSTANTS FOR HOME ASSISTANT."""
+"""Constants for the Sector Alarm integration."""
 from __future__ import annotations
 
 import logging
 
 from homeassistant.const import Platform
 
-DOMAIN = "sector"
-
+DOMAIN = "sector_alarm"
 LOGGER = logging.getLogger(__package__)
 
-API_URL = "https://mypagesapi.sectoralarm.net/api"
-
-CONF_USERID = "userid"  # Kept for migration purpose
-CONF_CODE_FORMAT = "code_format"
-CONF_TEMP = "temp"
-CONF_LOCK = "lock"
-UPDATE_INTERVAL = "timesync"
-
-MIN_SCAN_INTERVAL = 60
-
+CONF_PANEL_ID = "panel_id"
+CONF_PANEL_CODE = "panel_code"
 
 PLATFORMS = [
     Platform.ALARM_CONTROL_PANEL,
