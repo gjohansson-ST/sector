@@ -151,10 +151,24 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 else:
                     _LOGGER.debug(f"Unhandled category {category_name}")
 
-            # Process locks
-            locks = []
+        # Process locks
+        if locks_data:
             for lock in locks_data:
-                locks.append(lock)
+                serial_no = str(lock.get("Serial"))
+                if serial_no:
+                    if serial_no not in devices:
+                        devices[serial_no] = {
+                            "name": lock.get("Label"),
+                            "serial_no": serial_no,
+                            "sensors": {},
+                            "model": "Smart Lock",
+                        }
+                    devices[serial_no]["sensors"]["lock_status"] = lock.get("Status")
+                    devices[serial_no]["sensors"]["low_battery"] = lock.get("BatteryLow")
+                else:
+                    _LOGGER.warning(f"Lock missing Serial: {lock}")
+        else:
+            _LOGGER.debug("No locks data found.")
 
             return {
                 "devices": devices,

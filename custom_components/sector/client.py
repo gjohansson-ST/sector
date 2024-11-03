@@ -87,7 +87,20 @@ class SectorAlarmAPI:
             else:
                 _LOGGER.error(f"Failed to retrieve data for {key}")
 
+        locks_status = await self.get_lock_status()
+        data["Lock Status"] = locks_status
+
         return data
+
+    async def get_lock_status(self):
+        """Retrieve the lock status."""
+        url = f"{self.API_URL}/api/panel/GetLockStatus?panelId={self.panel_id}"
+        response = await self._get(url)
+        if response:
+            return response
+        else:
+            _LOGGER.error("Failed to retrieve lock status")
+            return []
 
     async def _get(self, url):
         """Helper method to perform GET requests with timeout."""
