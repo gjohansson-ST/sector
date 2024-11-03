@@ -21,7 +21,7 @@ from .coordinator import SectorDataUpdateCoordinator
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Sensor platform."""
+    """Set up the sensor platform for Sector integration."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
@@ -41,7 +41,7 @@ async def async_setup_entry(
                     device_class=SensorDeviceClass.TEMPERATURE,
                 )
                 sensor_list.append(
-                    SectorAlarmTemperatureSensor(coordinator, description, panel)
+                    SectorAlarmTemperatureSensor(coordinator, description, panel, sensor)
                 )
 
     if sensor_list:
@@ -51,7 +51,7 @@ async def async_setup_entry(
 class SectorAlarmTemperatureSensor(
     CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity
 ):
-    """Sector Temp sensor."""
+    """Representation of a Sector temperature sensor."""
 
     _attr_has_entity_name = True
 
@@ -60,27 +60,29 @@ class SectorAlarmTemperatureSensor(
         coordinator: SectorDataUpdateCoordinator,
         description: SensorEntityDescription,
         panel_id: str,
+        sensor_id: str,
     ) -> None:
-        """Initialize Temp sensor."""
+        """Initialize the temperature sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
+        self._sensor_id = sensor_id
         self.entity_description = description
-        self._attr_unique_id: str = "sa_temp_" + str(description.key)
+        self._attr_unique_id = f"sa_temp_{panel_id}_{sensor_id}"
         self._attr_native_value = self.coordinator.data[panel_id]["temp"][
             description.key
         ].get("temperature")
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_temp_{description.key}")},
-            name=description.name,
+            identifiers={(DOMAIN, f"sa_contact_shock_detector_{panel_id}_{sensor_id}")},
+            name=f"Contact and Shock Detector {sensor_id} on Panel {panel_id}",
             manufacturer="Sector Alarm",
-            model="Temperature",
+            model="Contact and Shock Detector",
             sw_version="master",
             via_device=(DOMAIN, f"sa_hub_{panel_id}"),
         )
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Extra states for sensor."""
+        """Return additional states for sensor."""
         return {"Serial No": self.entity_description.key}
 
     @callback
@@ -92,10 +94,9 @@ class SectorAlarmTemperatureSensor(
             .get("temperature")
         ):
             self._attr_native_value = temp
-
         super()._handle_coordinator_update()
 
     @property
     def available(self) -> bool:
-        """Return entity available."""
+        """Return if entity is available."""
         return True
