@@ -1,3 +1,4 @@
+# __init__.py
 """Sector Alarm integration for Home Assistant."""
 from __future__ import annotations
 
@@ -9,7 +10,6 @@ from homeassistant.helpers import device_registry as dr
 from .const import (
     CONF_CODE_FORMAT,
     CONF_TEMP,
-    CONF_USERID,
     DOMAIN,
     LOGGER,
     PLATFORMS,
@@ -62,14 +62,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    for key in coordinator.data:
+    for key, device_data in coordinator.data.items():
         device_registry = dr.async_get(hass)
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, f"sa_hub_{key}")},
+            identifiers={(DOMAIN, f"sa_device_{device_data['serial_no']}")},
             manufacturer="Sector Alarm",
-            name="Sector Hub",
-            model="Hub",
+            name=device_data['name'],
+            model=device_data['model'],
             sw_version="master",
         )
 
