@@ -63,8 +63,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                 "sensors": {},
                                 "model": "Smart Lock",
                             }
-                            devices[serial_no]["sensors"]["lock_status"] = lock.get("Status")
-                            devices[serial_no]["sensors"]["low_battery"] = lock.get("BatteryLow")
+                            locks[serial_no]["sensors"]["lock_status"] = lock.get("Status")
+                            locks[serial_no]["sensors"]["low_battery"] = lock.get("BatteryLow")
                     else:
                         _LOGGER.warning(f"Lock missing Serial: {lock}")
             else:
