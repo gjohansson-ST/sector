@@ -5,6 +5,7 @@ import logging
 
 DOMAIN = "sector"
 API_URL = "https://api.sectoralarm.com"
+UPDATE_INTERVAL = 60  # Update interval for the coordinator (in seconds)
 
 CONF_CODE_FORMAT = "code_format"
 CONF_TEMP = "temperature_setting"
