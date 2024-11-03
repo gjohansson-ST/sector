@@ -1,15 +1,14 @@
 """Config flow for Sector Alarm integration."""
 from __future__ import annotations
 
+import logging
+
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
-from homeassistant.core import callback
 
-from .client import SectorAlarmAPI, AuthenticationError
 from .const import CONF_PANEL_CODE, CONF_PANEL_ID, DOMAIN
-from .const import LOGGER
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,11 +21,15 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
+
         if user_input is not None:
             email = user_input[CONF_EMAIL]
             password = user_input[CONF_PASSWORD]
             panel_id = user_input[CONF_PANEL_ID]
             panel_code = user_input[CONF_PANEL_CODE]
+
+            # Import SectorAlarmAPI here to avoid blocking calls during module import
+            from .client import SectorAlarmAPI, AuthenticationError
 
             api = SectorAlarmAPI(email, password, panel_id, panel_code)
             try:
