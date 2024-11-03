@@ -1,6 +1,7 @@
-# custom_components/sector_alarm/endpoints.py
+"""Sector Alarm API endpoints."""
 
 API_URL = "https://mypagesapi.sectoralarm.net"
+
 
 def get_data_endpoints(panel_id):
     """Return a dictionary of data retrieval endpoints."""
@@ -17,9 +18,10 @@ def get_data_endpoints(panel_id):
         "Panel Status": ("GET", f"{API_URL}/api/panel/GetPanelStatus?panelId={panel_id}"),
         "Smartplug Status": ("GET", f"{API_URL}/api/panel/GetSmartplugStatus?panelId={panel_id}"),
         "Lock Status": ("GET", f"{API_URL}/api/panel/GetLockStatus?panelId={panel_id}"),
-        "Logs": ("GET", f"{API_URL}/api/panel/GetLogs?panelId={panel_id}"),#&take=100"),
+        "Logs": ("GET", f"{API_URL}/api/panel/GetLogs?panelId={panel_id}"),
     }
     return endpoints
+
 
 def get_action_endpoints():
     """Return a dictionary of action endpoints."""

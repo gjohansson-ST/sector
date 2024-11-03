@@ -17,7 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
-LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -64,7 +64,7 @@ async def async_setup_entry(
     if entities:
         async_add_entities(entities)
     else:
-        LOGGER.debug("No sensor entities to add.")
+        _LOGGER.debug("No sensor entities to add.")
 
 
 class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
@@ -86,7 +86,7 @@ class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
         self._device_info = device_info
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
         self._attr_name = f"{device_info['name']} {sensor_type.capitalize()}"
-        LOGGER.debug(f"Initialized sensor with unique_id: {self._attr_unique_id}")
+        _LOGGER.debug(f"Initialized sensor with unique_id: {self._attr_unique_id}")
 
     @property
     def native_value(self):
@@ -94,20 +94,4 @@ class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
         device = self.coordinator.data["devices"].get(self._serial_no)
         if device:
             value = device["sensors"].get(self._sensor_type)
-            return value
-        return None
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._serial_no)},
-            name=self._device_info["name"],
-            manufacturer="Sector Alarm",
-            model="Sensor",
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return entity availability."""
-        return True
+            retu

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
 import aiohttp
 import async_timeout
@@ -11,7 +10,7 @@ import async_timeout
 from .const import LOGGER
 from .endpoints import get_data_endpoints, get_action_endpoints
 
-LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class AuthenticationError(Exception):
@@ -49,22 +48,22 @@ class SectorAlarmAPI:
             async with async_timeout.timeout(10):
                 async with self.session.post(login_url, json=payload) as response:
                     if response.status != 200:
-                        LOGGER.error(f"Login failed with status code {response.status}")
+                        _LOGGER.error(f"Login failed with status code {response.status}")
                         raise AuthenticationError("Invalid credentials")
                     data = await response.json()
                     self.access_token = data.get("AuthorizationToken")
                     if not self.access_token:
-                        LOGGER.error("Login failed: No access token received")
+                        _LOGGER.error("Login failed: No access token received")
                         raise AuthenticationError("Invalid credentials")
                     self.headers = {
                         "Authorization": f"Bearer {self.access_token}",
                         "Accept": "application/json",
                     }
         except asyncio.TimeoutError:
-            LOGGER.error("Timeout occurred during login")
+            _LOGGER.error("Timeout occurred during login")
             raise AuthenticationError("Timeout during login")
         except aiohttp.ClientError as e:
-            LOGGER.error(f"Client error during login: {e}")
+            _LOGGER.error(f"Client error during login: {e}")
             raise AuthenticationError("Client error during login")
 
     async def retrieve_all_data(self):
@@ -80,13 +79,13 @@ class SectorAlarmAPI:
                 payload = {"PanelId": self.panel_id}
                 response = await self._post(url, payload)
             else:
-                LOGGER.error(f"Unsupported HTTP method {method} for endpoint {key}")
+                _LOGGER.error(f"Unsupported HTTP method {method} for endpoint {key}")
                 continue
 
             if response:
                 data[key] = response
             else:
-                LOGGER.error(f"Failed to retrieve data for {key}")
+                _LOGGER.error(f"Failed to retrieve data for {key}")
 
         return data
 
@@ -96,15 +95,22 @@ class SectorAlarmAPI:
             async with async_timeout.timeout(10):
                 async with self.session.get(url, headers=self.headers) as response:
                     if response.status == 200:
-                        return await response.json()
+                        content_type = response.headers.get('Content-Type', '')
+                        if 'application/json' in content_type:
+                            return await response.json()
+                        else:
+                            text = await response.text()
+                            _LOGGER.error(f"Received non-JSON response from {url}: {text}")
+                            return None
                     else:
-                        LOGGER.error(f"GET request to {url} failed with status code {response.status}")
+                        text = await response.text()
+                        _LOGGER.error(f"GET request to {url} failed with status code {response.status}, response: {text}")
                         return None
         except asyncio.TimeoutError:
-            LOGGER.error(f"Timeout occurred during GET request to {url}")
+            _LOGGER.error(f"Timeout occurred during GET request to {url}")
             return None
         except aiohttp.ClientError as e:
-            LOGGER.error(f"Client error during GET request to {url}: {e}")
+            _LOGGER.error(f"Client error during GET request to {url}: {e}")
             return None
 
     async def _post(self, url, payload):
@@ -113,15 +119,22 @@ class SectorAlarmAPI:
             async with async_timeout.timeout(10):
                 async with self.session.post(url, json=payload, headers=self.headers) as response:
                     if response.status == 200:
-                        return await response.json()
+                        content_type = response.headers.get('Content-Type', '')
+                        if 'application/json' in content_type:
+                            return await response.json()
+                        else:
+                            text = await response.text()
+                            _LOGGER.error(f"Received non-JSON response from {url}: {text}")
+                            return None
                     else:
-                        LOGGER.error(f"POST request to {url} failed with status code {response.status}")
+                        text = await response.text()
+                        _LOGGER.error(f"POST request to {url} failed with status code {response.status}, response: {text}")
                         return None
         except asyncio.TimeoutError:
-            LOGGER.error(f"Timeout occurred during POST request to {url}")
+            _LOGGER.error(f"Timeout occurred during POST request to {url}")
             return None
         except aiohttp.ClientError as e:
-            LOGGER.error(f"Client error during POST request to {url}: {e}")
+            _LOGGER.error(f"Client error during POST request to {url}: {e}")
             return None
 
     async def arm_system(self, mode):
@@ -134,10 +147,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            LOGGER.debug("System armed successfully")
+            _LOGGER.debug("System armed successfully")
             return True
         else:
-            LOGGER.error("Failed to arm system")
+            _LOGGER.error("Failed to arm system")
             return False
 
     async def disarm_system(self):
@@ -149,10 +162,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            LOGGER.debug("System disarmed successfully")
+            _LOGGER.debug("System disarmed successfully")
             return True
         else:
-            LOGGER.error("Failed to disarm system")
+            _LOGGER.error("Failed to disarm system")
             return False
 
     async def lock_door(self, serial_no):
@@ -165,10 +178,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            LOGGER.debug(f"Door {serial_no} locked successfully")
+            _LOGGER.debug(f"Door {serial_no} locked successfully")
             return True
         else:
-            LOGGER.error(f"Failed to lock door {serial_no}")
+            _LOGGER.error(f"Failed to lock door {serial_no}")
             return False
 
     async def unlock_door(self, serial_no):
@@ -181,10 +194,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            LOGGER.debug(f"Door {serial_no} unlocked successfully")
+            _LOGGER.debug(f"Door {serial_no} unlocked successfully")
             return True
         else:
-            LOGGER.error(f"Failed to unlock door {serial_no}")
+            _LOGGER.error(f"Failed to unlock door {serial_no}")
             return False
 
     async def turn_on_smartplug(self, plug_id):
@@ -196,10 +209,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            LOGGER.debug(f"Smart plug {plug_id} turned on successfully")
+            _LOGGER.debug(f"Smart plug {plug_id} turned on successfully")
             return True
         else:
-            LOGGER.error(f"Failed to turn on smart plug {plug_id}")
+            _LOGGER.error(f"Failed to turn on smart plug {plug_id}")
             return False
 
     async def turn_off_smartplug(self, plug_id):
@@ -211,12 +224,11 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            LOGGER.debug(f"Smart plug {plug_id} turned off successfully")
+            _LOGGER.debug(f"Smart plug {plug_id} turned off successfully")
             return True
         else:
-            LOGGER.error(f"Failed to turn off smart plug {plug_id}")
+            _LOGGER.error(f"Failed to turn off smart plug {plug_id}")
             return False
-
 
     async def logout(self):
         """Logout from the API."""

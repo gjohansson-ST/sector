@@ -1,16 +1,11 @@
 """Constants for the Sector Alarm integration."""
-from __future__ import annotations
-
-import logging
-
-from homeassistant.const import Platform
 
 DOMAIN = "sector_alarm"
-LOGGER = logging.getLogger(__package__)
+PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch"]
 
-CONF_PANEL_ID = "panel_id"
-CONF_PANEL_CODE = "panel_code"
 CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
+CONF_PANEL_ID = "panel_id"
+CONF_PANEL_CODE = "panel_code"
 
-PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch"]
+LOGGER = "sector_alarm"

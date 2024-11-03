@@ -15,7 +15,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
-LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -33,7 +33,11 @@ async def async_setup_entry(
         if "closed" in sensors:
             entities.append(
                 SectorAlarmBinarySensor(
-                    coordinator, serial_no, "closed", device, BinarySensorDeviceClass.DOOR
+                    coordinator,
+                    serial_no,
+                    "closed",
+                    device,
+                    BinarySensorDeviceClass.DOOR,
                 )
             )
         if "low_battery" in sensors:
@@ -73,7 +77,7 @@ async def async_setup_entry(
     if entities:
         async_add_entities(entities)
     else:
-        LOGGER.debug("No binary sensor entities to add.")
+        _LOGGER.debug("No binary sensor entities to add.")
 
 
 class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -85,7 +89,7 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         serial_no: str,
         sensor_type: str,
         device_info: dict,
-        device_class: str,
+        device_class: BinarySensorDeviceClass,
     ) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator)
@@ -93,14 +97,18 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._sensor_type = sensor_type
         self._device_info = device_info
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
-        self._attr_name = f"{device_info['name']} {sensor_type.replace('_', ' ').capitalize()}"
+        self._attr_name = (
+            f"{device_info['name']} {sensor_type.replace('_', ' ').capitalize()}"
+        )
         self._attr_device_class = device_class
-        LOGGER.debug(f"Initialized binary sensor with unique_id: {self._attr_unique_id}")
+        _LOGGER.debug(
+            f"Initialized binary sensor with unique_id: {self._attr_unique_id}"
+        )
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the sensor is on."""
-        device = self.coordinator.data["devices"].get(self._serial_no)
+        device = self.coordinator.data.get("devices", {}).get(self._serial_no)
         if device:
             sensor_value = device["sensors"].get(self._sensor_type)
             if self._sensor_type == "closed":
@@ -110,17 +118,17 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device info."""
+        """Return device info for this sensor."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._serial_no)},
-            name=self._device_info["name"],
+            name=self._device_info.get("name", "Unknown Sensor"),
             manufacturer="Sector Alarm",
             model="Sensor",
         )
 
     @property
     def available(self) -> bool:
-        """Return entity availability."""
+        """Return True if entity is available."""
         return True
 
 
@@ -132,7 +140,7 @@ class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
         coordinator: SectorDataUpdateCoordinator,
         serial_no: str,
         sensor_type: str,
-        device_class: str,
+        device_class: BinarySensorDeviceClass,
     ) -> None:
         """Initialize the panel online binary sensor."""
         super().__init__(coordinator)
@@ -141,17 +149,19 @@ class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
         self._attr_name = "Panel Online"
         self._attr_device_class = device_class
-        LOGGER.debug(f"Initialized panel online sensor with unique_id: {self._attr_unique_id}")
+        _LOGGER.debug(
+            f"Initialized panel online sensor with unique_id: {self._attr_unique_id}"
+        )
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return true if the panel is online."""
         panel_status = self.coordinator.data.get("panel_status", {})
         return panel_status.get("IsOnline", False)
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device info."""
+        """Return device info for the panel."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._serial_no)},
             name="Sector Alarm Panel",
@@ -161,5 +171,5 @@ class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        """Return entity availability."""
+        """Return True if entity is available."""
         return True

@@ -8,7 +8,10 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
 
 from .client import SectorAlarmAPI, AuthenticationError
-from .const import CONF_PANEL_CODE, CONF_PANEL_ID, DOMAIN, LOGGER
+from .const import CONF_PANEL_CODE, CONF_PANEL_ID, DOMAIN
+from .const import LOGGER
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -43,7 +46,7 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "authentication_failed"
             except Exception as e:
                 errors["base"] = "unknown_error"
-                LOGGER.exception("Unexpected exception during authentication: %s", e)
+                _LOGGER.exception("Unexpected exception during authentication: %s", e)
             finally:
                 await api.close()
 

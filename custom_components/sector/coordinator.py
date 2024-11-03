@@ -17,7 +17,7 @@ from .const import (
     CONF_PASSWORD,
 )
 
-LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
@@ -35,7 +35,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         )
         super().__init__(
             hass,
-            LOGGER,
+            _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=60),
         )
@@ -77,10 +77,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     if "LeakDetected" in component:
                                         devices[serial_no]["sensors"]["leak_detected"] = component["LeakDetected"]
                                 else:
-                                    LOGGER.warning(f"Component missing SerialNo: {component}")
+                                    _LOGGER.warning(f"Component missing SerialNo: {component}")
 
                 elif category_name == "Temperatures":
-                    LOGGER.debug(f"Temperatures data received: {category_data}")
+                    _LOGGER.debug(f"Temperatures data received: {category_data}")
                     if isinstance(category_data, list):
                         for temp_device in category_data:
                             if isinstance(temp_device, dict):
@@ -96,9 +96,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     if temperature is not None:
                                         devices[serial_no]["sensors"]["temperature"] = float(temperature)
                                 else:
-                                    LOGGER.warning(f"Temperature device missing SerialNo: {temp_device}")
+                                    _LOGGER.warning(f"Temperature device missing SerialNo: {temp_device}")
                             else:
-                                LOGGER.warning(f"Unexpected temp_device format: {temp_device}")
+                                _LOGGER.warning(f"Unexpected temp_device format: {temp_device}")
                     elif isinstance(category_data, dict):
                         temp_device = category_data
                         serial_no = str(temp_device.get("DeviceId") or temp_device.get("SerialNo"))
@@ -113,14 +113,14 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             if temperature is not None:
                                 devices[serial_no]["sensors"]["temperature"] = float(temperature)
                         else:
-                            LOGGER.warning(f"Temperature device missing SerialNo: {temp_device}")
+                            _LOGGER.warning(f"Temperature device missing SerialNo: {temp_device}")
                     elif isinstance(category_data, str):
-                        LOGGER.info(f"No temperature data available: {category_data}")
+                        _LOGGER.info(f"No temperature data available: {category_data}")
                     else:
-                        LOGGER.error(f"Unexpected data format for Temperatures: {category_data}")
+                        _LOGGER.error(f"Unexpected data format for Temperatures: {category_data}")
 
                 elif category_name == "Humidity":
-                    LOGGER.debug(f"Humidity data received: {category_data}")
+                    _LOGGER.debug(f"Humidity data received: {category_data}")
                     if isinstance(category_data, list):
                         for humidity_device in category_data:
                             if isinstance(humidity_device, dict):
@@ -136,9 +136,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     if humidity is not None:
                                         devices[serial_no]["sensors"]["humidity"] = float(humidity)
                                 else:
-                                    LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
+                                    _LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
                             else:
-                                LOGGER.warning(f"Unexpected humidity_device format: {humidity_device}")
+                                _LOGGER.warning(f"Unexpected humidity_device format: {humidity_device}")
                     elif isinstance(category_data, dict):
                         humidity_device = category_data
                         serial_no = str(humidity_device.get("DeviceId") or humidity_device.get("SerialNo"))
@@ -153,18 +153,18 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             if humidity is not None:
                                 devices[serial_no]["sensors"]["humidity"] = float(humidity)
                         else:
-                            LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
+                            _LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
                     elif isinstance(category_data, str):
-                        LOGGER.info(f"No humidity data available: {category_data}")
+                        _LOGGER.info(f"No humidity data available: {category_data}")
                     else:
-                        LOGGER.error(f"Unexpected data format for Humidity: {category_data}")
+                        _LOGGER.error(f"Unexpected data format for Humidity: {category_data}")
 
                 elif category_name == "Smartplug Status":
-                    LOGGER.debug(f"Smartplug data received: {category_data}")
+                    _LOGGER.debug(f"Smartplug data received: {category_data}")
                     if isinstance(category_data, list):
                         devices["smartplugs"] = category_data
                     else:
-                        LOGGER.warning(f"Unexpected smartplug data format: {category_data}")
+                        _LOGGER.warning(f"Unexpected smartplug data format: {category_data}")
 
                 elif category_name == "Lock Status":
                     # Locks data is already retrieved in locks_data
@@ -175,7 +175,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     pass
 
                 else:
-                    LOGGER.debug(f"Unhandled category {category_name}")
+                    _LOGGER.debug(f"Unhandled category {category_name}")
 
             # Process locks
             locks = []
@@ -192,5 +192,5 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         except AuthenticationError as error:
             raise UpdateFailed(f"Authentication failed: {error}") from error
         except Exception as error:
-            LOGGER.exception("Failed to update data")
+            _LOGGER.exception("Failed to update data")
             raise UpdateFailed(f"Failed to update data: {error}") from error
