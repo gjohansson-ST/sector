@@ -98,7 +98,7 @@ class SectorSensor(CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity)
             identifiers={(DOMAIN, f"sa_sensor_{serial_no}")},
             name=sensor_data.get("Label", f"Sensor {serial_no}"),
             manufacturer="Sector Alarm",
-            model="Sensor",
+            model="Contact and Shock Detector",
             sw_version="master",
             via_device=(DOMAIN, f"sa_hub_{serial_no}"),
         )
@@ -111,5 +111,5 @@ class SectorSensor(CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity)
 
     @property
     def available(self) -> bool:
-        """Return entity available."""
+        """Return if entity is available."""
         return True
