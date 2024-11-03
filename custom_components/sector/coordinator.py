@@ -121,47 +121,31 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     else:
                         _LOGGER.error(f"Unexpected data format for Temperatures: {category_data}")
 
-                if category_name in ["Humidity"]:
+                elif category_name == "Humidity":
                     _LOGGER.debug(f"Humidity data received: {category_data}")
-                    if isinstance(category_data, list):
-                        for humidity_device in category_data:
-                            if isinstance(humidity_device, dict):
-                                serial_no = str(humidity_device.get("DeviceId") or humidity_device.get("SerialNo"))
-                                if serial_no:
-                                    if serial_no not in devices:
-                                        devices[serial_no] = {
-                                            "name": humidity_device.get("Label") or humidity_device.get("Name"),
-                                            "serial_no": serial_no,
-                                            "sensors": {},
-                                            "model": humidity_device.get("DeviceTypeName", "Humidity Sensor"),
-                                        }
-                                    humidity = humidity_device.get("Humidity")
-                                    if humidity is not None:
-                                        devices[serial_no]["sensors"]["humidity"] = float(humidity)
-                                else:
-                                    _LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
-                            else:
-                                _LOGGER.warning(f"Unexpected humidity_device format: {humidity_device}")
-                    elif isinstance(category_data, dict):
-                        humidity_device = category_data
-                        serial_no = str(humidity_device.get("DeviceId") or humidity_device.get("SerialNo"))
-                        if serial_no:
-                            if serial_no not in devices:
-                                devices[serial_no] = {
-                                    "name": humidity_device.get("Label") or humidity_device.get("Name"),
-                                    "serial_no": serial_no,
-                                    "sensors": {},
-                                    "model": humidity_device.get("DeviceTypeName", "Sensor"),
-                                }
-                            humidity = humidity_device.get("Humidity")
-                            if humidity is not None:
-                                devices[serial_no]["sensors"]["humidity"] = float(humidity)
-                        else:
-                            _LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
-                    elif isinstance(category_data, str):
-                        _LOGGER.info(f"No humidity data available: {category_data}")
+                    if isinstance(category_data, dict) and "Sections" in category_data:
+                        for section in category_data["Sections"]:
+                            for place in section.get("Places", []):
+                                for component in place.get("Components", []):
+                                    serial_no = str(component.get("SerialNo") or component.get("Serial"))
+                                    if serial_no:
+                                        if serial_no not in devices:
+                                            devices[serial_no] = {
+                                                "name": component.get("Label") or component.get("Name"),
+                                                "serial_no": serial_no,
+                                                "sensors": {},
+                                                "model": component.get("DeviceTypeName", "Humidity Sensor"),
+                                            }
+                                        humidity = component.get("Humidity")
+                                        if humidity is not None:
+                                            devices[serial_no]["sensors"]["humidity"] = float(humidity)
+                                        else:
+                                            _LOGGER.debug(f"No humidity value for device {serial_no}")
+                                    else:
+                                        _LOGGER.warning(f"Component missing SerialNo: {component}")
                     else:
                         _LOGGER.error(f"Unexpected data format for Humidity: {category_data}")
+
 
                 elif category_name == "Smartplug Status":
                     _LOGGER.debug(f"Smartplug data received: {category_data}")
