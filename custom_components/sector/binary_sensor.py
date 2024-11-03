@@ -26,7 +26,7 @@ SENSOR_TYPES: tuple[BinarySensorEntityDescription, ...] = (
     BinarySensorEntityDescription(
         key="arm_ready",
         entity_category=EntityCategory.DIAGNOSTIC,
-        name="Arm ready",
+        name="Arm Ready",
         icon="mdi:shield-home",
     ),
     BinarySensorEntityDescription(
@@ -44,7 +44,7 @@ SENSOR_TYPES: tuple[BinarySensorEntityDescription, ...] = (
 LOCK_TYPES: BinarySensorEntityDescription = BinarySensorEntityDescription(
     key="autolock",
     entity_category=EntityCategory.DIAGNOSTIC,
-    name="Autolock enabled",
+    name="Autolock Enabled",
     icon="mdi:shield-home",
 )
 
@@ -58,27 +58,61 @@ async def async_setup_entry(
 
     entities: list[SectorBinarySensor] = []
 
-    for panel in coordinator.data:
-        for description in SENSOR_TYPES:
-            entities.append(
-                SectorBinarySensor(
-                    coordinator=coordinator,
-                    panel_id=panel,
-                    lock_id=None,
-                    autolock=None,
-                    description=description,
-                )
-            )
     for panel, panel_data in coordinator.data.items():
+        # Add door and window sensors
+        if "doors_and_windows" in panel_data:
+            for sensor_id, sensor_data in panel_data["doors_and_windows"].items():
+                sensor_name = sensor_data.get("name", "Unnamed Sensor")
+                sensor_type = sensor_data.get("type", "Unknown Sensor Type")
+
+                device_info = DeviceInfo(
+                    identifiers={(DOMAIN, f"sa_device_{panel}_{sensor_id}")},
+                    name=f"{sensor_name} on Panel {panel}",
+                    manufacturer="Sector Alarm",
+                    model=sensor_type,
+                    sw_version="master",
+                    via_device=(DOMAIN, f"sa_hub_{panel}"),
+                )
+
+                for description in SENSOR_TYPES:
+                    if description.key in ["closed", "low_battery"]:
+                        entities.append(
+                            SectorBinarySensor(
+                                coordinator=coordinator,
+                                panel_id=panel,
+                                sensor_id=sensor_id,
+                                lock_id=None,
+                                autolock=None,
+                                name=f"{sensor_name} ({description.name})",
+                                description=description,
+                                device_info=device_info,
+                            )
+                        )
+
+        # Add lock sensors
         if "lock" in panel_data:
             for lock, lock_data in panel_data["lock"].items():
+                lock_name = lock_data.get("name", "Unnamed Lock")
+
+                device_info = DeviceInfo(
+                    identifiers={(DOMAIN, f"sa_lock_{panel}_{lock}")},
+                    name=f"{lock_name} on Panel {panel}",
+                    manufacturer="Sector Alarm",
+                    model="Lock",
+                    sw_version="master",
+                    via_device=(DOMAIN, f"sa_hub_{panel}"),
+                )
+
                 entities.append(
                     SectorBinarySensor(
                         coordinator=coordinator,
                         panel_id=panel,
+                        sensor_id=None,
                         lock_id=lock,
                         autolock=lock_data.get("autolock"),
+                        name=f"{lock_name} ({LOCK_TYPES.name})",
                         description=LOCK_TYPES,
+                        device_info=device_info,
                     )
                 )
 
@@ -88,7 +122,7 @@ async def async_setup_entry(
 class SectorBinarySensor(
     CoordinatorEntity[SectorDataUpdateCoordinator], BinarySensorEntity
 ):
-    """Representation of a Binary Sensor."""
+    """Representation of a Sector Binary Sensor."""
 
     entity_description: BinarySensorEntityDescription
 
@@ -96,13 +130,17 @@ class SectorBinarySensor(
         self,
         coordinator: SectorDataUpdateCoordinator,
         panel_id: str,
+        sensor_id: str | None,
         lock_id: str | None,
         autolock: bool | None,
+        name: str,
         description: BinarySensorEntityDescription,
+        device_info: DeviceInfo,
     ) -> None:
         """Initiate Binary Sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
+        self._sensor_id = sensor_id
         self._lock_id = lock_id
         panel_data = self.coordinator.data[panel_id]
         self._serial_id = panel_data.get("serial_id")
@@ -155,5 +193,5 @@ class SectorBinarySensor(
 
     @property
     def available(self) -> bool:
-        """Return entity available."""
+        """Return if entity is available."""
         return True

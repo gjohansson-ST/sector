@@ -21,7 +21,7 @@ from .coordinator import SectorDataUpdateCoordinator
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Sensor platform."""
+    """Set up the sensor platform for Sector integration."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
@@ -52,7 +52,7 @@ async def async_setup_entry(
 class SectorAlarmTemperatureSensor(
     CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity
 ):
-    """Sector Temp sensor."""
+    """Representation of a Sector temperature sensor."""
 
     _attr_has_entity_name = True
 
@@ -63,7 +63,7 @@ class SectorAlarmTemperatureSensor(
         panel_id: str,
         serial: str,
     ) -> None:
-        """Initialize Temp sensor."""
+        """Initialize the temperature sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
         self._serial = serial
@@ -76,7 +76,7 @@ class SectorAlarmTemperatureSensor(
             identifiers={(DOMAIN, f"sa_temp_{serial}")},
             name=description.name,
             manufacturer="Sector Alarm",
-            model="Temperature",
+            model="Contact and Shock Detector",
             sw_version="master",
             via_device=(DOMAIN, f"sa_hub_{panel_id}"),
         )
@@ -95,10 +95,9 @@ class SectorAlarmTemperatureSensor(
             .get("temperature")
         ):
             self._attr_native_value = temp
-
         super()._handle_coordinator_update()
 
     @property
     def available(self) -> bool:
-        """Return entity available."""
+        """Return if entity is available."""
         return True
