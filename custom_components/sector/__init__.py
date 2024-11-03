@@ -16,8 +16,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    # Use async_forward_entry_setups without importing platforms directly
-    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+    # Schedule the platform setups to avoid blocking the event loop
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    )
 
     return True
 
