@@ -47,6 +47,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             data = await self.api.retrieve_all_data()
 
             devices = {}
+            locks = {}
             logs = data.get("Logs", [])
             panel_status = data.get("Panel Status", {})
             locks_data = data.get("Lock Status", [])
