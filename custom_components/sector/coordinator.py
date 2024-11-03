@@ -151,7 +151,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     "name": humidity_device.get("Label") or humidity_device.get("Name"),
                                     "serial_no": serial_no,
                                     "sensors": {},
-                                    "model": component.get("DeviceTypeName", "Sensor"),
+                                    "model": humidity_device.get("DeviceTypeName", "Sensor"),
                                 }
                             humidity = humidity_device.get("Humidity")
                             if humidity is not None:
