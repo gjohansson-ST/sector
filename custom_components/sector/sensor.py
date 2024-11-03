@@ -1,4 +1,5 @@
-"""Adds Temp sensors for Sector integration."""
+# sensor.py
+"""Sensor platform for Sector integration."""
 from __future__ import annotations
 
 from homeassistant.components.sensor import (
@@ -7,94 +8,105 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
+from homeassistant.const import UnitOfTemperature, UnitOfHumidity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_TEMP, DOMAIN
+from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
+
+SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
+    SensorEntityDescription(
+        key="humidity",
+        device_class=SensorDeviceClass.HUMIDITY,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfHumidity.PERCENTAGE,
+        name="Humidity",
+    ),
+    SensorEntityDescription(
+        key="temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        name="Temperature",
+    ),
+)
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the sensor platform for Sector integration."""
+    """Set up sensor platform."""
 
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    if not entry.data[CONF_TEMP]:
-        return
+    entities: list[SectorSensor] = []
 
-    sensor_list = []
-    for panel, panel_data in coordinator.data.items():
-        if "temp" in panel_data:
-            for sensor, sensor_data in panel_data["temp"].items():
-                name = sensor_data["name"]
-                serial = sensor_data["serial"]
-                description = SensorEntityDescription(
-                    key=sensor,
-                    name=name,
-                    native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-                    state_class=SensorStateClass.MEASUREMENT,
-                    device_class=SensorDeviceClass.TEMPERATURE,
-                )
-                sensor_list.append(
-                    SectorAlarmTemperatureSensor(coordinator, description, panel, serial)
-                )
+    # Set up sensors for panels
+    for panel_data in coordinator.data.values():
+        if 'smoke_sensor' in panel_data:
+            for sensor in panel_data['smoke_sensor']:
+                for description in SENSOR_TYPES:
+                    if description.key in sensor:
+                        entities.append(
+                            SectorSensor(
+                                coordinator=coordinator,
+                                serial_no=sensor['SerialNo'],
+                                sensor_data=sensor,
+                                description=description,
+                            )
+                        )
+        if 'temperature' in panel_data:
+            for sensor in panel_data['temperature']:
+                for description in SENSOR_TYPES:
+                    if description.key in sensor:
+                        entities.append(
+                            SectorSensor(
+                                coordinator=coordinator,
+                                serial_no=sensor['SerialNo'],
+                                sensor_data=sensor,
+                                description=description,
+                            )
+                        )
 
-    if sensor_list:
-        async_add_entities(sensor_list)
+    async_add_entities(entities)
 
 
-class SectorAlarmTemperatureSensor(
-    CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity
-):
-    """Representation of a Sector temperature sensor."""
+class SectorSensor(CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity):
+    """Representation of a Sector Alarm sensor."""
 
-    _attr_has_entity_name = True
+    entity_description: SensorEntityDescription
 
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
+        serial_no: str,
+        sensor_data: dict,
         description: SensorEntityDescription,
-        panel_id: str,
-        serial: str,
     ) -> None:
-        """Initialize the temperature sensor."""
+        """Initiate the sensor."""
         super().__init__(coordinator)
-        self._panel_id = panel_id
-        self._serial = serial
+        self._serial_no = serial_no
+        self._sensor_data = sensor_data
         self.entity_description = description
-        self._attr_unique_id: str = f"sa_temp_{serial}"
-        self._attr_native_value = self.coordinator.data[panel_id]["temp"][
-            description.key
-        ].get("temperature")
+        self._attr_unique_id = f"sa_sensor_{serial_no}_{description.key}"
+        self._attr_native_value = self._sensor_data.get(description.key)
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_temp_{serial}")},
-            name=description.name,
+            identifiers={(DOMAIN, f"sa_sensor_{serial_no}")},
+            name=sensor_data.get("Label", f"Sensor {serial_no}"),
             manufacturer="Sector Alarm",
             model="Contact and Shock Detector",
             sw_version="master",
-            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+            via_device=(DOMAIN, f"sa_hub_{serial_no}"),
         )
-
-    @property
-    def extra_state_attributes(self) -> dict:
-        """Extra states for sensor."""
-        return {"Serial No": self._serial}
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        if (
-            temp := self.coordinator.data[self._panel_id]["temp"]
-            .get(self.entity_description.key, {})
-            .get("temperature")
-        ):
-            self._attr_native_value = temp
+        self._attr_native_value = self._sensor_data.get(self.entity_description.key)
         super()._handle_coordinator_update()
 
     @property
