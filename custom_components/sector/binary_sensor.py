@@ -60,6 +60,16 @@ async def async_setup_entry(
                     BinarySensorDeviceClass.MOISTURE,
                 )
             )
+        if "smoke_detected" in sensors:
+            entities.append(
+                SectorAlarmBinarySensor(
+                    coordinator,
+                    serial_no,
+                    "smoke_detected",
+                    device,
+                    BinarySensorDeviceClass.SMOKE,
+                )
+            )
 
     # Add panel online status sensor
     panel_status = coordinator.data.get("panel_status", {})
@@ -173,3 +183,14 @@ class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
     def available(self) -> bool:
         """Return True if entity is available."""
         return True
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        device_model = self._device_info.get("model", "Sensor")
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._serial_no)},
+            name=self._device_info["name"],
+            manufacturer="Sector Alarm",
+            model=device_model,
+        )

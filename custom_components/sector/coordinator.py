@@ -76,6 +76,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                         devices[serial_no]["sensors"]["temperature"] = float(component["Temperature"])
                                     if "LeakDetected" in component:
                                         devices[serial_no]["sensors"]["leak_detected"] = component["LeakDetected"]
+                                    if "SmokeDetected" in component:
+                                        devices[serial_no]["sensors"]["smoke_detected"] = component["SmokeDetected"]
                                 else:
                                     _LOGGER.warning(f"Component missing SerialNo: {component}")
 
@@ -131,6 +133,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                             "name": humidity_device.get("Label") or humidity_device.get("Name"),
                                             "serial_no": serial_no,
                                             "sensors": {},
+                                            "model": humidity_device.get("DeviceTypeName", "Humidity Sensor"),
                                         }
                                     humidity = humidity_device.get("Humidity")
                                     if humidity is not None:
@@ -148,6 +151,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     "name": humidity_device.get("Label") or humidity_device.get("Name"),
                                     "serial_no": serial_no,
                                     "sensors": {},
+                                    "model": component.get("DeviceTypeName", "Sensor"),
                                 }
                             humidity = humidity_device.get("Humidity")
                             if humidity is not None:

@@ -230,6 +230,22 @@ class SectorAlarmAPI:
             _LOGGER.error(f"Failed to turn off smart plug {plug_id}")
             return False
 
+    async def get_camera_image(self, serial_no):
+        """Retrieve the latest image from a camera."""
+        url = f"{self.API_URL}/api/camera/GetCameraImage"
+        payload = {
+            "PanelId": self.panel_id,
+            "SerialNo": serial_no,
+        }
+        response = await self._post(url, payload)
+        if response and response.get("ImageData"):
+            import base64
+            image_data = base64.b64decode(response["ImageData"])
+            return image_data
+        else:
+            _LOGGER.error(f"Failed to retrieve image for camera {serial_no}")
+            return None
+
     async def logout(self):
         """Logout from the API."""
         logout_url = f"{self.API_URL}/api/Login/Logout"

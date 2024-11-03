@@ -94,4 +94,15 @@ class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
         device = self.coordinator.data["devices"].get(self._serial_no)
         if device:
             value = device["sensors"].get(self._sensor_type)
-            retu
+            return value
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        device_model = self._device_info.get("model", "Sensor")
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._serial_no)},
+            name=self._device_info["name"],
+            manufacturer="Sector Alarm",
+            model=device_model,
+        )

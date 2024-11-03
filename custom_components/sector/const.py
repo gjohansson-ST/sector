@@ -1,7 +1,7 @@
 """Constants for the Sector Alarm integration."""
 
 DOMAIN = "sector_alarm"
-PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch"]
+PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch", "camera"]
 
 CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
