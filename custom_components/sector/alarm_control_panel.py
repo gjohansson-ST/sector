@@ -1,3 +1,4 @@
+# alarm_control_panel.py
 """Adds Alarm Panel for Sector integration."""
 from __future__ import annotations
 
@@ -55,7 +56,7 @@ class SectorAlarmPanel(
         super().__init__(coordinator)
         self._panel_id = panel_id
         self._displayname: str = self.coordinator.data[panel_id]["name"]
-        self._attr_unique_id = f"sa_panel_{panel_id}"
+        self._attr_unique_id = f"sa_panel_{self.coordinator.data[panel_id]['serial_no']}"
         self._attr_changed_by = self.coordinator.data[panel_id]["changed_by"]
         self._attr_supported_features = (
             AlarmControlPanelEntityFeature.ARM_HOME
@@ -67,10 +68,10 @@ class SectorAlarmPanel(
             self.coordinator.data[panel_id]["alarmstatus"]
         ]
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_panel_{panel_id}")},
-            name=f"Sector Alarmpanel {panel_id}",
+            identifiers={(DOMAIN, f"sa_device_{self.coordinator.data[panel_id]['serial_no']}")},
+            name=f"Sector Alarm Panel {panel_id}",
             manufacturer="Sector Alarm",
-            model="Alarmpanel",
+            model="Alarm Panel",
             sw_version="master",
             via_device=(DOMAIN, f"sa_hub_{panel_id}"),
         )
@@ -97,7 +98,7 @@ class SectorAlarmPanel(
         raise HomeAssistantError("No code provided or incorrect length")
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
-        """Arm alarm off."""
+        """Disarm alarm."""
         command = "disarm"
         if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
             await self.coordinator.triggeralarm(
