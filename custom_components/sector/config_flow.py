@@ -56,12 +56,12 @@ async def validate_input(
     """Validate the user input allows us to connect."""
     websession = async_get_clientsession(hass)
     login = await websession.post(
-        f"{API_URL}/Login/Login",
+        f"{API_URL}/api/Login/Login",
         headers={
             "API-Version": "6",
             "Platform": "iOS",
-            "User-Agent": "SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-            "Version": "2.0.20",
+            "User-Agent": "SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+            "Version": "2.0.27",
             "Connection": "keep-alive",
             "Content-Type": "application/json",
         },
@@ -89,13 +89,13 @@ async def validate_input(
 
     try:
         response = await websession.get(
-            f"{API_URL}/account/GetPanelList",
+            f"{API_URL}/api/account/GetPanelList",
             headers={
                 "Authorization": access_token,
                 "API-Version": "6",
                 "Platform": "iOS",
-                "User-Agent": "SectorAlarm/356 CFNetwork/1152.2 Darwin/19.4.0",
-                "Version": "2.0.20",
+                "User-Agent": "SectorAlarm/387 CFNetwork/1206 Darwin/20.1.0",
+                "Version": "2.0.27",
                 "Connection": "keep-alive",
                 "Content-Type": "application/json",
             },
@@ -187,7 +187,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await self.async_set_unique_id(username)
                 self._abort_if_unique_id_configured()
 
-                LOGGER.debug("Login succesful. Config entry created")
+                LOGGER.debug("Login successful. Config entry created")
                 return self.async_create_entry(
                     title=username,
                     data={
@@ -208,7 +208,7 @@ class SectorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SectorOptionFlow(config_entries.OptionsFlowWithConfigEntry):
-    """Handle a options config flow for Sector integration."""
+    """Handle an options config flow for Sector integration."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

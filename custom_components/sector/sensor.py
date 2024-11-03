@@ -33,6 +33,7 @@ async def async_setup_entry(
         if "temp" in panel_data:
             for sensor, sensor_data in panel_data["temp"].items():
                 name = sensor_data["name"]
+                serial = sensor_data["serial"]
                 description = SensorEntityDescription(
                     key=sensor,
                     name=name,
@@ -41,7 +42,7 @@ async def async_setup_entry(
                     device_class=SensorDeviceClass.TEMPERATURE,
                 )
                 sensor_list.append(
-                    SectorAlarmTemperatureSensor(coordinator, description, panel)
+                    SectorAlarmTemperatureSensor(coordinator, description, panel, serial)
                 )
 
     if sensor_list:
@@ -60,17 +61,19 @@ class SectorAlarmTemperatureSensor(
         coordinator: SectorDataUpdateCoordinator,
         description: SensorEntityDescription,
         panel_id: str,
+        serial: str,
     ) -> None:
         """Initialize Temp sensor."""
         super().__init__(coordinator)
         self._panel_id = panel_id
+        self._serial = serial
         self.entity_description = description
-        self._attr_unique_id: str = "sa_temp_" + str(description.key)
+        self._attr_unique_id: str = f"sa_temp_{serial}"
         self._attr_native_value = self.coordinator.data[panel_id]["temp"][
             description.key
         ].get("temperature")
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_temp_{description.key}")},
+            identifiers={(DOMAIN, f"sa_temp_{serial}")},
             name=description.name,
             manufacturer="Sector Alarm",
             model="Temperature",
@@ -81,7 +84,7 @@ class SectorAlarmTemperatureSensor(
     @property
     def extra_state_attributes(self) -> dict:
         """Extra states for sensor."""
-        return {"Serial No": self.entity_description.key}
+        return {"Serial No": self._serial}
 
     @callback
     def _handle_coordinator_update(self) -> None:

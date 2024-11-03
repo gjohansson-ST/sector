@@ -1,4 +1,3 @@
-# alarm_control_panel.py
 """Adds Alarm Panel for Sector integration."""
 from __future__ import annotations
 
@@ -55,9 +54,11 @@ class SectorAlarmPanel(
         """Initialize the Alarm panel."""
         super().__init__(coordinator)
         self._panel_id = panel_id
-        self._displayname: str = self.coordinator.data[panel_id]["name"]
-        self._attr_unique_id = f"sa_panel_{self.coordinator.data[panel_id]['serial_no']}"
-        self._attr_changed_by = self.coordinator.data[panel_id]["changed_by"]
+        panel_data = self.coordinator.data[panel_id]
+        self._serial_id = panel_data.get("serial_id")
+        self._displayname: str = panel_data["name"]
+        self._attr_unique_id = f"sa_panel_{self._serial_id}"
+        self._attr_changed_by = panel_data["changed_by"]
         self._attr_supported_features = (
             AlarmControlPanelEntityFeature.ARM_HOME
             | AlarmControlPanelEntityFeature.ARM_AWAY
@@ -65,15 +66,15 @@ class SectorAlarmPanel(
         self._attr_code_arm_required = True
         self._attr_code_format = CodeFormat.NUMBER
         self._attr_state = ALARM_STATE_TO_HA_STATE[
-            self.coordinator.data[panel_id]["alarmstatus"]
+            panel_data["alarmstatus"]
         ]
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_device_{self.coordinator.data[panel_id]['serial_no']}")},
-            name=f"Sector Alarm Panel {panel_id}",
+            identifiers={(DOMAIN, self._serial_id)},
+            name=f"Sector Alarmpanel {self._serial_id}",
             manufacturer="Sector Alarm",
-            model="Alarm Panel",
+            model="Alarmpanel",
             sw_version="master",
-            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+            via_device=(DOMAIN, self._serial_id),
         )
 
     @property
@@ -98,7 +99,7 @@ class SectorAlarmPanel(
         raise HomeAssistantError("No code provided or incorrect length")
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
-        """Disarm alarm."""
+        """Disarm the alarm."""
         command = "disarm"
         if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
             await self.coordinator.triggeralarm(
@@ -128,8 +129,9 @@ class SectorAlarmPanel(
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        self._attr_changed_by = self.coordinator.data[self._panel_id].get("changed_by")
-        if alarm_state := self.coordinator.data[self._panel_id].get("alarmstatus"):
+        panel_data = self.coordinator.data[self._panel_id]
+        self._attr_changed_by = panel_data.get("changed_by")
+        if alarm_state := panel_data.get("alarmstatus"):
             self._attr_state = ALARM_STATE_TO_HA_STATE[alarm_state]
         super()._handle_coordinator_update()
 

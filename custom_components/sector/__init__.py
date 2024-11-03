@@ -1,9 +1,8 @@
-# __init__.py
 """Sector Alarm integration for Home Assistant."""
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_CODE, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
@@ -26,13 +25,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.version = 2
 
     if entry.version == 2:
-        username = (
-            entry.data[CONF_USERNAME]
-            if entry.data.get(CONF_USERNAME)
-            else entry.data[CONF_USERID]
-        )
         new_data2 = {
-            CONF_USERNAME: username,
+            CONF_USERNAME: entry.data[CONF_USERNAME],
             CONF_PASSWORD: entry.data[CONF_PASSWORD],
             CONF_TEMP: entry.data[CONF_TEMP],
         }
@@ -43,8 +37,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             entry,
             data=new_data2,
             options=new_options2,
-            title=username,
-            unique_id=username,
+            title=entry.data[CONF_USERNAME],
+            unique_id=entry.data[CONF_USERNAME],
         ):
             entry.version = 3
             LOGGER.info("Migration to version %s successful", entry.version)
@@ -62,21 +56,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    for key, device_data in coordinator.data.items():
+    for key, panel_data in coordinator.data.items():
+        serial_id = panel_data.get("serial_id")
+        if not serial_id:
+            LOGGER.error("No serial_id found for panel %s, skipping device registration.", key)
+            continue
+
         device_registry = dr.async_get(hass)
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, f"sa_device_{device_data['serial_no']}")},
+            identifiers={(DOMAIN, serial_id)},
             manufacturer="Sector Alarm",
-            name=device_data['name'],
-            model=device_data['model'],
+            name=panel_data["name"],
+            model="Hub",
             sw_version="master",
         )
 
-    if entry.options.get(CONF_CODE):
-        new_options = entry.options.copy()
-        new_options.pop(CONF_CODE)
-        hass.config_entries.async_update_entry(entry, options=new_options)
     if entry.options.get(UPDATE_INTERVAL):
         new_options = entry.options.copy()
         new_options.pop(UPDATE_INTERVAL)
