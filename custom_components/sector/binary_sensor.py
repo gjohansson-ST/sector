@@ -89,6 +89,10 @@ async def async_setup_entry(
     else:
         _LOGGER.debug("No binary sensor entities to add.")
 
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload binary_sensor entry."""
+    return True
+
 
 class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """Representation of a Sector Alarm binary sensor."""
