@@ -43,8 +43,10 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
         """Initialize the control panel."""
         super().__init__(coordinator)
+        panel_status = coordinator.data.get("panel_status", {})
+        self._serial_no = panel_status.get("SerialNo") or coordinator.entry.data.get("panel_id")
+        self._attr_unique_id = f"{self._serial_no}_alarm_panel"
         self._attr_name = "Sector Alarm Panel"
-        self._attr_unique_id = f"{coordinator.entry.entry_id}_alarm_panel"
         _LOGGER.debug(f"Initialized alarm control panel with unique_id: {self._attr_unique_id}")
 
     @property
@@ -88,7 +90,7 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     def device_info(self) -> DeviceInfo:
         """Return device info."""
         return DeviceInfo(
-            identifiers={(DOMAIN, "sector_alarm_panel")},
+            identifiers={(DOMAIN, self._serial_no)},
             name="Sector Alarm Panel",
             manufacturer="Sector Alarm",
             model="Alarm Panel",
