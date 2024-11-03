@@ -54,6 +54,16 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator[dict[str, any]]):
                 )
                 response.raise_for_status()
                 data = await response.json()
+
+                # Add contact and shock detector data processing
+                contact_shock_response = await self.websession.get(
+                    f"{API_URL}/api/v2/housecheck/doorsandwindows",
+                    headers=headers,
+                )
+                contact_shock_response.raise_for_status()
+                contact_shock_data = await contact_shock_response.json()
+                data["contact_shock_sensors"] = contact_shock_data
+
                 return data
         except Exception as err:
             raise UpdateFailed(f"Error fetching data: {err}")

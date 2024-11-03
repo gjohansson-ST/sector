@@ -10,8 +10,8 @@ API_URL = "https://mypagesapi.sectoralarm.net"
 CONF_PANEL_ID = "panel_id"
 CONF_PANEL_CODE = "panel_code"
 CONF_CODE_FORMAT = "code_format"
-
-CONF_TEMP = "temperature_setting"
+CONF_TEMP = "temp"
+MIN_SCAN_INTERVAL = 60
 
 UPDATE_INTERVAL = 60
 
