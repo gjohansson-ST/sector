@@ -1,9 +1,25 @@
-"""Constants for Sector Alarm integration."""
-DOMAIN = "sector_alarm"
-UPDATE_INTERVAL = 5  # minutes
-PLATFORMS = ["alarm_control_panel"]
-LOGGER = "sector_alarm"
-CONF_USERID = "user_id"
-CONF_TEMP = "temperature"
+# const.py
+"""Constants for the Sector Alarm integration."""
+
+DOMAIN = "sector"
+API_URL = "https://api.sectoralarm.com"
+
 CONF_CODE_FORMAT = "code_format"
-CONF_CODE = "code"
+CONF_TEMP = "temperature_setting"
+
+LOGGER_NAME = "custom_components.sector"
+
+DEFAULT_CODE_FORMAT = 6
+PLATFORMS = ["lock", "alarm_control_panel", "sensor", "binary_sensor"]
+
+# Device Types
+DEVICE_TYPE_SMOKE_DETECTOR = "SmokeDetectorSync"
+DEVICE_TYPE_CAMERA = "CameraPIR"
+DEVICE_TYPE_VIBRATION_SENSOR = "VibrationSensor"
+DEVICE_TYPE_KEYPAD = "Keypad"
+DEVICE_TYPE_DOOR_WINDOW_SENSOR = "DoorWindowSensor"
+
+# Alarm Constants
+ARM_HOME = "arm_home"
+ARM_AWAY = "arm_away"
+DISARM = "disarm"
