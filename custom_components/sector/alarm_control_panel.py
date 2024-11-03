@@ -20,7 +20,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
-_LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -47,42 +47,36 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
         self._serial_no = panel_status.get("SerialNo") or coordinator.entry.data.get("panel_id")
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
         self._attr_name = "Sector Alarm Panel"
-        _LOGGER.debug(f"Initialized alarm control panel with unique_id: {self._attr_unique_id}")
+        LOGGER.debug(f"Initialized alarm control panel with unique_id: {self._attr_unique_id}")
 
     @property
     def state(self):
         """Return the state of the device."""
         status = self.coordinator.data.get("panel_status", {})
-        status_code = status.get("Status")
-        if status_code == 3:
-            return STATE_ALARM_ARMED_AWAY
-        elif status_code == 2:
-            return STATE_ALARM_ARMED_HOME
-        elif status_code == 1:
+        status_code = status.get("ArmedStatus")
+        if status_code == "Disarmed":
             return STATE_ALARM_DISARMED
+        elif status_code == "PartiallyArmed":
+            return STATE_ALARM_ARMED_HOME
+        elif status_code == "Armed":
+            return STATE_ALARM_ARMED_AWAY
         return None
 
     async def async_alarm_arm_away(self, code=None):
         """Send arm away command."""
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.arm_system, "full"
-        )
+        success = await self.coordinator.api.arm_system("total")
         if success:
             await self.coordinator.async_request_refresh()
 
     async def async_alarm_arm_home(self, code=None):
         """Send arm home command."""
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.arm_system, "partial"
-        )
+        success = await self.coordinator.api.arm_system("partial")
         if success:
             await self.coordinator.async_request_refresh()
 
     async def async_alarm_disarm(self, code=None):
         """Send disarm command."""
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.disarm_system
-        )
+        success = await self.coordinator.api.disarm_system()
         if success:
             await self.coordinator.async_request_refresh()
 

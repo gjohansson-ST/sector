@@ -1,11 +1,9 @@
 """Sector Alarm coordinator."""
 from __future__ import annotations
 
-import logging
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -15,9 +13,9 @@ from .const import (
     CONF_PANEL_ID,
     DOMAIN,
     LOGGER,
+    CONF_EMAIL,
+    CONF_PASSWORD,
 )
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
@@ -44,17 +42,16 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Fetch data from Sector Alarm API."""
         try:
             await self.api.login()
-            data = await self.hass.async_add_executor_job(self.api.retrieve_all_data)
+            data = await self.api.retrieve_all_data()
 
-            # Parse data and extract devices using SerialNo as unique identifiers
             devices = {}
-            locks = data.get("Lock Status", [])
-            panels = data.get("Panel Status", {})
             logs = data.get("Logs", [])
+            panel_status = data.get("Panel Status", {})
+            locks_data = data.get("Lock Status", [])
 
             # Process devices from different categories
             for category_name, category_data in data.items():
-                if category_name in ["Doors and Windows", "Smoke Detectors", "Temperatures", "Humidity"]:
+                if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors"]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
                             for component in place.get("Components", []):
@@ -76,21 +73,54 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     if "Temperature" in component and component["Temperature"]:
                                         devices[serial_no]["sensors"]["temperature"] = float(component["Temperature"])
                                 else:
-                                    _LOGGER.warning(f"Component missing SerialNo: {component}")
+                                    LOGGER.warning(f"Component missing SerialNo: {component}")
+
+                elif category_name == "Temperatures":
+                    for temp_device in category_data:
+                        serial_no = str(temp_device.get("DeviceId") or temp_device.get("SerialNo"))
+                        if serial_no:
+                            if serial_no not in devices:
+                                devices[serial_no] = {
+                                    "name": temp_device.get("Label") or temp_device.get("Name"),
+                                    "serial_no": serial_no,
+                                    "sensors": {},
+                                }
+                            temperature = temp_device.get("Temperature")
+                            if temperature:
+                                devices[serial_no]["sensors"]["temperature"] = float(temperature)
+                        else:
+                            LOGGER.warning(f"Temperature device missing SerialNo: {temp_device}")
+
+                elif category_name == "Humidity":
+                    for humidity_device in category_data:
+                        serial_no = str(humidity_device.get("DeviceId") or humidity_device.get("SerialNo"))
+                        if serial_no:
+                            if serial_no not in devices:
+                                devices[serial_no] = {
+                                    "name": humidity_device.get("Label") or humidity_device.get("Name"),
+                                    "serial_no": serial_no,
+                                    "sensors": {},
+                                }
+                            humidity = humidity_device.get("Humidity")
+                            if humidity:
+                                devices[serial_no]["sensors"]["humidity"] = float(humidity)
+                        else:
+                            LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
 
             # Process locks
-            locks_data = []
-            for lock in locks:
-                locks_data.append(lock)
+            locks = []
+            for lock in locks_data:
+                locks.append(lock)
 
             return {
                 "devices": devices,
-                "locks": locks_data,
-                "panel_status": panels,
+                "locks": locks,
+                "panel_status": panel_status,
                 "logs": logs,
             }
 
         except AuthenticationError as error:
             raise UpdateFailed(f"Authentication failed: {error}") from error
         except Exception as error:
+            LOGGER.exception("Failed to update data")
             raise UpdateFailed(f"Failed to update data: {error}") from error

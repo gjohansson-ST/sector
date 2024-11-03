@@ -8,7 +8,7 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import callback
 
 from .client import SectorAlarmAPI, AuthenticationError
-from .const import CONF_PANEL_CODE, CONF_PANEL_ID, DOMAIN
+from .const import CONF_PANEL_CODE, CONF_PANEL_ID, DOMAIN, LOGGER
 
 
 class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -27,8 +27,9 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             api = SectorAlarmAPI(email, password, panel_id, panel_code)
             try:
-                await self.hass.async_add_executor_job(api.login)
-                await self.hass.async_add_executor_job(api.retrieve_all_data)
+                await api.login()
+                await api.retrieve_all_data()
+                await api.close()
                 return self.async_create_entry(
                     title="Sector Alarm",
                     data={
@@ -40,8 +41,11 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except AuthenticationError:
                 errors["base"] = "authentication_failed"
-            except Exception:
+            except Exception as e:
                 errors["base"] = "unknown_error"
+                LOGGER.exception("Unexpected exception during authentication: %s", e)
+            finally:
+                await api.close()
 
         data_schema = vol.Schema(
             {

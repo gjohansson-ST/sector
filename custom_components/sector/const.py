@@ -10,6 +10,8 @@ LOGGER = logging.getLogger(__package__)
 
 CONF_PANEL_ID = "panel_id"
 CONF_PANEL_CODE = "panel_code"
+CONF_EMAIL = "email"
+CONF_PASSWORD = "password"
 
 PLATFORMS = [
     Platform.ALARM_CONTROL_PANEL,

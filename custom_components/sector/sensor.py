@@ -17,7 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
-_LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -64,7 +64,7 @@ async def async_setup_entry(
     if entities:
         async_add_entities(entities)
     else:
-        _LOGGER.debug("No sensor entities to add.")
+        LOGGER.debug("No sensor entities to add.")
 
 
 class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
@@ -86,7 +86,7 @@ class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
         self._device_info = device_info
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
         self._attr_name = f"{device_info['name']} {sensor_type.capitalize()}"
-        _LOGGER.debug(f"Initialized sensor with unique_id: {self._attr_unique_id}")
+        LOGGER.debug(f"Initialized sensor with unique_id: {self._attr_unique_id}")
 
     @property
     def native_value(self):

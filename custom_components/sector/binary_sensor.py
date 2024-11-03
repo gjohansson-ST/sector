@@ -15,7 +15,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
-_LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -26,7 +26,6 @@ async def async_setup_entry(
     devices = coordinator.data.get("devices", {})
     entities = []
 
-    # Add device sensors
     for device in devices.values():
         serial_no = device["serial_no"]
         sensors = device.get("sensors", {})
@@ -47,11 +46,21 @@ async def async_setup_entry(
                     BinarySensorDeviceClass.BATTERY,
                 )
             )
+        if "leak_detected" in sensors:
+            entities.append(
+                SectorAlarmBinarySensor(
+                    coordinator,
+                    serial_no,
+                    "leak_detected",
+                    device,
+                    BinarySensorDeviceClass.MOISTURE,
+                )
+            )
 
     # Add panel online status sensor
     panel_status = coordinator.data.get("panel_status", {})
     panel_id = coordinator.entry.data.get("panel_id")
-    serial_no = panel_status.get("SerialNo") or panel_id  # Use panel_id if SerialNo not available
+    serial_no = panel_status.get("SerialNo") or panel_id
     entities.append(
         SectorAlarmPanelOnlineBinarySensor(
             coordinator,
@@ -64,7 +73,7 @@ async def async_setup_entry(
     if entities:
         async_add_entities(entities)
     else:
-        _LOGGER.debug("No binary sensor entities to add.")
+        LOGGER.debug("No binary sensor entities to add.")
 
 
 class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -86,7 +95,7 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
         self._attr_name = f"{device_info['name']} {sensor_type.replace('_', ' ').capitalize()}"
         self._attr_device_class = device_class
-        _LOGGER.debug(f"Initialized binary sensor with unique_id: {self._attr_unique_id}")
+        LOGGER.debug(f"Initialized binary sensor with unique_id: {self._attr_unique_id}")
 
     @property
     def is_on(self):
@@ -132,7 +141,7 @@ class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
         self._attr_name = "Panel Online"
         self._attr_device_class = device_class
-        _LOGGER.debug(f"Initialized panel online sensor with unique_id: {self._attr_unique_id}")
+        LOGGER.debug(f"Initialized panel online sensor with unique_id: {self._attr_unique_id}")
 
     @property
     def is_on(self):
