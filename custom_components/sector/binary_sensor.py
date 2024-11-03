@@ -142,39 +142,52 @@ class SectorBinarySensor(
         self._panel_id = panel_id
         self._sensor_id = sensor_id
         self._lock_id = lock_id
+        panel_data = self.coordinator.data[panel_id]
+        self._serial_id = panel_data.get("serial_id")
         self.entity_description = description
-        self._attr_unique_id = f"sa_bs_{panel_id}_{sensor_id or lock_id or 'panel'}"
+        self._attr_unique_id = (
+            f"sa_bs_{self._serial_id}_{str(lock_id)}" if lock_id else f"sa_bs_{self._serial_id}"
+        )
         self._attr_is_on = autolock if lock_id else False
-        self._attr_name = name
-        self._attr_device_info = device_info
+        if lock_id:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, f"{self._serial_id}_{lock_id}")},
+                manufacturer="Sector Alarm",
+                model="Lock",
+                sw_version="master",
+                via_device=(DOMAIN, self._serial_id),
+            )
+        else:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, self._serial_id)},
+                name=f"Sector Alarmpanel {self._serial_id}",
+                manufacturer="Sector Alarm",
+                model="Alarmpanel",
+                sw_version="master",
+                via_device=(DOMAIN, self._serial_id),
+            )
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         data = self.coordinator.data[self._panel_id]
 
-        # Handle updates for door and window sensors
-        if self._sensor_id:
-            door_window_data = self.coordinator.data[self._panel_id]["doors_and_windows"].get(
-                self._sensor_id, {}
-            )
-            if self.entity_description.key == "closed":
-                self._attr_is_on = door_window_data.get("Closed", True)
-            elif self.entity_description.key == "low_battery":
-                self._attr_is_on = door_window_data.get("LowBattery", False)
+        if active := data.get(self.entity_description.key):
+            self._attr_is_on = active
 
-        # Handle panel-level sensors
+        if self.entity_description.key == "closed":
+            self._attr_is_on = data.get("Closed", True)
+        elif self.entity_description.key == "low_battery":
+            self._attr_is_on = data.get("LowBattery", False)
         elif self.entity_description.key == "online":
             self._attr_is_on = data.get("online")
         elif self.entity_description.key == "arm_ready":
             self._attr_is_on = data.get("arm_ready")
 
-        # Handle lock sensors
-        if self._lock_id:
-            if locks := data.get("lock"):
-                lock_data = locks.get(self._lock_id)
-                if lock_data:
-                    self._attr_is_on = lock_data.get("autolock", False)
+        if locks := data.get("lock"):
+            for lock, lock_data in locks.items():
+                if lock == self._lock_id:
+                    self._attr_is_on = lock_data["autolock"]
 
         super()._handle_coordinator_update()
 
