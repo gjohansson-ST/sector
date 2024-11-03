@@ -5,7 +5,7 @@ import logging
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import DeviceClass
+from homeassistant.const import DEVICE_CLASS_OUTLET
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -21,14 +21,11 @@ async def async_setup_entry(
 ):
     """Set up Sector Alarm switches."""
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    devices = coordinator.data.get("devices", {})
+    switches_data = coordinator.data.get("Smartplug Status", [])
     entities = []
 
-    for device in devices.values():
-        serial_no = device["serial_no"]
-        sensors = device.get("sensors", {})
-        if "smartplug_state" in sensors:
-            entities.append(SectorAlarmSwitch(coordinator, serial_no, device))
+    for plug in switches_data:
+        entities.append(SectorAlarmSwitch(coordinator, plug))
 
     if entities:
         async_add_entities(entities)
@@ -39,36 +36,37 @@ async def async_setup_entry(
 class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
     """Representation of a Sector Alarm smart plug."""
 
-    _attr_device_class = DeviceClass.OUTLET
+    _attr_device_class = DEVICE_CLASS_OUTLET
 
     def __init__(
-        self, coordinator: SectorDataUpdateCoordinator, serial_no: str, device_info: dict
+        self, coordinator: SectorDataUpdateCoordinator, plug_data: dict
     ) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)
-        self._serial_no = serial_no
-        self._device_info = device_info
-        self._attr_unique_id = f"{serial_no}_switch"
-        self._attr_name = device_info.get("name", "Sector Smart Plug")
+        self._plug_data = plug_data
+        self._id = plug_data.get("Id")
+        self._serial_no = plug_data.get("SerialNo") or plug_data.get("Serial")
+        self._attr_unique_id = f"{self._serial_no}_switch"
+        self._attr_name = plug_data.get("Label", "Sector Smart Plug")
         LOGGER.debug(f"Initialized switch with unique_id: {self._attr_unique_id}")
 
     @property
     def is_on(self):
         """Return true if the switch is on."""
-        device = self.coordinator.data["devices"].get(self._serial_no)
-        if device:
-            return device["sensors"].get("smartplug_state", False)
+        for plug in self.coordinator.data.get("Smartplug Status", []):
+            if plug.get("Id") == self._id:
+                return plug.get("State") == "On"
         return False
 
     async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
-        success = await self.coordinator.api.turn_on_smartplug(self._serial_no)
+        success = await self.coordinator.api.turn_on_smartplug(self._id)
         if success:
             await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
-        success = await self.coordinator.api.turn_off_smartplug(self._serial_no)
+        success = await self.coordinator.api.turn_off_smartplug(self._id)
         if success:
             await self.coordinator.async_request_refresh()
 

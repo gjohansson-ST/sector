@@ -187,6 +187,37 @@ class SectorAlarmAPI:
             LOGGER.error(f"Failed to unlock door {serial_no}")
             return False
 
+    async def turn_on_smartplug(self, plug_id):
+        """Turn on a smart plug."""
+        url = f"{self.API_URL}/api/Panel/TurnOnSmartplug"
+        payload = {
+            "PanelId": self.panel_id,
+            "DeviceId": plug_id,
+        }
+        result = await self._post(url, payload)
+        if result is not None:
+            LOGGER.debug(f"Smart plug {plug_id} turned on successfully")
+            return True
+        else:
+            LOGGER.error(f"Failed to turn on smart plug {plug_id}")
+            return False
+
+    async def turn_off_smartplug(self, plug_id):
+        """Turn off a smart plug."""
+        url = f"{self.API_URL}/api/Panel/TurnOffSmartplug"
+        payload = {
+            "PanelId": self.panel_id,
+            "DeviceId": plug_id,
+        }
+        result = await self._post(url, payload)
+        if result is not None:
+            LOGGER.debug(f"Smart plug {plug_id} turned off successfully")
+            return True
+        else:
+            LOGGER.error(f"Failed to turn off smart plug {plug_id}")
+            return False
+
+
     async def logout(self):
         """Logout from the API."""
         logout_url = f"{self.API_URL}/api/Login/Logout"

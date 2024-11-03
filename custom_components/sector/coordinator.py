@@ -92,7 +92,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             LOGGER.warning(f"Temperature device missing SerialNo: {temp_device}")
 
                 elif category_name == "Humidity":
-                    for humidity_device in category_data:
+                    LOGGER.debug(f"Humidity data received: {category_data}")
+                    if isinstance(category_data, dict):
+                        # Process as a dictionary
+                        humidity_device = category_data
                         serial_no = str(humidity_device.get("DeviceId") or humidity_device.get("SerialNo"))
                         if serial_no:
                             if serial_no not in devices:
@@ -102,10 +105,28 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     "sensors": {},
                                 }
                             humidity = humidity_device.get("Humidity")
-                            if humidity:
+                            if humidity is not None:
                                 devices[serial_no]["sensors"]["humidity"] = float(humidity)
                         else:
                             LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
+                    elif isinstance(category_data, list):
+                        # Process as a list
+                        for humidity_device in category_data:
+                            serial_no = str(humidity_device.get("DeviceId") or humidity_device.get("SerialNo"))
+                            if serial_no:
+                                if serial_no not in devices:
+                                    devices[serial_no] = {
+                                        "name": humidity_device.get("Label") or humidity_device.get("Name"),
+                                        "serial_no": serial_no,
+                                        "sensors": {},
+                                    }
+                                humidity = humidity_device.get("Humidity")
+                                if humidity is not None:
+                                    devices[serial_no]["sensors"]["humidity"] = float(humidity)
+                            else:
+                                LOGGER.warning(f"Humidity device missing SerialNo: {humidity_device}")
+                    else:
+                        LOGGER.error(f"Unexpected data format for Humidity: {category_data}")
 
             # Process locks
             locks = []

@@ -43,7 +43,7 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
         """Initialize the control panel."""
         super().__init__(coordinator)
-        panel_status = coordinator.data.get("panel_status", {})
+        panel_status = coordinator.data.get("Panel Status", {})
         self._serial_no = panel_status.get("SerialNo") or coordinator.entry.data.get("panel_id")
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
         self._attr_name = "Sector Alarm Panel"
@@ -52,8 +52,8 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     @property
     def state(self):
         """Return the state of the device."""
-        status = self.coordinator.data.get("panel_status", {})
-        status_code = status.get("ArmedStatus")
+        status = self.coordinator.data.get("Panel Status", {})
+        status_code = status.get("ArmingState")
         if status_code == "Disarmed":
             return STATE_ALARM_DISARMED
         elif status_code == "PartiallyArmed":
