@@ -1,6 +1,8 @@
 """Alarm Control Panel for Sector Alarm integration."""
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
@@ -8,6 +10,7 @@ from homeassistant.components.alarm_control_panel import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
+    STATE_ALARM_ARMED_HOME,
     STATE_ALARM_DISARMED,
 )
 from homeassistant.core import HomeAssistant
@@ -16,6 +19,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -29,13 +34,18 @@ async def async_setup_entry(
 class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     """Representation of the Sector Alarm control panel."""
 
-    _attr_supported_features = AlarmControlPanelEntityFeature.ARM_AWAY | AlarmControlPanelEntityFeature.ARM_HOME
+    _attr_supported_features = (
+        AlarmControlPanelEntityFeature.ARM_AWAY
+        | AlarmControlPanelEntityFeature.ARM_HOME
+        | AlarmControlPanelEntityFeature.DISARM
+    )
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
         """Initialize the control panel."""
         super().__init__(coordinator)
         self._attr_name = "Sector Alarm Panel"
         self._attr_unique_id = f"{coordinator.entry.entry_id}_alarm_panel"
+        _LOGGER.debug(f"Initialized alarm control panel with unique_id: {self._attr_unique_id}")
 
     @property
     def state(self):
@@ -53,7 +63,7 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     async def async_alarm_arm_away(self, code=None):
         """Send arm away command."""
         success = await self.hass.async_add_executor_job(
-            self.coordinator.api.actions_manager.arm_system, "full"
+            self.coordinator.api.arm_system, "full"
         )
         if success:
             await self.coordinator.async_request_refresh()
@@ -61,7 +71,7 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     async def async_alarm_arm_home(self, code=None):
         """Send arm home command."""
         success = await self.hass.async_add_executor_job(
-            self.coordinator.api.actions_manager.arm_system, "partial"
+            self.coordinator.api.arm_system, "partial"
         )
         if success:
             await self.coordinator.async_request_refresh()
@@ -69,7 +79,7 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     async def async_alarm_disarm(self, code=None):
         """Send disarm command."""
         success = await self.hass.async_add_executor_job(
-            self.coordinator.api.actions_manager.disarm_system
+            self.coordinator.api.disarm_system
         )
         if success:
             await self.coordinator.async_request_refresh()

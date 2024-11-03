@@ -1,6 +1,7 @@
 """Sector Alarm coordinator."""
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
@@ -15,6 +16,8 @@ from .const import (
     DOMAIN,
     LOGGER,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
@@ -68,10 +71,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                         devices[serial_no]["sensors"]["closed"] = component["Closed"]
                                     if "LowBattery" in component:
                                         devices[serial_no]["sensors"]["low_battery"] = component["LowBattery"]
-                                    if "Humidity" in component:
-                                        devices[serial_no]["sensors"]["humidity"] = component["Humidity"]
-                                    if "Temperature" in component:
-                                        devices[serial_no]["sensors"]["temperature"] = component["Temperature"]
+                                    if "Humidity" in component and component["Humidity"]:
+                                        devices[serial_no]["sensors"]["humidity"] = float(component["Humidity"])
+                                    if "Temperature" in component and component["Temperature"]:
+                                        devices[serial_no]["sensors"]["temperature"] = float(component["Temperature"])
+                                else:
+                                    _LOGGER.warning(f"Component missing SerialNo: {component}")
 
             # Process locks
             locks_data = []
@@ -87,3 +92,5 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
         except AuthenticationError as error:
             raise UpdateFailed(f"Authentication failed: {error}") from error
+        except Exception as error:
+            raise UpdateFailed(f"Failed to update data: {error}") from error

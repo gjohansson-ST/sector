@@ -1,6 +1,8 @@
 """Sensor platform for Sector Alarm integration."""
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -14,6 +16,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -57,7 +61,10 @@ async def async_setup_entry(
                 )
             )
 
-    async_add_entities(entities)
+    if entities:
+        async_add_entities(entities)
+    else:
+        _LOGGER.debug("No sensor entities to add.")
 
 
 class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
@@ -79,16 +86,15 @@ class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
         self._device_info = device_info
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
         self._attr_name = f"{device_info['name']} {sensor_type.capitalize()}"
+        _LOGGER.debug(f"Initialized sensor with unique_id: {self._attr_unique_id}")
 
     @property
     def native_value(self):
         """Return the sensor value."""
-        value = self._device_info["sensors"].get(self._sensor_type)
-        if value is not None:
-            try:
-                return float(value)
-            except ValueError:
-                return None
+        device = self.coordinator.data["devices"].get(self._serial_no)
+        if device:
+            value = device["sensors"].get(self._sensor_type)
+            return value
         return None
 
     @property

@@ -1,6 +1,8 @@
 """Binary sensor platform for Sector Alarm integration."""
 from __future__ import annotations
 
+import logging
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -13,6 +15,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -44,7 +48,10 @@ async def async_setup_entry(
                 )
             )
 
-    async_add_entities(entities)
+    if entities:
+        async_add_entities(entities)
+    else:
+        _LOGGER.debug("No binary sensor entities to add.")
 
 
 class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -66,14 +73,18 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
         self._attr_name = f"{device_info['name']} {sensor_type.capitalize()}"
         self._attr_device_class = device_class
+        _LOGGER.debug(f"Initialized binary sensor with unique_id: {self._attr_unique_id}")
 
     @property
     def is_on(self):
         """Return true if the sensor is on."""
-        sensor_value = self._device_info["sensors"].get(self._sensor_type)
-        if self._sensor_type == "closed":
-            return not sensor_value  # Invert because "Closed": true means door is closed
-        return sensor_value
+        device = self.coordinator.data["devices"].get(self._serial_no)
+        if device:
+            sensor_value = device["sensors"].get(self._sensor_type)
+            if self._sensor_type == "closed":
+                return not sensor_value  # Invert because "Closed": true means door is closed
+            return sensor_value
+        return False
 
     @property
     def device_info(self) -> DeviceInfo:

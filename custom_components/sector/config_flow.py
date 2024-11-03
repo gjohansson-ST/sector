@@ -28,6 +28,7 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             api = SectorAlarmAPI(email, password, panel_id, panel_code)
             try:
                 await self.hass.async_add_executor_job(api.login)
+                await self.hass.async_add_executor_job(api.retrieve_all_data)
                 return self.async_create_entry(
                     title="Sector Alarm",
                     data={
@@ -39,6 +40,8 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             except AuthenticationError:
                 errors["base"] = "authentication_failed"
+            except Exception:
+                errors["base"] = "unknown_error"
 
         data_schema = vol.Schema(
             {
