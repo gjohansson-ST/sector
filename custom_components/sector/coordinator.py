@@ -75,7 +75,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             for category_name, category_data in data.items():
                 _LOGGER.debug(f"Processing category: {category_name}")
                 model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
-                if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors", "Cameras"]:
+                if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors", "Cameras", "Keypad"]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
                             for component in place.get("Components", []):
@@ -102,18 +102,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     # Add sensors based on component data
                                     if "Closed" in component:
                                         devices[serial_no]["sensors"]["closed"] = component["Closed"]
-
-                                    # Unified check for BatteryLow and LowBattery fields
-                                    low_battery_value = component.get("LowBattery")
-                                    if low_battery_value is None:  # If not present, try BatteryLow
-                                        low_battery_value = component.get("BatteryLow")
-                                        # Register low_battery if found
-                                        if low_battery_value is not None:
-                                            devices[serial_no]["sensors"]["low_battery"] = low_battery_value
-                                            _LOGGER.debug(f"Assigned low_battery sensor for device {serial_no} (type '{device_type}') with value {low_battery_value}")
-                                        else:
-                                            _LOGGER.warning(f"No LowBattery or BatteryLow found for device {serial_no} of type '{device_type}'")
-
+                                    low_battery_value = component.get("LowBattery", component.get("BatteryLow"))
+                                    if low_battery_value is not None:
+                                        devices[serial_no]["sensors"]["low_battery"] = low_battery_value
+                                        _LOGGER.debug(f"Assigned low_battery sensor for device {serial_no} with value {low_battery_value}")
+                                    else:
+                                        _LOGGER.warning(f"No LowBattery or BatteryLow found for device {serial_no} of type '{device_type}'")
                                     if "Humidity" in component and component["Humidity"]:
                                         devices[serial_no]["sensors"]["humidity"] = float(component["Humidity"])
                                     if "Temperature" in component and component["Temperature"]:
@@ -157,6 +151,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                             _LOGGER.debug(f"Stored temperature {temperature} for device {serial_no}")
                                         else:
                                             _LOGGER.debug(f"No temperature value for device {serial_no}")
+                                        low_battery_value = component.get("LowBattery", component.get("BatteryLow"))
+                                        if low_battery_value is not None:
+                                            devices[serial_no]["sensors"]["low_battery"] = low_battery_value
+                                            _LOGGER.debug(f"Assigned low_battery sensor for device {serial_no} with value {low_battery_value}")
+                                        else:
+                                            _LOGGER.warning(f"No LowBattery or BatteryLow found for device {serial_no} of type '{device_type}'")
+
                                     else:
                                         _LOGGER.warning(f"Component missing SerialNo: {component}")
                     else:
