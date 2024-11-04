@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, CATEGORY_MODEL_MAPPING
 from .coordinator import SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,6 +29,9 @@ async def async_setup_entry(
     for device in devices.values():
         serial_no = device["serial_no"]
         sensors = device.get("sensors", {})
+        device_type = device.get("type", "")
+
+        model = device.get("model", CATEGORY_MODEL_MAPPING.get(device.get("model"), "Sensor"))
 
         if "closed" in sensors:
             entities.append(
@@ -38,7 +41,8 @@ async def async_setup_entry(
                     "closed",
                     device,
                     BinarySensorDeviceClass.DOOR,
-                )
+                ),
+                model=model
             )
         if "low_battery" in sensors:
             entities.append(
@@ -48,7 +52,8 @@ async def async_setup_entry(
                     "low_battery",
                     device,
                     BinarySensorDeviceClass.BATTERY,
-                )
+                ),
+                model=model
             )
         if "leak_detected" in sensors:
             entities.append(
@@ -58,7 +63,8 @@ async def async_setup_entry(
                     "leak_detected",
                     device,
                     BinarySensorDeviceClass.MOISTURE,
-                )
+                ),
+                model=model
             )
         if "alarm" in sensors:
             entities.append(
@@ -68,7 +74,8 @@ async def async_setup_entry(
                     "alarm",
                     device,
                     BinarySensorDeviceClass.SAFETY,
-                )
+                ),
+                model=model
             )
 
     # Add panel online status sensor
