@@ -91,7 +91,7 @@ async def async_setup_entry(
         _LOGGER.debug("No sensor entities to add.")
 
 
-class SectorAlarmSensor(CoordinatorEntity, SensorEntity):
+class SectorAlarmSensor(CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity):
     """Representation of a Sector Alarm sensor."""
 
     def __init__(

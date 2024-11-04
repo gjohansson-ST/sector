@@ -34,7 +34,7 @@ async def async_setup_entry(
         _LOGGER.debug("No lock entities to add.")
 
 
-class SectorAlarmLock(CoordinatorEntity, LockEntity):
+class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity):
     """Representation of a Sector Alarm lock."""
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator, device_info: dict):
