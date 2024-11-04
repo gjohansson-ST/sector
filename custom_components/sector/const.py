@@ -1,6 +1,6 @@
 """Constants for the Sector Alarm integration."""
 
-DOMAIN = "sector_alarm"
+DOMAIN = "sector"
 PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch", "camera"]
 
 CATEGORY_MODEL_MAPPING = {
