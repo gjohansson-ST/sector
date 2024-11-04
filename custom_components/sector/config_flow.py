@@ -7,6 +7,11 @@ import logging
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .const import CONF_PANEL_CODE, CONF_PANEL_ID, DOMAIN
 
@@ -35,8 +40,14 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 await api.login()
                 await api.retrieve_all_data()
+            except AuthenticationError:
+                errors["base"] = "authentication_failed"
+            except Exception as e:
+                errors["base"] = "unknown_error"
+                _LOGGER.exception("Unexpected exception during authentication: %s", e)
+            else:
                 return self.async_create_entry(
-                    title="Sector Alarm",
+                    title=f"Sector Alarm {panel_id}",
                     data={
                         CONF_EMAIL: email,
                         CONF_PASSWORD: password,
@@ -44,23 +55,28 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_PANEL_CODE: panel_code,
                     },
                 )
-            except AuthenticationError:
-                errors["base"] = "authentication_failed"
-            except Exception as e:
-                errors["base"] = "unknown_error"
-                _LOGGER.exception("Unexpected exception during authentication: %s", e)
 
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_EMAIL): str,
-                vol.Required(CONF_PASSWORD): str,
-                vol.Required(CONF_PANEL_ID): str,
-                vol.Required(CONF_PANEL_CODE): str,
+                vol.Required(CONF_EMAIL): TextSelector(
+                    TextSelectorConfig(
+                        type=TextSelectorType.EMAIL, autocomplete="email"
+                    )
+                ),
+                vol.Required(CONF_PASSWORD): TextSelector(
+                    TextSelectorConfig(
+                        type=TextSelectorType.PASSWORD, autocomplete="current-password"
+                    )
+                ),
+                vol.Required(CONF_PANEL_ID): TextSelector(),
+                vol.Required(CONF_PANEL_CODE): TextSelector(),
             }
         )
 
         return self.async_show_form(
             step_id="user",
-            data_schema=data_schema,
+            data_schema=self.add_suggested_values_to_schema(
+                data_schema, user_input or {}
+            ),
             errors=errors,
         )
