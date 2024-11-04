@@ -111,6 +111,15 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
                                     if "Closed" in component:
                                         devices[serial_no]["sensors"]["closed"] = component["Closed"]
+                                    if device_type == "Keypad" or model == "Smart Lock":
+                                        low_battery_value = component.get("LowBattery", None)
+                                        if not low_battery_value:
+                                            low_battery_value = component.get("BatteryLow", None)
+                                        if low_battery_value is not None:
+                                            devices[serial_no]["sensors"]["low_battery"] = low_battery_value
+                                            _LOGGER.debug(f"Assigned low_battery sensor for device {serial_no} with value {low_battery_value}")
+                                        else:
+                                            _LOGGER.warning(f"No LowBattery value found for device {serial_no} of type {device_type}")
                                     if "LowBattery" in component:
                                         devices[serial_no]["sensors"]["low_battery"] = component["LowBattery"]
                                     if "BatteryLow" in component:
