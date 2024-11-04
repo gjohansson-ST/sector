@@ -41,8 +41,8 @@ async def async_setup_entry(
                     "closed",
                     device,
                     BinarySensorDeviceClass.DOOR,
-                ),
-                model=model
+                    model,
+                )
             )
         if "low_battery" in sensors:
             entities.append(
@@ -52,8 +52,8 @@ async def async_setup_entry(
                     "low_battery",
                     device,
                     BinarySensorDeviceClass.BATTERY,
-                ),
-                model=model
+                    model,
+                )
             )
         if "leak_detected" in sensors:
             entities.append(
@@ -63,8 +63,8 @@ async def async_setup_entry(
                     "leak_detected",
                     device,
                     BinarySensorDeviceClass.MOISTURE,
-                ),
-                model=model
+                    model,
+                )
             )
         if "alarm" in sensors:
             entities.append(
@@ -74,8 +74,8 @@ async def async_setup_entry(
                     "alarm",
                     device,
                     BinarySensorDeviceClass.SAFETY,
-                ),
-                model=model
+                    model,
+                )
             )
 
     # Add panel online status sensor
@@ -88,8 +88,8 @@ async def async_setup_entry(
             serial_no,
             "online",
             BinarySensorDeviceClass.CONNECTIVITY,
-        ),
-        model="AlarmPanel"
+            model="AlarmPanel"
+        )
     )
 
     if entities:
