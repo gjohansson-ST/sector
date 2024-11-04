@@ -80,7 +80,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         for place in section.get("Places", []):
                             for component in place.get("Components", []):
                                 serial_no = str(component.get("SerialNo") or component.get("Serial"))
-                                device_type = component.get("Type", "").lower()
+                                device_type = str(component.get("Type", "")).lower()
                                 if serial_no:
                                     model = CATEGORY_MODEL_MAPPING.get(device_type, CATEGORY_MODEL_MAPPING.get(category_name, "Unknown Device"))
                                     if serial_no not in devices:
