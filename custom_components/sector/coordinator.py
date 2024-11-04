@@ -72,7 +72,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Process devices from different categories
             for category_name, category_data in data.items():
-                if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors"]:
+                if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors", "Cameras"]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
                             for component in place.get("Components", []):
