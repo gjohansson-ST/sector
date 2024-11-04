@@ -14,6 +14,7 @@ CATEGORY_MODEL_MAPPING = {
     "Smartplug Status": "Smart Plug",
     "Lock Status": "Lock",
     "Cameras": "Camera",
+    "CameraPIR": "Camera",
     "Keypad": "Keypad",
 }
 

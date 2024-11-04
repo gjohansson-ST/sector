@@ -32,11 +32,11 @@ async def async_setup_entry(
         serial_no = device["serial_no"]
         sensors = device.get("sensors", {})
         device_type = device.get("type", "")
+        device_model = device.get("model", "")
 
-        if device_type:
-            model = CATEGORY_MODEL_MAPPING.get(device_type, "Sensor")
-        else:
-            model = CATEGORY_MODEL_MAPPING.get(device.get("model", ""), "Sensor")
+        model = CATEGORY_MODEL_MAPPING.get(device_type, CATEGORY_MODEL_MAPPING.get(device_model, "Sensor"))
+
+        _LOGGER.debug(f"Adding device {serial_no} as model '{model}' with type '{device_type}'")
 
         if "temperature" in sensors:
             _LOGGER.debug("Adding temperature sensor for device %s with sensors: %s", serial_no, sensors)

@@ -30,11 +30,11 @@ async def async_setup_entry(
         serial_no = device["serial_no"]
         sensors = device.get("sensors", {})
         device_type = device.get("type", "")
+        device_model = device.get("model", "")
 
-        if device_type:
-            model = CATEGORY_MODEL_MAPPING.get(device_type, "Binary Sensor")
-        else:
-            model = CATEGORY_MODEL_MAPPING.get(device.get("model", ""), "Binary Sensor")
+        model = CATEGORY_MODEL_MAPPING.get(device_type, CATEGORY_MODEL_MAPPING.get(device_model, "Binary Sensor"))
+
+        _LOGGER.debug(f"Adding binary sensor {serial_no} as model '{model}' with type '{device_type}'")
 
         if "closed" in sensors:
             entities.append(

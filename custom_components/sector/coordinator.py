@@ -74,21 +74,24 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             # Process devices from different categories
             for category_name, category_data in data.items():
                 _LOGGER.debug(f"Processing category: {category_name}")
-                model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
+                model_name = CATEGORY_MODEL_MAPPING.get(category_name, "Unknown Device")
                 if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors", "Cameras"]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
                             for component in place.get("Components", []):
                                 serial_no = str(component.get("SerialNo") or component.get("Serial"))
+                                device_type = component.get("Type", "").lower()
                                 if serial_no:
+                                    model = CATEGORY_MODEL_MAPPING.get(device_type, CATEGORY_MODEL_MAPPING.get(category_name, "Unknown Device"))
                                     if serial_no not in devices:
                                         devices[serial_no] = {
                                             "name": component.get("Label") or component.get("Name"),
                                             "serial_no": serial_no,
                                             "sensors": {},
-                                            "model": model_name,
+                                            "model": model,
                                             "type": component.get("Type", "")
                                         }
+                                    _LOGGER.debug(f"Processed device {serial_no} with type '{device_type}' and model '{model}'")
                                     # Add sensors based on component data
                                     if "Closed" in component:
                                         devices[serial_no]["sensors"]["closed"] = component["Closed"]
