@@ -7,5 +7,9 @@
   "dependencies": [],
   "codeowners": ["@garnser"],
   "iot_class": "cloud_polling",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "resources": {
+    "icon": "/custom_components/sector_alarm/icons/icon.png",
+    "logo": "/custom_components/sector_alarm/images/logo.png"
+  }
 }

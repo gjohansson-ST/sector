@@ -107,12 +107,14 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         sensor_type: str,
         device_info: dict,
         device_class: BinarySensorDeviceClass,
+        model: str,
     ) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self._serial_no = serial_no
         self._sensor_type = sensor_type
         self._device_info = device_info
+        self._model = model
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
         self._attr_name = (
             f"{device_info['name']} {sensor_type.replace('_', ' ').capitalize()}"
