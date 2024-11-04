@@ -47,7 +47,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             data = await self.api.retrieve_all_data()
 
             devices = {}
-            locks = {}
             logs = data.get("Logs", [])
             panel_status = data.get("Panel Status", {})
             locks_data = data.get("Lock Status", [])
@@ -64,8 +63,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                 "sensors": {},
                                 "model": "Smart Lock",
                             }
-                            locks[serial_no]["sensors"]["lock_status"] = lock.get("Status")
-                            locks[serial_no]["sensors"]["low_battery"] = lock.get("BatteryLow")
+                            devices[serial_no]["sensors"]["lock_status"] = lock.get("Status")
+                            devices[serial_no]["sensors"]["low_battery"] = lock.get("BatteryLow")
                     else:
                         _LOGGER.warning(f"Lock missing Serial: {lock}")
             else:
@@ -173,7 +172,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             return {
                 "devices": devices,
-                "locks": locks,
                 "panel_status": panel_status,
                 "logs": logs,
             }
