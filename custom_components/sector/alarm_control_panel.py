@@ -15,12 +15,10 @@ from homeassistant.const import (
     STATE_ALARM_PENDING,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,26 +40,26 @@ async def async_setup_entry(
     async_add_entities([SectorAlarmControlPanel(coordinator)])
 
 
-class SectorAlarmControlPanel(CoordinatorEntity[SectorDataUpdateCoordinator], AlarmControlPanelEntity):
+class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
     """Representation of the Sector Alarm control panel."""
 
     _attr_supported_features = (
         AlarmControlPanelEntityFeature.ARM_AWAY
         | AlarmControlPanelEntityFeature.ARM_HOME
     )
+    _attr_name = None
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
         """Initialize the control panel."""
-        super().__init__(coordinator)
         panel_status = coordinator.data.get("panel_status", {})
-        self._serial_no = panel_status.get("SerialNo") or coordinator.entry.data.get(
+        serial_no = panel_status.get("SerialNo") or coordinator.config_entry.data.get(
             "panel_id"
         )
-        self._attr_unique_id = f"{self._serial_no}_alarm_panel"
-        self._attr_name = "Sector Alarm Panel"
-        _LOGGER.debug(
-            "Initialized alarm control panel with unique_id: %s", self._attr_unique_id
+        super().__init__(
+            coordinator, serial_no, {"name": "Sector Alarm Panel"}, "Alarm Panel"
         )
+
+        self._attr_unique_id = f"{self._serial_no}_alarm_panel"
 
     @property
     def state(self):
@@ -95,25 +93,3 @@ class SectorAlarmControlPanel(CoordinatorEntity[SectorDataUpdateCoordinator], Al
         success = await self.coordinator.api.disarm_system()
         if success:
             await self.coordinator.async_request_refresh()
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._serial_no)},
-            name="Sector Alarm Panel",
-            manufacturer="Sector Alarm",
-            model="Alarm Panel",
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return entity availability."""
-        return True
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return {
-            "serial_number": self._serial_no,
-        }

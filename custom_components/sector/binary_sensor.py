@@ -9,12 +9,10 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -119,7 +117,7 @@ async def async_setup_entry(
         _LOGGER.debug("No binary sensor entities to add.")
 
 
-class SectorAlarmBinarySensor(CoordinatorEntity[SectorDataUpdateCoordinator], BinarySensorEntity):
+class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     """Representation of a Sector Alarm binary sensor."""
 
     def __init__(
@@ -132,19 +130,11 @@ class SectorAlarmBinarySensor(CoordinatorEntity[SectorDataUpdateCoordinator], Bi
         model: str,
     ) -> None:
         """Initialize the binary sensor."""
-        super().__init__(coordinator)
-        self._serial_no = serial_no
+        super().__init__(coordinator, serial_no, device_info, model)
         self._sensor_type = sensor_type
-        self._device_info = device_info
-        self._model = model
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
-        self._attr_name = (
-            f"{device_info['name']} {sensor_type.replace('_', ' ').capitalize()}"
-        )
+        self._attr_name = f"{sensor_type.replace('_', ' ').capitalize()}"
         self._attr_device_class = device_class
-        _LOGGER.debug(
-            "Initialized binary sensor with unique_id: %s", self._attr_unique_id
-        )
 
     @property
     def is_on(self) -> bool:
@@ -163,29 +153,8 @@ class SectorAlarmBinarySensor(CoordinatorEntity[SectorDataUpdateCoordinator], Bi
             return bool(sensor_value)
         return False
 
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._serial_no)},
-            name=self._device_info["name"],
-            manufacturer="Sector Alarm",
-        )
 
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return True
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return {
-            "serial_number": self._serial_no,
-        }
-
-
-class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity[SectorDataUpdateCoordinator], BinarySensorEntity):
+class SectorAlarmPanelOnlineBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     """Representation of the Sector Alarm panel online status."""
 
     def __init__(
@@ -196,45 +165,16 @@ class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity[SectorDataUpdateCoord
         device_class: BinarySensorDeviceClass,
     ) -> None:
         """Initialize the panel online binary sensor."""
-        super().__init__(coordinator)
-        self._serial_no = serial_no
+        super().__init__(
+            coordinator, serial_no, {"name": "Sector Alarm Panel"}, "Alarm Panel"
+        )
         self._sensor_type = sensor_type
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
-        self._attr_name = "Panel Online"
+        self._attr_name = "Online"
         self._attr_device_class = device_class
-        self._device_info = {
-            "name": "Sector Alarm Panel",
-            "serial_no": self._serial_no,
-            "model": "Alarm Panel",
-        }
-        _LOGGER.debug(
-            "Initialized panel online sensor with unique_id: %s", self._attr_unique_id
-        )
 
     @property
     def is_on(self) -> bool:
         """Return true if the panel is online."""
         panel_status = self.coordinator.data.get("panel_status", {})
         return panel_status.get("IsOnline", False)
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._serial_no)},
-            name=self._device_info["name"],
-            manufacturer="Sector Alarm",
-            model=self._device_info["model"],
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return True if entity is available."""
-        return True
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return {
-            "serial_number": self._serial_no,
-        }

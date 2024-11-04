@@ -4,12 +4,10 @@ import logging
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,17 +32,17 @@ async def async_setup_entry(
         _LOGGER.debug("No lock entities to add.")
 
 
-class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity):
+class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
+
+    _attr_name = None
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator, device_info: dict):
         """Initialize the lock."""
-        super().__init__(coordinator)
-        self._serial_no = device_info["serial_no"]
-        self._device_info = device_info
+        super().__init__(
+            coordinator, device_info["serial_no"], device_info, device_info["model"]
+        )
         self._attr_unique_id = f"{self._serial_no}_lock"
-        self._attr_name = device_info["name"]
-        _LOGGER.debug("Initialized lock with unique_id: %s", self._attr_unique_id)
 
     @property
     def is_locked(self):
@@ -64,20 +62,3 @@ class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity
         """Unlock the device."""
         await self.coordinator.api.unlock_door(self._serial_no)
         await self.coordinator.async_request_refresh()
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._serial_no)},
-            name=self._device_info["name"],
-            manufacturer="Sector Alarm",
-            model=self._device_info["model"],
-        )
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return {
-            "serial_number": self._serial_no,
-        }

@@ -9,12 +9,10 @@ from homeassistant.components.switch import (
     SwitchEntity,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,22 +38,26 @@ async def async_setup_entry(
         _LOGGER.debug("No switch entities to add.")
 
 
-class SectorAlarmSwitch(CoordinatorEntity[SectorDataUpdateCoordinator], SwitchEntity):
+class SectorAlarmSwitch(SectorAlarmBaseEntity, SwitchEntity):
     """Representation of a Sector Alarm smart plug."""
 
     _attr_device_class = SwitchDeviceClass.OUTLET
+    _attr_name = None
 
     def __init__(
         self, coordinator: SectorDataUpdateCoordinator, plug_data: dict
     ) -> None:
         """Initialize the switch."""
-        super().__init__(coordinator)
-        self._plug_data = plug_data
         self._id = plug_data.get("Id")
-        self._serial_no = str(plug_data.get("SerialNo") or plug_data.get("Serial"))
+        serial_no = str(plug_data.get("SerialNo") or plug_data.get("Serial"))
+        super().__init__(
+            coordinator,
+            serial_no,
+            {"name": plug_data.get("Label", "Sector Smart Plug")},
+            "Smart Plug",
+        )
+
         self._attr_unique_id = f"{self._serial_no}_switch"
-        self._attr_name = plug_data.get("Label", "Sector Smart Plug")
-        _LOGGER.debug("Initialized switch with unique_id: %s", self._attr_unique_id)
 
     @property
     def is_on(self):
@@ -77,18 +79,3 @@ class SectorAlarmSwitch(CoordinatorEntity[SectorDataUpdateCoordinator], SwitchEn
         success = await self.coordinator.api.turn_off_smartplug(self._id)
         if success:
             await self.coordinator.async_request_refresh()
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._serial_no)},
-            name=self._attr_name,
-            manufacturer="Sector Alarm",
-            model="Smart Plug",
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return entity availability."""
-        return True

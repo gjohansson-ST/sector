@@ -8,12 +8,11 @@ import logging
 
 from homeassistant.components.camera import Camera
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,18 +37,19 @@ async def async_setup_entry(
         _LOGGER.debug("No camera entities to add.")
 
 
-class SectorAlarmCamera(CoordinatorEntity[SectorDataUpdateCoordinator], Camera):
+class SectorAlarmCamera(SectorAlarmBaseEntity, Camera):
     """Representation of a Sector Alarm camera."""
+
+    _attr_name = None
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator, camera_data: dict):
         """Initialize the camera."""
-        super().__init__(coordinator)
-        Camera.__init__(self)
         self._camera_data = camera_data
-        self._serial_no = str(camera_data.get("SerialNo") or camera_data.get("Serial"))
+        serial_no = str(camera_data.get("SerialNo") or camera_data.get("Serial"))
+        name = camera_data.get("Label", "Sector Camera")
+        super().__init__(coordinator, serial_no, {"name": name}, "Camera")
+        Camera.__init__(self)
         self._attr_unique_id = f"{self._serial_no}_camera"
-        self._attr_name = camera_data.get("Label", "Sector Camera")
-        _LOGGER.debug("Initialized camera with unique_id: %s", self._attr_unique_id)
 
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
@@ -58,18 +58,3 @@ class SectorAlarmCamera(CoordinatorEntity[SectorDataUpdateCoordinator], Camera):
         # Implement the method to retrieve an image from the camera
         image = await self.coordinator.api.get_camera_image(self._serial_no)
         return image
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._serial_no)},
-            name=self._attr_name,
-            manufacturer="Sector Alarm",
-            #            model="Camera",
-        )
-
-    @property
-    def available(self) -> bool:
-        """Return entity availability."""
-        return True

@@ -11,12 +11,10 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -91,7 +89,7 @@ async def async_setup_entry(
         _LOGGER.debug("No sensor entities to add.")
 
 
-class SectorAlarmSensor(CoordinatorEntity[SectorDataUpdateCoordinator], SensorEntity):
+class SectorAlarmSensor(SectorAlarmBaseEntity, SensorEntity):
     """Representation of a Sector Alarm sensor."""
 
     def __init__(
@@ -104,15 +102,11 @@ class SectorAlarmSensor(CoordinatorEntity[SectorDataUpdateCoordinator], SensorEn
         model: str,
     ) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator)
+        super().__init__(coordinator, serial_no, device_info, model)
         self.entity_description = description
-        self._serial_no = serial_no
         self._sensor_type = sensor_type
-        self._device_info = device_info
-        self._model = model
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
-        self._attr_name = f"{device_info['name']} {sensor_type.capitalize()}"
-        _LOGGER.debug("Initialized sensor with unique_id: %s", self._attr_unique_id)
+        self._attr_name = f"{sensor_type.capitalize()}"
 
     @property
     def native_value(self):
@@ -121,20 +115,3 @@ class SectorAlarmSensor(CoordinatorEntity[SectorDataUpdateCoordinator], SensorEn
         if device:
             value = device["sensors"].get(self._sensor_type)
             return value
-
-    @property
-    def device_info(self) -> DeviceInfo:
-        """Return device info."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self._serial_no)},
-            name=self._device_info["name"],
-            manufacturer="Sector Alarm",
-            model=self._model,
-        )
-
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return {
-            "serial_number": self._serial_no,
-        }
