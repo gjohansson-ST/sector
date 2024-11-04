@@ -1,22 +1,24 @@
 """Sector Alarm coordinator."""
+
 from __future__ import annotations
 
-from datetime import timedelta
 import logging
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .client import SectorAlarmAPI, AuthenticationError
+from .client import AuthenticationError, SectorAlarmAPI
 from .const import (
+    CATEGORY_MODEL_MAPPING,
     CONF_PANEL_CODE,
     CONF_PANEL_ID,
     DOMAIN,
-    CONF_EMAIL,
-    CONF_PASSWORD,
-    CATEGORY_MODEL_MAPPING,
 )
+
+type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,11 +26,11 @@ _LOGGER = logging.getLogger(__name__)
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     """Coordinator to manage data fetching from Sector Alarm."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: SectorAlarmConfigEntry) -> None:
         """Initialize the coordinator."""
         self.hass = hass
-        self.entry = entry
         self.api = SectorAlarmAPI(
+            hass,
             email=entry.data[CONF_EMAIL],
             password=entry.data[CONF_PASSWORD],
             panel_id=entry.data[CONF_PANEL_ID],
@@ -64,82 +66,148 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                 "sensors": {},
                                 "model": "Smart Lock",
                             }
-                            devices[serial_no]["sensors"]["lock_status"] = lock.get("Status")
-                            devices[serial_no]["sensors"]["low_battery"] = lock.get("BatteryLow")
+                            devices[serial_no]["sensors"]["lock_status"] = lock.get(
+                                "Status"
+                            )
+                            devices[serial_no]["sensors"]["low_battery"] = lock.get(
+                                "BatteryLow"
+                            )
                     else:
-                        _LOGGER.warning(f"Lock missing Serial: {lock}")
+                        _LOGGER.warning("Lock missing Serial: %s", lock)
             else:
                 _LOGGER.debug("No locks data found.")
 
             # Process devices from different categories
             for category_name, category_data in data.items():
-                _LOGGER.debug(f"Processing category: {category_name}")
+                _LOGGER.debug("Processing category: %s", category_name)
                 model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
-                if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors", "Cameras", "Keypad"]:
+                if category_name in [
+                    "Doors and Windows",
+                    "Smoke Detectors",
+                    "Leakage Detectors",
+                    "Cameras",
+                    "Keypad",
+                ]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
                             for component in place.get("Components", []):
-                                serial_no = str(component.get("SerialNo") or component.get("Serial"))
+                                serial_no = str(
+                                    component.get("SerialNo") or component.get("Serial")
+                                )
                                 device_type = component.get("Type", "")
                                 device_type_lower = str(device_type).lower()
 
                                 if device_type_lower in CATEGORY_MODEL_MAPPING:
                                     model = CATEGORY_MODEL_MAPPING[device_type_lower]
                                 else:
-                                    _LOGGER.debug(f"Unknown device_type '{device_type}' for serial '{serial_no}', falling back to category model '{model_name}'")
+                                    _LOGGER.debug(
+                                        "Unknown device_type '%s' for serial '%s', falling back to category model '%s'",
+                                        device_type,
+                                        serial_no,
+                                        model_name,
+                                    )
                                     model = model_name  # Use category model as fallback
 
                                 if serial_no:
                                     if serial_no not in devices:
                                         devices[serial_no] = {
-                                            "name": component.get("Label") or component.get("Name"),
+                                            "name": component.get("Label")
+                                            or component.get("Name"),
                                             "serial_no": serial_no,
                                             "sensors": {},
                                             "model": model,
                                             "type": device_type,
                                         }
-                                    _LOGGER.debug(f"Processed device {serial_no} with type '{device_type}' and model '{model}'")
+                                    _LOGGER.debug(
+                                        "Processed device %s with type '%s' and model '%s'",
+                                        serial_no,
+                                        device_type,
+                                        model,
+                                    )
                                     # Add sensors based on component data
                                     if "Closed" in component:
-                                        devices[serial_no]["sensors"]["closed"] = component["Closed"]
-                                    low_battery_value = component.get("LowBattery", component.get("BatteryLow"))
+                                        devices[serial_no]["sensors"]["closed"] = (
+                                            component["Closed"]
+                                        )
+                                    low_battery_value = component.get(
+                                        "LowBattery", component.get("BatteryLow")
+                                    )
                                     if low_battery_value is not None:
-                                        devices[serial_no]["sensors"]["low_battery"] = low_battery_value
-                                        _LOGGER.debug(f"Assigned low_battery sensor for device {serial_no} with value {low_battery_value}")
+                                        devices[serial_no]["sensors"]["low_battery"] = (
+                                            low_battery_value
+                                        )
+                                        _LOGGER.debug(
+                                            "Assigned low_battery sensor for device %s with value %s",
+                                            serial_no,
+                                            low_battery_value,
+                                        )
                                     else:
-                                        _LOGGER.warning(f"No LowBattery or BatteryLow found for device {serial_no} of type '{device_type}'")
-                                    if "Humidity" in component and component["Humidity"]:
-                                        devices[serial_no]["sensors"]["humidity"] = float(component["Humidity"])
-                                    if "Temperature" in component and component["Temperature"]:
-                                        devices[serial_no]["sensors"]["temperature"] = float(component["Temperature"])
+                                        _LOGGER.warning(
+                                            "No LowBattery or BatteryLow found for device %s of type '%s'",
+                                            serial_no,
+                                            device_type,
+                                        )
+                                    if (
+                                        "Humidity" in component
+                                        and component["Humidity"]
+                                    ):
+                                        devices[serial_no]["sensors"]["humidity"] = (
+                                            float(component["Humidity"])
+                                        )
+                                    if (
+                                        "Temperature" in component
+                                        and component["Temperature"]
+                                    ):
+                                        devices[serial_no]["sensors"]["temperature"] = (
+                                            float(component["Temperature"])
+                                        )
                                     if "LeakDetected" in component:
-                                        devices[serial_no]["sensors"]["leak_detected"] = component["LeakDetected"]
+                                        devices[serial_no]["sensors"][
+                                            "leak_detected"
+                                        ] = component["LeakDetected"]
                                     if "Alarm" in component:
-                                        devices[serial_no]["sensors"]["alarm"] = component["Alarm"]
+                                        devices[serial_no]["sensors"]["alarm"] = (
+                                            component["Alarm"]
+                                        )
 
                                 else:
-                                    _LOGGER.warning(f"Component missing SerialNo: {component}")
+                                    _LOGGER.warning(
+                                        "Component missing SerialNo: %s", component
+                                    )
 
                 elif category_name == "Temperatures":
-                    _LOGGER.debug(f"Temperatures data received: {category_data}")
+                    _LOGGER.debug("Temperatures data received: %s", category_data)
                     if isinstance(category_data, dict) and "Sections" in category_data:
                         for section in category_data["Sections"]:
                             for place in section.get("Places", []):
                                 for component in place.get("Components", []):
-                                    serial_no = str(component.get("SerialNo") or component.get("Serial"))
+                                    serial_no = str(
+                                        component.get("SerialNo")
+                                        or component.get("Serial")
+                                    )
                                     device_type = component.get("Type", "")
                                     device_type_lower = str(device_type).lower()
 
                                     if device_type_lower in CATEGORY_MODEL_MAPPING:
-                                        model = CATEGORY_MODEL_MAPPING[device_type_lower]
+                                        model = CATEGORY_MODEL_MAPPING[
+                                            device_type_lower
+                                        ]
                                     else:
-                                        _LOGGER.debug(f"Unknown device_type '{device_type}' for serial '{serial_no}', falling back to category model '{model_name}'")
-                                        model = model_name  # Use category model as fallback
+                                        _LOGGER.debug(
+                                            "Unknown device_type '%s' for serial '%s', falling back to category model '%s'",
+                                            device_type,
+                                            serial_no,
+                                            model_name,
+                                        )
+                                        model = (
+                                            model_name  # Use category model as fallback
+                                        )
 
                                     if serial_no:
                                         if serial_no not in devices:
                                             devices[serial_no] = {
-                                                "name": component.get("Label") or component.get("Name"),
+                                                "name": component.get("Label")
+                                                or component.get("Name"),
                                                 "serial_no": serial_no,
                                                 "sensors": {},
                                                 "model": model,
@@ -147,65 +215,117 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                             }
                                         temperature = component.get("Temperature")
                                         if temperature is not None:
-                                            devices[serial_no]["sensors"]["temperature"] = float(temperature)
-                                            _LOGGER.debug(f"Stored temperature {temperature} for device {serial_no}")
+                                            devices[serial_no]["sensors"][
+                                                "temperature"
+                                            ] = float(temperature)
+                                            _LOGGER.debug(
+                                                "Stored temperature %s for device %s",
+                                                temperature,
+                                                serial_no,
+                                            )
                                         else:
-                                            _LOGGER.debug(f"No temperature value for device {serial_no}")
-                                        low_battery_value = component.get("LowBattery", component.get("BatteryLow"))
+                                            _LOGGER.debug(
+                                                "No temperature value for device %s",
+                                                serial_no,
+                                            )
+                                        low_battery_value = component.get(
+                                            "LowBattery", component.get("BatteryLow")
+                                        )
                                         if low_battery_value is not None:
-                                            devices[serial_no]["sensors"]["low_battery"] = low_battery_value
-                                            _LOGGER.debug(f"Assigned low_battery sensor for device {serial_no} with value {low_battery_value}")
+                                            devices[serial_no]["sensors"][
+                                                "low_battery"
+                                            ] = low_battery_value
+                                            _LOGGER.debug(
+                                                "Assigned low_battery sensor for device %s with value %s",
+                                                serial_no,
+                                                low_battery_value,
+                                            )
                                         else:
-                                            _LOGGER.warning(f"No LowBattery or BatteryLow found for device {serial_no} of type '{device_type}'")
+                                            _LOGGER.warning(
+                                                "No LowBattery or BatteryLow found for device %s of type '%s'",
+                                                serial_no,
+                                                device_type,
+                                            )
 
                                     else:
-                                        _LOGGER.warning(f"Component missing SerialNo: {component}")
+                                        _LOGGER.warning(
+                                            "Component missing SerialNo: %s", component
+                                        )
                     else:
-                        _LOGGER.error(f"Unexpected data format for Temperatures: {category_data}")
+                        _LOGGER.error(
+                            "Unexpected data format for Temperatures: %s", category_data
+                        )
 
                 elif category_name == "Humidity":
-                    _LOGGER.debug(f"Humidity data received: {category_data}")
+                    _LOGGER.debug("Humidity data received: %s", category_data)
                     if isinstance(category_data, dict) and "Sections" in category_data:
                         for section in category_data["Sections"]:
                             for place in section.get("Places", []):
                                 for component in place.get("Components", []):
-                                    serial_no = str(component.get("SerialNo") or component.get("Serial"))
+                                    serial_no = str(
+                                        component.get("SerialNo")
+                                        or component.get("Serial")
+                                    )
                                     device_type = component.get("Type", "")
                                     device_type_lower = str(device_type).lower()
 
                                     if device_type_lower in CATEGORY_MODEL_MAPPING:
-                                        model = CATEGORY_MODEL_MAPPING[device_type_lower]
+                                        model = CATEGORY_MODEL_MAPPING[
+                                            device_type_lower
+                                        ]
                                     else:
-                                        _LOGGER.debug(f"Unknown device_type '{device_type}' for serial '{serial_no}', falling back to category model '{model_name}'")
-                                        model = model_name  # Use category model as fallback
+                                        _LOGGER.debug(
+                                            "Unknown device_type '%s' for serial '%s', falling back to category model '%s'",
+                                            device_type,
+                                            serial_no,
+                                            model_name,
+                                        )
+                                        model = (
+                                            model_name  # Use category model as fallback
+                                        )
 
                                     if serial_no:
                                         if serial_no not in devices:
                                             devices[serial_no] = {
-                                                "name": component.get("Label") or component.get("Name"),
+                                                "name": component.get("Label")
+                                                or component.get("Name"),
                                                 "serial_no": serial_no,
                                                 "sensors": {},
                                                 "model": model,
                                                 "type": device_type,
                                             }
-                                            _LOGGER.debug(f"Registering device {serial_no} with model: {model_name}")
+                                            _LOGGER.debug(
+                                                "Registering device %s with model: %s",
+                                                serial_no,
+                                                model_name,
+                                            )
                                         humidity = component.get("Humidity")
                                         if humidity is not None:
-                                            devices[serial_no]["sensors"]["humidity"] = float(humidity)
+                                            devices[serial_no]["sensors"][
+                                                "humidity"
+                                            ] = float(humidity)
                                         else:
-                                            _LOGGER.debug(f"No humidity value for device {serial_no}")
+                                            _LOGGER.debug(
+                                                "No humidity value for device %s",
+                                                serial_no,
+                                            )
                                     else:
-                                        _LOGGER.warning(f"Component missing SerialNo: {component}")
+                                        _LOGGER.warning(
+                                            "Component missing SerialNo: %s", component
+                                        )
                     else:
-                        _LOGGER.error(f"Unexpected data format for Humidity: {category_data}")
-
+                        _LOGGER.error(
+                            "Unexpected data format for Humidity: %s", category_data
+                        )
 
                 elif category_name == "Smartplug Status":
-                    _LOGGER.debug(f"Smartplug data received: {category_data}")
+                    _LOGGER.debug("Smartplug data received: %s", category_data)
                     if isinstance(category_data, list):
                         devices["smartplugs"] = category_data
                     else:
-                        _LOGGER.warning(f"Unexpected smartplug data format: {category_data}")
+                        _LOGGER.warning(
+                            "Unexpected smartplug data format: %s", category_data
+                        )
 
                 elif category_name == "Lock Status":
                     # Locks data is already retrieved in locks_data
@@ -216,7 +336,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     pass
 
                 else:
-                    _LOGGER.debug(f"Unhandled category {category_name}")
+                    _LOGGER.debug("Unhandled category %s", category_data)
 
             return {
                 "devices": devices,

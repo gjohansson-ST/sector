@@ -1,15 +1,11 @@
 {
   "domain": "sector",
   "name": "Sector Alarm",
+  "codeowners": ["@gjohansson-ST","@garnser"],
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/sector_alarm",
-  "requirements": [],
-  "dependencies": [],
-  "codeowners": ["@garnser"],
+  "documentation": "https://github.com/gjohansson-ST/sector/blob/master/readme.md",
+  "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "version": "1.0.0",
-  "resources": {
-    "icon": "/custom_components/sector_alarm/icons/icon.png",
-    "logo": "/custom_components/sector_alarm/images/logo.png"
-  }
+  "issue_tracker": "https://github.com/gjohansson-ST/sector/issues",
+  "version": "1.0.0"
 }

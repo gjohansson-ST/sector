@@ -1,10 +1,10 @@
 """Config flow for Sector Alarm integration."""
+
 from __future__ import annotations
 
 import logging
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 
@@ -29,13 +29,12 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             panel_code = user_input[CONF_PANEL_CODE]
 
             # Import SectorAlarmAPI here to avoid blocking calls during module import
-            from .client import SectorAlarmAPI, AuthenticationError
+            from .client import AuthenticationError, SectorAlarmAPI
 
-            api = SectorAlarmAPI(email, password, panel_id, panel_code)
+            api = SectorAlarmAPI(self.hass, email, password, panel_id, panel_code)
             try:
                 await api.login()
                 await api.retrieve_all_data()
-                await api.close()
                 return self.async_create_entry(
                     title="Sector Alarm",
                     data={
@@ -50,8 +49,6 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception as e:
                 errors["base"] = "unknown_error"
                 _LOGGER.exception("Unexpected exception during authentication: %s", e)
-            finally:
-                await api.close()
 
         data_schema = vol.Schema(
             {

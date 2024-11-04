@@ -1,24 +1,27 @@
 # camera.py
 
 """Camera platform for Sector Alarm integration."""
+
 from __future__ import annotations
 
 import logging
 
 from homeassistant.components.camera import Camera
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import SectorDataUpdateCoordinator
+from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant,
+    entry: SectorAlarmConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ):
     """Set up Sector Alarm cameras."""
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
@@ -41,13 +44,16 @@ class SectorAlarmCamera(CoordinatorEntity, Camera):
     def __init__(self, coordinator: SectorDataUpdateCoordinator, camera_data: dict):
         """Initialize the camera."""
         super().__init__(coordinator)
+        Camera.__init__(self)
         self._camera_data = camera_data
         self._serial_no = str(camera_data.get("SerialNo") or camera_data.get("Serial"))
         self._attr_unique_id = f"{self._serial_no}_camera"
         self._attr_name = camera_data.get("Label", "Sector Camera")
-        _LOGGER.debug(f"Initialized camera with unique_id: {self._attr_unique_id}")
+        _LOGGER.debug("Initialized camera with unique_id: %s", self._attr_unique_id)
 
-    async def async_camera_image(self):
+    async def async_camera_image(
+        self, width: int | None = None, height: int | None = None
+    ):
         """Return a still image response from the camera."""
         # Implement the method to retrieve an image from the camera
         image = await self.coordinator.api.get_camera_image(self._serial_no)
@@ -60,7 +66,7 @@ class SectorAlarmCamera(CoordinatorEntity, Camera):
             identifiers={(DOMAIN, self._serial_no)},
             name=self._attr_name,
             manufacturer="Sector Alarm",
-#            model="Camera",
+            #            model="Camera",
         )
 
     @property

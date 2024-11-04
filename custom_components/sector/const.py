@@ -1,7 +1,16 @@
 """Constants for the Sector Alarm integration."""
 
+from homeassistant.const import Platform
+
 DOMAIN = "sector"
-PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch", "camera"]
+PLATFORMS = [
+    Platform.ALARM_CONTROL_PANEL,
+    Platform.BINARY_SENSOR,
+    Platform.CAMERA,
+    Platform.LOCK,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 CATEGORY_MODEL_MAPPING = {
     "1": "Door/Window Sensor",
@@ -20,9 +29,5 @@ CATEGORY_MODEL_MAPPING = {
     "keypad": "Keypad",
 }
 
-CONF_EMAIL = "email"
-CONF_PASSWORD = "password"
 CONF_PANEL_ID = "panel_id"
 CONF_PANEL_CODE = "panel_code"
-
-LOGGER = "sector_alarm"
