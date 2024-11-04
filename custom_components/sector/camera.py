@@ -60,7 +60,7 @@ class SectorAlarmCamera(CoordinatorEntity, Camera):
             identifiers={(DOMAIN, self._serial_no)},
             name=self._attr_name,
             manufacturer="Sector Alarm",
-            model="Camera",
+#            model="Camera",
         )
 
     @property
