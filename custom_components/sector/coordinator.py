@@ -74,7 +74,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             # Process devices from different categories
             for category_name, category_data in data.items():
                 _LOGGER.debug(f"Processing category: {category_name}")
-                model_name = CATEGORY_MODEL_MAPPING.get(category_name, "Unknown Device")
+                model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
                 if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors", "Cameras"]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
@@ -104,6 +104,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                         devices[serial_no]["sensors"]["closed"] = component["Closed"]
                                     if "LowBattery" in component:
                                         devices[serial_no]["sensors"]["low_battery"] = component["LowBattery"]
+                                    if "BatteryLow" in component:
+                                        devices[serial_no]["sensors"]["low_battery"] = component["BatteryLow"]
                                     if "Humidity" in component and component["Humidity"]:
                                         devices[serial_no]["sensors"]["humidity"] = float(component["Humidity"])
                                     if "Temperature" in component and component["Temperature"]:
