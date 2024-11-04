@@ -12,6 +12,7 @@ CATEGORY_MODEL_MAPPING = {
     "Smartplug Status": "Smart Plug",
     "Lock Status": "Lock",
     "Cameras": "Camera",
+    "Keypad": "Keypad",
 }
 
 CONF_EMAIL = "email"

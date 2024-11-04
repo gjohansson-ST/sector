@@ -33,6 +33,19 @@ async def async_setup_entry(
         sensors = device.get("sensors", {})
         model = device.get("model", CATEGORY_MODEL_MAPPING.get(device.get("model"), "Sensor"))
 
+        if device_type == "Keypad":
+            model = CATEGORY_MODEL_MAPPING.get(device_type, "Keypad")
+            entities.append(
+                SectorAlarmKeypad(
+                    coordinator,
+                    serial_no,
+                    device_id,
+                    model,
+                    SensorEntityDescription(
+                        key="keypad",
+                    ),
+                )
+            )
         if "temperature" in sensors:
             _LOGGER.debug("Adding temperature sensor for device %s with sensors: %s", serial_no, sensors)
             entities.append(
