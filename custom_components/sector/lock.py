@@ -1,21 +1,26 @@
-# lock.py
-
-from homeassistant.components.lock import LockEntity
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
-from .const import DOMAIN
-from .coordinator import SectorDataUpdateCoordinator
+"""Locks for Sector Alarm."""
 
 import logging
 
+from homeassistant.components.lock import LockEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import DOMAIN
+from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: SectorAlarmConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+):
     """Set up Sector Alarm locks."""
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     devices = coordinator.data.get("devices", {})
     entities = []
 
@@ -28,6 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     else:
         _LOGGER.debug("No lock entities to add.")
 
+
 class SectorAlarmLock(CoordinatorEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
 
@@ -38,7 +44,7 @@ class SectorAlarmLock(CoordinatorEntity, LockEntity):
         self._device_info = device_info
         self._attr_unique_id = f"{self._serial_no}_lock"
         self._attr_name = device_info["name"]
-        _LOGGER.debug(f"Initialized lock with unique_id: {self._attr_unique_id}")
+        _LOGGER.debug("Initialized lock with unique_id: %s", self._attr_unique_id)
 
     @property
     def is_locked(self):

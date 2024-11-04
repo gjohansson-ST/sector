@@ -1,4 +1,5 @@
 """Binary sensor platform for Sector Alarm integration."""
+
 from __future__ import annotations
 
 import logging
@@ -7,22 +8,24 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, CATEGORY_MODEL_MAPPING
-from .coordinator import SectorDataUpdateCoordinator
+from .const import DOMAIN
+from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant,
+    entry: SectorAlarmConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ):
     """Set up Sector Alarm binary sensors."""
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     devices = coordinator.data.get("devices", {})
     entities = []
 
@@ -32,7 +35,12 @@ async def async_setup_entry(
         device_type = device.get("type", "")
         device_model = device.get("model", "")
 
-        _LOGGER.debug(f"Adding binary sensor {serial_no} as model '{device_model}' with type '{device_type}'")
+        _LOGGER.debug(
+            "Adding binary sensor %s as model '%s' with type '%s'",
+            serial_no,
+            device_model,
+            device_type,
+        )
 
         if "closed" in sensors:
             entities.append(
@@ -46,7 +54,12 @@ async def async_setup_entry(
                 )
             )
         if "low_battery" in sensors:
-            _LOGGER.debug(f"Adding battery to {serial_no} as  model '{device_model}' with type '{device_type}'")
+            _LOGGER.debug(
+                "Adding battery to %s as  model '%s' with type '%s'",
+                serial_no,
+                device_model,
+                device_type,
+            )
             entities.append(
                 SectorAlarmBinarySensor(
                     coordinator,
@@ -58,7 +71,12 @@ async def async_setup_entry(
                 )
             )
         else:
-            _LOGGER.warning(f"No low_battery sensor found for device {serial_no} ({device_model}). Confirmed sensors: {sensors}")
+            _LOGGER.warning(
+                "No low_battery sensor found for device %s (%s). Confirmed sensors: %s",
+                serial_no,
+                device_model,
+                sensors,
+            )
         if "leak_detected" in sensors:
             entities.append(
                 SectorAlarmBinarySensor(
@@ -125,7 +143,7 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         )
         self._attr_device_class = device_class
         _LOGGER.debug(
-            f"Initialized binary sensor with unique_id: {self._attr_unique_id}"
+            "Initialized binary sensor with unique_id: %s", self._attr_unique_id
         )
 
     @property
@@ -135,7 +153,9 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         if device:
             sensor_value = device["sensors"].get(self._sensor_type)
             if self._sensor_type == "closed":
-                return not sensor_value  # Invert because "Closed": true means door is closed
+                return (
+                    not sensor_value
+                )  # Invert because "Closed": true means door is closed
             if self._sensor_type == "low_battery":
                 return sensor_value
             if self._sensor_type == "alarm":
@@ -188,7 +208,7 @@ class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
             "model": "Alarm Panel",
         }
         _LOGGER.debug(
-            f"Initialized panel online sensor with unique_id: {self._attr_unique_id}"
+            "Initialized panel online sensor with unique_id: %s", self._attr_unique_id
         )
 
     @property

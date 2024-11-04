@@ -1,14 +1,17 @@
 """Client module for interacting with Sector Alarm API."""
+
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 
 import aiohttp
 import async_timeout
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import LOGGER
-from .endpoints import get_data_endpoints, get_action_endpoints
+from .endpoints import get_action_endpoints, get_data_endpoints
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,8 +25,9 @@ class SectorAlarmAPI:
 
     API_URL = "https://mypagesapi.sectoralarm.net"
 
-    def __init__(self, email, password, panel_id, panel_code):
+    def __init__(self, hass: HomeAssistant, email, password, panel_id, panel_code):
         """Initialize the API client."""
+        self.hass = hass
         self.email = email
         self.password = password
         self.panel_id = panel_id
@@ -37,7 +41,7 @@ class SectorAlarmAPI:
     async def login(self):
         """Authenticate with the API and obtain an access token."""
         if self.session is None:
-            self.session = aiohttp.ClientSession()
+            self.session = async_get_clientsession(self.hass)
 
         login_url = f"{self.API_URL}/api/Login/Login"
         payload = {
@@ -48,7 +52,9 @@ class SectorAlarmAPI:
             async with async_timeout.timeout(10):
                 async with self.session.post(login_url, json=payload) as response:
                     if response.status != 200:
-                        _LOGGER.error(f"Login failed with status code {response.status}")
+                        _LOGGER.error(
+                            "Login failed with status code %s", response.status
+                        )
                         raise AuthenticationError("Invalid credentials")
                     data = await response.json()
                     self.access_token = data.get("AuthorizationToken")
@@ -59,12 +65,12 @@ class SectorAlarmAPI:
                         "Authorization": f"Bearer {self.access_token}",
                         "Accept": "application/json",
                     }
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as err:
             _LOGGER.error("Timeout occurred during login")
-            raise AuthenticationError("Timeout during login")
-        except aiohttp.ClientError as e:
-            _LOGGER.error(f"Client error during login: {e}")
-            raise AuthenticationError("Client error during login")
+            raise AuthenticationError("Timeout during login") from err
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Client error during login: %s", str(err))
+            raise AuthenticationError("Client error during login") from err
 
     async def retrieve_all_data(self):
         """Retrieve all relevant data from the API."""
@@ -79,13 +85,13 @@ class SectorAlarmAPI:
                 payload = {"PanelId": self.panel_id}
                 response = await self._post(url, payload)
             else:
-                _LOGGER.error(f"Unsupported HTTP method {method} for endpoint {key}")
+                _LOGGER.error("Unsupported HTTP method %s for endpoint %s", method, key)
                 continue
 
             if response:
                 data[key] = response
             else:
-                _LOGGER.info(f"No data retrieved for {key}")
+                _LOGGER.info("No data retrieved for %s", key)
 
         locks_status = await self.get_lock_status()
         data["Lock Status"] = locks_status
@@ -108,46 +114,62 @@ class SectorAlarmAPI:
             async with async_timeout.timeout(10):
                 async with self.session.get(url, headers=self.headers) as response:
                     if response.status == 200:
-                        content_type = response.headers.get('Content-Type', '')
-                        if 'application/json' in content_type:
+                        content_type = response.headers.get("Content-Type", "")
+                        if "application/json" in content_type:
                             return await response.json()
                         else:
                             text = await response.text()
-                            _LOGGER.error(f"Received non-JSON response from {url}: {text}")
+                            _LOGGER.error(
+                                "Received non-JSON response from %s: %s", url, text
+                            )
                             return None
                     else:
                         text = await response.text()
-                        _LOGGER.error(f"GET request to {url} failed with status code {response.status}, response: {text}")
+                        _LOGGER.error(
+                            "GET request to %s failed with status code %s, response: %s",
+                            url,
+                            response.status,
+                            text,
+                        )
                         return None
         except asyncio.TimeoutError:
-            _LOGGER.error(f"Timeout occurred during GET request to {url}")
+            _LOGGER.error("Timeout occurred during GET request to %s", url)
             return None
         except aiohttp.ClientError as e:
-            _LOGGER.error(f"Client error during GET request to {url}: {e}")
+            _LOGGER.error("Client error during GET request to %s: %s", url, str(e))
             return None
 
     async def _post(self, url, payload):
         """Helper method to perform POST requests with timeout."""
         try:
             async with async_timeout.timeout(10):
-                async with self.session.post(url, json=payload, headers=self.headers) as response:
+                async with self.session.post(
+                    url, json=payload, headers=self.headers
+                ) as response:
                     if response.status == 200:
-                        content_type = response.headers.get('Content-Type', '')
-                        if 'application/json' in content_type:
+                        content_type = response.headers.get("Content-Type", "")
+                        if "application/json" in content_type:
                             return await response.json()
                         else:
                             text = await response.text()
-                            _LOGGER.error(f"Received non-JSON response from {url}: {text}")
+                            _LOGGER.error(
+                                "Received non-JSON response from %s: %s", url, text
+                            )
                             return None
                     else:
                         text = await response.text()
-                        _LOGGER.error(f"POST request to {url} failed with status code {response.status}, response: {text}")
+                        _LOGGER.error(
+                            "POST request to %s failed with status code %s, response: %s",
+                            url,
+                            response.status,
+                            text,
+                        )
                         return None
         except asyncio.TimeoutError:
-            _LOGGER.error(f"Timeout occurred during POST request to {url}")
+            _LOGGER.error("Timeout occurred during POST request to %s", url)
             return None
-        except aiohttp.ClientError as e:
-            _LOGGER.error(f"Client error during POST request to {url}: {e}")
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Client error during POST request to %s: %s", url, str(err))
             return None
 
     async def arm_system(self, mode):
@@ -192,10 +214,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            _LOGGER.debug(f"Door {serial_no} locked successfully")
+            _LOGGER.debug("Door %s locked successfully", serial_no)
             return True
         else:
-            _LOGGER.error(f"Failed to lock door {serial_no}")
+            _LOGGER.error("Failed to lock door %s", serial_no)
             return False
 
     async def unlock_door(self, serial_no):
@@ -209,10 +231,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            _LOGGER.debug(f"Door {serial_no} unlocked successfully")
+            _LOGGER.debug("Door %s unlocked successfully", serial_no)
             return True
         else:
-            _LOGGER.error(f"Failed to unlock door {serial_no}")
+            _LOGGER.error("Failed to unlock door %s", serial_no)
             return False
 
     async def turn_on_smartplug(self, plug_id):
@@ -224,10 +246,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            _LOGGER.debug(f"Smart plug {plug_id} turned on successfully")
+            _LOGGER.debug("Smart plug %s turned on successfully", plug_id)
             return True
         else:
-            _LOGGER.error(f"Failed to turn on smart plug {plug_id}")
+            _LOGGER.error("Failed to turn on smart plug %s", plug_id)
             return False
 
     async def turn_off_smartplug(self, plug_id):
@@ -239,10 +261,10 @@ class SectorAlarmAPI:
         }
         result = await self._post(url, payload)
         if result is not None:
-            _LOGGER.debug(f"Smart plug {plug_id} turned off successfully")
+            _LOGGER.debug("Smart plug %s turned off successfully", plug_id)
             return True
         else:
-            _LOGGER.error(f"Failed to turn off smart plug {plug_id}")
+            _LOGGER.error("Failed to turn off smart plug %s", plug_id)
             return False
 
     async def get_camera_image(self, serial_no):
@@ -254,21 +276,12 @@ class SectorAlarmAPI:
         }
         response = await self._post(url, payload)
         if response and response.get("ImageData"):
-            import base64
             image_data = base64.b64decode(response["ImageData"])
             return image_data
-        else:
-            _LOGGER.error(f"Failed to retrieve image for camera {serial_no}")
-            return None
+        _LOGGER.error("Failed to retrieve image for camera %s", serial_no)
+        return None
 
     async def logout(self):
         """Logout from the API."""
         logout_url = f"{self.API_URL}/api/Login/Logout"
         await self._post(logout_url, {})
-        await self.close()
-
-    async def close(self):
-        """Close the aiohttp session."""
-        if self.session:
-            await self.session.close()
-            self.session = None

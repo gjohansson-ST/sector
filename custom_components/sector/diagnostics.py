@@ -1,22 +1,19 @@
 """Diagnostics support for Sector Alarm integration."""
+
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
-from .coordinator import SectorDataUpdateCoordinator
+from .coordinator import SectorAlarmConfigEntry
 
 
 async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, entry: ConfigEntry
+    hass: HomeAssistant, entry: SectorAlarmConfigEntry
 ):
     """Return diagnostics for a config entry."""
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
-    diagnostics_data = {
+    return {
         "data": coordinator.data,
         "entry": entry.as_dict(),
     }
-
-    return diagnostics_data

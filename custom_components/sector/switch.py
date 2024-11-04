@@ -1,4 +1,5 @@
 """Switch platform for Sector Alarm integration."""
+
 from __future__ import annotations
 
 import logging
@@ -7,22 +8,24 @@ from homeassistant.components.switch import (
     SwitchDeviceClass,
     SwitchEntity,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import SectorDataUpdateCoordinator
+from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant,
+    entry: SectorAlarmConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ):
     """Set up Sector Alarm switches."""
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     devices = coordinator.data.get("devices", {})
     entities = []
 
@@ -52,7 +55,7 @@ class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
         self._serial_no = str(plug_data.get("SerialNo") or plug_data.get("Serial"))
         self._attr_unique_id = f"{self._serial_no}_switch"
         self._attr_name = plug_data.get("Label", "Sector Smart Plug")
-        _LOGGER.debug(f"Initialized switch with unique_id: {self._attr_unique_id}")
+        _LOGGER.debug("Initialized switch with unique_id: %s", self._attr_unique_id)
 
     @property
     def is_on(self):

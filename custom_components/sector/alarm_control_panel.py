@@ -1,4 +1,5 @@
 """Alarm Control Panel for Sector Alarm integration."""
+
 from __future__ import annotations
 
 import logging
@@ -7,7 +8,6 @@ from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
     STATE_ALARM_ARMED_HOME,
@@ -16,10 +16,11 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import SectorDataUpdateCoordinator
+from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,11 +31,14 @@ ALARM_STATE_TO_HA_STATE = {
     0: STATE_ALARM_PENDING,
 }
 
+
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+    hass: HomeAssistant,
+    entry: SectorAlarmConfigEntry,
+    async_add_entities: AddEntitiesCallback,
 ):
     """Set up the Sector Alarm control panel."""
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     async_add_entities([SectorAlarmControlPanel(coordinator)])
 
 
@@ -50,10 +54,14 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
         """Initialize the control panel."""
         super().__init__(coordinator)
         panel_status = coordinator.data.get("panel_status", {})
-        self._serial_no = panel_status.get("SerialNo") or coordinator.entry.data.get("panel_id")
+        self._serial_no = panel_status.get("SerialNo") or coordinator.entry.data.get(
+            "panel_id"
+        )
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
         self._attr_name = "Sector Alarm Panel"
-        _LOGGER.debug(f"Initialized alarm control panel with unique_id: {self._attr_unique_id}")
+        _LOGGER.debug(
+            "Initialized alarm control panel with unique_id: %s", self._attr_unique_id
+        )
 
     @property
     def state(self):
@@ -65,7 +73,9 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
         status_code = status.get("Status", 0)
         # Map the status code to the appropriate Home Assistant state
         mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code, STATE_ALARM_PENDING)
-        _LOGGER.debug(f"Alarm status_code: {status_code}, Mapped state: {mapped_state}")
+        _LOGGER.debug(
+            "Alarm status_code: %s, Mapped state: %s", status_code, mapped_state
+        )
         return mapped_state
 
     async def async_alarm_arm_away(self, code=None):

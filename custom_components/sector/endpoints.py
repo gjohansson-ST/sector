@@ -15,8 +15,14 @@ def get_data_endpoints(panel_id):
         "Persons": ("GET", f"{API_URL}/api/persons/panels/{panel_id}"),
         "Temperatures": ("POST", f"{API_URL}/api/v2/housecheck/temperatures"),
         # Panel endpoints
-        "Panel Status": ("GET", f"{API_URL}/api/panel/GetPanelStatus?panelId={panel_id}"),
-        "Smartplug Status": ("GET", f"{API_URL}/api/panel/GetSmartplugStatus?panelId={panel_id}"),
+        "Panel Status": (
+            "GET",
+            f"{API_URL}/api/panel/GetPanelStatus?panelId={panel_id}",
+        ),
+        "Smartplug Status": (
+            "GET",
+            f"{API_URL}/api/panel/GetSmartplugStatus?panelId={panel_id}",
+        ),
         "Lock Status": ("GET", f"{API_URL}/api/panel/GetLockStatus?panelId={panel_id}"),
         "Logs": ("GET", f"{API_URL}/api/panel/GetLogs?panelId={panel_id}"),
     }

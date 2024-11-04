@@ -5,31 +5,16 @@
             "reauth_successful": "Reauthentication successful"
         },
         "error": {
-            "auth_error": "Username and/or password is incorrect",
-            "connection_error": "Failed to connect"
+            "authentication_failed": "Username and/or password is incorrect",
+            "unknown_error": "Failed to connect"
         },
         "step": {
             "user": {
                 "data": {
-                    "username": "E-mail address",
+                    "email": "E-mail address",
                     "password": "Password",
-                    "code_format": "Code length for alarm and locks",
-                    "temp": "Enable Temp sensors"
-                }
-            },
-            "reauth_confirm": {
-                "data": {
-                    "username": "E-mail address",
-                    "password": "Password"
-                }
-            }
-        }
-    },
-    "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "code_format": "Code length for alarm and locks"
+                    "panel_id": "Panel ID",
+                    "panel_code": "Panel code"
                 }
             }
         }
