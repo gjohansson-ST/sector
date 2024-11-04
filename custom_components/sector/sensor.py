@@ -34,9 +34,7 @@ async def async_setup_entry(
         device_type = device.get("type", "")
         device_model = device.get("model", "")
 
-        model = CATEGORY_MODEL_MAPPING.get(device_type, CATEGORY_MODEL_MAPPING.get(device_model, "Sensor"))
-
-        _LOGGER.debug(f"Adding device {serial_no} as model '{model}' with type '{device_type}'")
+        _LOGGER.debug(f"Adding device {serial_no} as model '{device_model}' with type '{device_type}'")
 
         if "temperature" in sensors:
             _LOGGER.debug("Adding temperature sensor for device %s with sensors: %s", serial_no, sensors)
@@ -51,7 +49,7 @@ async def async_setup_entry(
                         device_class=SensorDeviceClass.TEMPERATURE,
                         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
                     ),
-                    model=model
+                    model=device_model
                 )
             )
         if "humidity" in sensors:
@@ -67,7 +65,7 @@ async def async_setup_entry(
                         device_class=SensorDeviceClass.HUMIDITY,
                         native_unit_of_measurement=PERCENTAGE,
                     ),
-                    model=model
+                    model=device_model
                 )
             )
 

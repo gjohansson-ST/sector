@@ -32,9 +32,7 @@ async def async_setup_entry(
         device_type = device.get("type", "")
         device_model = device.get("model", "")
 
-        model = CATEGORY_MODEL_MAPPING.get(device_type, CATEGORY_MODEL_MAPPING.get(device_model, "Binary Sensor"))
-
-        _LOGGER.debug(f"Adding binary sensor {serial_no} as model '{model}' with type '{device_type}'")
+        _LOGGER.debug(f"Adding binary sensor {serial_no} as model '{device_model}' with type '{device_type}'")
 
         if "closed" in sensors:
             entities.append(
@@ -44,7 +42,7 @@ async def async_setup_entry(
                     "closed",
                     device,
                     BinarySensorDeviceClass.DOOR,
-                    model,
+                    device_model,
                 )
             )
         if "low_battery" in sensors:
@@ -55,7 +53,7 @@ async def async_setup_entry(
                     "low_battery",
                     device,
                     BinarySensorDeviceClass.BATTERY,
-                    model,
+                    device_model,
                 )
             )
         if "leak_detected" in sensors:
@@ -66,7 +64,7 @@ async def async_setup_entry(
                     "leak_detected",
                     device,
                     BinarySensorDeviceClass.MOISTURE,
-                    model,
+                    device_model,
                 )
             )
         if "alarm" in sensors:
@@ -77,7 +75,7 @@ async def async_setup_entry(
                     "alarm",
                     device,
                     BinarySensorDeviceClass.SAFETY,
-                    model,
+                    device_model,
                 )
             )
 

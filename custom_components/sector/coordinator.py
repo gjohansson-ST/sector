@@ -80,18 +80,23 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         for place in section.get("Places", []):
                             for component in place.get("Components", []):
                                 serial_no = str(component.get("SerialNo") or component.get("Serial"))
-                                device_type = str(component.get("Type", "")).lower()
-                                if not device_type or device_type.isnumeric():
-                                    device_type = model_name.lower()  # Fallback to model_name if type is invalid
+                                device_type = component.get("Type", "")
+                                device_type_lower = str(device_type).lower()
+
+                                if device_type_lower in CATEGORY_MODEL_MAPPING:
+                                    model = CATEGORY_MODEL_MAPPING[device_type_lower]
+                                else:
+                                    _LOGGER.debug(f"Unknown device_type '{device_type}' for serial '{serial_no}', falling back to category model '{model_name}'")
+                                    model = model_name  # Use category model as fallback
+
                                 if serial_no:
-                                    model = CATEGORY_MODEL_MAPPING.get(device_type, CATEGORY_MODEL_MAPPING.get(model_name, "Unknown Device"))
                                     if serial_no not in devices:
                                         devices[serial_no] = {
                                             "name": component.get("Label") or component.get("Name"),
                                             "serial_no": serial_no,
                                             "sensors": {},
                                             "model": model,
-                                            "type": component.get("Type", "")
+                                            "type": device_type,
                                         }
                                     _LOGGER.debug(f"Processed device {serial_no} with type '{device_type}' and model '{model}'")
                                     # Add sensors based on component data
@@ -118,14 +123,23 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             for place in section.get("Places", []):
                                 for component in place.get("Components", []):
                                     serial_no = str(component.get("SerialNo") or component.get("Serial"))
+                                    device_type = component.get("Type", "")
+                                    device_type_lower = str(device_type).lower()
+
+                                    if device_type_lower in CATEGORY_MODEL_MAPPING:
+                                        model = CATEGORY_MODEL_MAPPING[device_type_lower]
+                                    else:
+                                        _LOGGER.debug(f"Unknown device_type '{device_type}' for serial '{serial_no}', falling back to category model '{model_name}'")
+                                        model = model_name  # Use category model as fallback
+
                                     if serial_no:
                                         if serial_no not in devices:
                                             devices[serial_no] = {
                                                 "name": component.get("Label") or component.get("Name"),
                                                 "serial_no": serial_no,
                                                 "sensors": {},
-                                                "model": model_name,
-                                                "type": component.get("Type", "")
+                                                "model": model,
+                                                "type": device_type,
                                             }
                                         temperature = component.get("Temperature")
                                         if temperature is not None:
@@ -145,14 +159,23 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             for place in section.get("Places", []):
                                 for component in place.get("Components", []):
                                     serial_no = str(component.get("SerialNo") or component.get("Serial"))
+                                    device_type = component.get("Type", "")
+                                    device_type_lower = str(device_type).lower()
+
+                                    if device_type_lower in CATEGORY_MODEL_MAPPING:
+                                        model = CATEGORY_MODEL_MAPPING[device_type_lower]
+                                    else:
+                                        _LOGGER.debug(f"Unknown device_type '{device_type}' for serial '{serial_no}', falling back to category model '{model_name}'")
+                                        model = model_name  # Use category model as fallback
+
                                     if serial_no:
                                         if serial_no not in devices:
                                             devices[serial_no] = {
                                                 "name": component.get("Label") or component.get("Name"),
                                                 "serial_no": serial_no,
                                                 "sensors": {},
-                                                "model": model_name,
-                                                "type": component.get("Type", "")
+                                                "model": model,
+                                                "type": device_type,
                                             }
                                             _LOGGER.debug(f"Registering device {serial_no} with model: {model_name}")
                                         humidity = component.get("Humidity")
