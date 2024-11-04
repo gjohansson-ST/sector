@@ -97,6 +97,14 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                         devices[serial_no]["sensors"]["leak_detected"] = component["LeakDetected"]
                                     if "SmokeDetected" in component:
                                         devices[serial_no]["sensors"]["smoke_detected"] = component["SmokeDetected"]
+
+                                    # Add model based on category
+                                    if category_name == "Cameras":
+                                        devices[serial_no]["model"]: component.get("DeviceTypeName", "Camera")
+                                    if category_name == "Doors and Windows":
+                                        devices[serial_no]["model"]: component.get("DeviceTypeName", "Contact and Shock Detector")
+                                    if category_name == "Smoke Detectors":
+                                        devices[serial_no]["model"]: component.get("DeviceTypeName", "Smoke Detector")
                                 else:
                                     _LOGGER.warning(f"Component missing SerialNo: {component}")
 
