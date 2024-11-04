@@ -12,6 +12,7 @@ from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
     STATE_ALARM_ARMED_HOME,
     STATE_ALARM_DISARMED,
+    STATE_ALARM_PENDING,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
@@ -21,6 +22,13 @@ from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+ALARM_STATE_TO_HA_STATE = {
+    3: STATE_ALARM_ARMED_AWAY,
+    2: STATE_ALARM_ARMED_HOME,
+    1: STATE_ALARM_DISARMED,
+    0: STATE_ALARM_PENDING,
+}
 
 
 async def async_setup_entry(
@@ -54,14 +62,12 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
         status = self.coordinator.data.get("panel_status", {})
         if status.get("IsOnline", False) is False:
             return "offline"
-        status_code = status.get("Status")
-        if status_code == "Disarmed":
-            return STATE_ALARM_DISARMED
-        elif status_code == "PartiallyArmed":
-            return STATE_ALARM_ARMED_HOME
-        elif status_code == "Armed":
-            return STATE_ALARM_ARMED_AWAY
-        return None
+        # Get the status code from the panel data
+        status_code = status.get("Status", 0)
+        # Map the status code to the appropriate Home Assistant state
+        mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code, STATE_ALARM_PENDING)
+        _LOGGER.debug(f"Alarm status_code: {status_code}, Mapped state: {mapped_state}")
+        return mapped_state
 
     async def async_alarm_arm_away(self, code=None):
         """Send arm away command."""
