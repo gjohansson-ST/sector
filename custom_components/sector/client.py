@@ -85,7 +85,7 @@ class SectorAlarmAPI:
             if response:
                 data[key] = response
             else:
-                _LOGGER.error(f"Failed to retrieve data for {key}")
+                _LOGGER.info(f"No data retrieved for {key}")
 
         locks_status = await self.get_lock_status()
         data["Lock Status"] = locks_status

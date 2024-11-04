@@ -52,7 +52,9 @@ class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
     def state(self):
         """Return the state of the device."""
         status = self.coordinator.data.get("panel_status", {})
-        status_code = status.get("ArmingState")
+        if status.get("IsOnline", False) is False:
+            return "offline"
+        status_code = status.get("Status")
         if status_code == "Disarmed":
             return STATE_ALARM_DISARMED
         elif status_code == "PartiallyArmed":

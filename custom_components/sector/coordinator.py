@@ -73,6 +73,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Process devices from different categories
             for category_name, category_data in data.items():
+                _LOGGER.debug(f"Processing category: {category_name}")
                 model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
                 if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors", "Cameras"]:
                     for section in category_data.get("Sections", []):
@@ -145,6 +146,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                                 "sensors": {},
                                                 "model": model_name,
                                             }
+                                            _LOGGER.debug(f"Registering device {serial_no} with model: {model_name}")
                                         humidity = component.get("Humidity")
                                         if humidity is not None:
                                             devices[serial_no]["sensors"]["humidity"] = float(humidity)

@@ -34,6 +34,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
-        await coordinator.api.logout()
+#        await coordinator.api.logout()
         await coordinator.api.close()
     return unload_ok
