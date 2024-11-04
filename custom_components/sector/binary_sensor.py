@@ -46,6 +46,7 @@ async def async_setup_entry(
                 )
             )
         if "low_battery" in sensors:
+            _LOGGER.debug(f"Adding battery to {serial_no} as  model '{device_model}' with type '{device_type}'")
             entities.append(
                 SectorAlarmBinarySensor(
                     coordinator,
@@ -133,7 +134,11 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
             sensor_value = device["sensors"].get(self._sensor_type)
             if self._sensor_type == "closed":
                 return not sensor_value  # Invert because "Closed": true means door is closed
-            return sensor_value
+            elif self._sensor_type == "low_battery":
+                return sensor_value
+            elif self._sensor_type == "alarm":
+                return sensor_value
+            return bool(sensor_value)
         return False
 
     @property
