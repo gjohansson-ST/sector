@@ -185,7 +185,8 @@ class SectorAlarmAPI:
         """Lock a specific door."""
         url = self.action_endpoints["Lock"][1]
         payload = {
-            "Code": self.panel_code,
+            "LockSerial": lock_serial,
+            "PanelCode": self.panel_code,
             "PanelId": self.panel_id,
             "SerialNo": serial_no,
         }
@@ -201,7 +202,8 @@ class SectorAlarmAPI:
         """Unlock a specific door."""
         url = self.action_endpoints["Unlock"][1]
         payload = {
-            "Code": self.panel_code,
+            "LockSerial": lock_serial,
+            "PanelCode": self.panel_code,
             "PanelId": self.panel_id,
             "SerialNo": serial_no,
         }
