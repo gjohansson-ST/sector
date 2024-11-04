@@ -88,7 +88,8 @@ async def async_setup_entry(
             serial_no,
             "online",
             BinarySensorDeviceClass.CONNECTIVITY,
-        )
+        ),
+        model="AlarmPanel"
     )
 
     if entities:
