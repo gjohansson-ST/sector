@@ -6,6 +6,7 @@ PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch",
 CATEGORY_MODEL_MAPPING = {
     "Doors and Windows": "Door/Window Sensor",
     "Smoke Detectors": "Smoke Detector",
+    "SmokeDetectorSync": "Smoke Detector",
     "Leakage Detectors": "Leakage Detector",
     "Temperatures": "Temperature Sensor",
     "Humidity": "Humidity Sensor",
