@@ -119,7 +119,7 @@ async def async_setup_entry(
         _LOGGER.debug("No binary sensor entities to add.")
 
 
-class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
+class SectorAlarmBinarySensor(CoordinatorEntity[SectorDataUpdateCoordinator], BinarySensorEntity):
     """Representation of a Sector Alarm binary sensor."""
 
     def __init__(
@@ -185,7 +185,7 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
         }
 
 
-class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
+class SectorAlarmPanelOnlineBinarySensor(CoordinatorEntity[SectorDataUpdateCoordinator], BinarySensorEntity):
     """Representation of the Sector Alarm panel online status."""
 
     def __init__(

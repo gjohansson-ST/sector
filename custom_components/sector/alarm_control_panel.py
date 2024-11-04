@@ -42,7 +42,7 @@ async def async_setup_entry(
     async_add_entities([SectorAlarmControlPanel(coordinator)])
 
 
-class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
+class SectorAlarmControlPanel(CoordinatorEntity[SectorDataUpdateCoordinator], AlarmControlPanelEntity):
     """Representation of the Sector Alarm control panel."""
 
     _attr_supported_features = (

@@ -40,7 +40,7 @@ async def async_setup_entry(
         _LOGGER.debug("No switch entities to add.")
 
 
-class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
+class SectorAlarmSwitch(CoordinatorEntity[SectorDataUpdateCoordinator], SwitchEntity):
     """Representation of a Sector Alarm smart plug."""
 
     _attr_device_class = SwitchDeviceClass.OUTLET

@@ -38,7 +38,7 @@ async def async_setup_entry(
         _LOGGER.debug("No camera entities to add.")
 
 
-class SectorAlarmCamera(CoordinatorEntity, Camera):
+class SectorAlarmCamera(CoordinatorEntity[SectorDataUpdateCoordinator], Camera):
     """Representation of a Sector Alarm camera."""
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator, camera_data: dict):
