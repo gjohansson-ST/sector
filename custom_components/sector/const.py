@@ -4,8 +4,10 @@ DOMAIN = "sector_alarm"
 PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch", "camera"]
 
 CATEGORY_MODEL_MAPPING = {
+    "1": "Door/Window Sensor",
     "doors and windows": "Door/Window Sensor",
     "vibrationsensor": "Door/Window Sensor",
+    "smoke detector": "Smoke Detector",
     "smoke detectors": "Smoke Detector",
     "smokedetectorsync": "Smoke Detector",
     "leakage detectors": "Leakage Detector",
