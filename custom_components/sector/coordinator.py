@@ -100,30 +100,20 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                         }
                                     _LOGGER.debug(f"Processed device {serial_no} with type '{device_type}' and model '{model}'")
                                     # Add sensors based on component data
-                                    if device_type == "Keypad" or model == "Smart Lock":
-                                        # Explicitly check and set low_battery for Keypad and Smart Lock
-                                        if "BatteryLow" in component and component["BatteryLow"] is not None:
-                                            devices[serial_no]["sensors"]["low_battery"] = component["BatteryLow"]
-                                        elif "LowBattery" in component and component["LowBattery"] is not None:
-                                            devices[serial_no]["sensors"]["low_battery"] = component["LowBattery"]
-                                        else:
-                                            _LOGGER.debug(f"No low_battery attribute found for {device_type} with serial {serial_no}")
-
                                     if "Closed" in component:
                                         devices[serial_no]["sensors"]["closed"] = component["Closed"]
-                                    if device_type == "Keypad" or model == "Smart Lock":
-                                        low_battery_value = component.get("LowBattery", None)
-                                        if not low_battery_value:
-                                            low_battery_value = component.get("BatteryLow", None)
+
+                                    # Unified check for BatteryLow and LowBattery fields
+                                    low_battery_value = component.get("LowBattery")
+                                    if low_battery_value is None:  # If not present, try BatteryLow
+                                        low_battery_value = component.get("BatteryLow")
+                                        # Register low_battery if found
                                         if low_battery_value is not None:
                                             devices[serial_no]["sensors"]["low_battery"] = low_battery_value
-                                            _LOGGER.debug(f"Assigned low_battery sensor for device {serial_no} with value {low_battery_value}")
+                                            _LOGGER.debug(f"Assigned low_battery sensor for device {serial_no} (type '{device_type}') with value {low_battery_value}")
                                         else:
-                                            _LOGGER.warning(f"No LowBattery value found for device {serial_no} of type {device_type}")
-                                    if "LowBattery" in component:
-                                        devices[serial_no]["sensors"]["low_battery"] = component["LowBattery"]
-                                    if "BatteryLow" in component:
-                                        devices[serial_no]["sensors"]["low_battery"] = component["BatteryLow"]
+                                            _LOGGER.warning(f"No LowBattery or BatteryLow found for device {serial_no} of type '{device_type}'")
+
                                     if "Humidity" in component and component["Humidity"]:
                                         devices[serial_no]["sensors"]["humidity"] = float(component["Humidity"])
                                     if "Temperature" in component and component["Temperature"]:
