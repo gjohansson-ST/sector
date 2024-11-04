@@ -1,5 +1,5 @@
 {
-  "domain": "sector_alarm",
+  "domain": "sector",
   "name": "Sector Alarm",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/sector_alarm",
