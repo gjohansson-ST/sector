@@ -1,10 +1,11 @@
-"""Adds Alarm Panel for Sector integration."""
+"""Alarm Control Panel for Sector Alarm integration."""
 from __future__ import annotations
+
+import logging
 
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
-    CodeFormat,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -13,14 +14,14 @@ from homeassistant.const import (
     STATE_ALARM_DISARMED,
     STATE_ALARM_PENDING,
 )
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 ALARM_STATE_TO_HA_STATE = {
     3: STATE_ALARM_ARMED_AWAY,
@@ -29,110 +30,80 @@ ALARM_STATE_TO_HA_STATE = {
     0: STATE_ALARM_PENDING,
 }
 
-
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
-    """Set up alarm panel from config entry."""
-
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([SectorAlarmPanel(coordinator, key) for key in coordinator.data])
-
-
-class SectorAlarmPanel(
-    CoordinatorEntity[SectorDataUpdateCoordinator], AlarmControlPanelEntity
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
-    """Sector Alarm Panel."""
+    """Set up the Sector Alarm control panel."""
+    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities([SectorAlarmControlPanel(coordinator)])
 
-    _attr_has_entity_name = True
 
-    def __init__(
-        self,
-        coordinator: SectorDataUpdateCoordinator,
-        panel_id: str,
-    ) -> None:
-        """Initialize the Alarm panel."""
+class SectorAlarmControlPanel(CoordinatorEntity, AlarmControlPanelEntity):
+    """Representation of the Sector Alarm control panel."""
+
+    _attr_supported_features = (
+        AlarmControlPanelEntityFeature.ARM_AWAY
+        | AlarmControlPanelEntityFeature.ARM_HOME
+    )
+
+    def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
+        """Initialize the control panel."""
         super().__init__(coordinator)
-        self._panel_id = panel_id
-        self._displayname: str = self.coordinator.data[panel_id]["name"]
-        self._attr_unique_id = f"sa_panel_{panel_id}"
-        self._attr_changed_by = self.coordinator.data[panel_id]["changed_by"]
-        self._attr_supported_features = (
-            AlarmControlPanelEntityFeature.ARM_HOME
-            | AlarmControlPanelEntityFeature.ARM_AWAY
-        )
-        self._attr_code_arm_required = True
-        self._attr_code_format = CodeFormat.NUMBER
-        self._attr_state = ALARM_STATE_TO_HA_STATE[
-            self.coordinator.data[panel_id]["alarmstatus"]
-        ]
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_panel_{panel_id}")},
-            name=f"Sector Alarmpanel {panel_id}",
-            manufacturer="Sector Alarm",
-            model="Alarmpanel",
-            sw_version="master",
-            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
-        )
+        panel_status = coordinator.data.get("panel_status", {})
+        self._serial_no = panel_status.get("SerialNo") or coordinator.entry.data.get("panel_id")
+        self._attr_unique_id = f"{self._serial_no}_alarm_panel"
+        self._attr_name = "Sector Alarm Panel"
+        _LOGGER.debug(f"Initialized alarm control panel with unique_id: {self._attr_unique_id}")
 
     @property
-    def extra_state_attributes(self) -> dict:
-        """Additional states for alarm panel."""
-        return {
-            "display_name": self._displayname,
-        }
+    def state(self):
+        """Return the state of the device."""
+        status = self.coordinator.data.get("panel_status", {})
+        if status.get("IsOnline", False) is False:
+            return "offline"
+        # Get the status code from the panel data
+        status_code = status.get("Status", 0)
+        # Map the status code to the appropriate Home Assistant state
+        mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code, STATE_ALARM_PENDING)
+        _LOGGER.debug(f"Alarm status_code: {status_code}, Mapped state: {mapped_state}")
+        return mapped_state
 
-    async def async_alarm_arm_home(self, code: str | None = None) -> None:
-        """Arm alarm home."""
-        command = "partial"
-        if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
-            await self.coordinator.triggeralarm(
-                command, code=code, panel_id=self._panel_id
-            )
-            self._attr_state = STATE_ALARM_ARMED_HOME
-            if self.coordinator.logname:
-                self._attr_changed_by = self.coordinator.logname
-            self.async_write_ha_state()
-            return
-        raise HomeAssistantError("No code provided or incorrect length")
+    async def async_alarm_arm_away(self, code=None):
+        """Send arm away command."""
+        success = await self.coordinator.api.arm_system("total")
+        if success:
+            await self.coordinator.async_request_refresh()
 
-    async def async_alarm_disarm(self, code: str | None = None) -> None:
-        """Arm alarm off."""
-        command = "disarm"
-        if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
-            await self.coordinator.triggeralarm(
-                command, code=code, panel_id=self._panel_id
-            )
-            self._attr_state = STATE_ALARM_DISARMED
-            if self.coordinator.logname:
-                self._attr_changed_by = self.coordinator.logname
-            self.async_write_ha_state()
-            return
-        raise HomeAssistantError("No code provided or incorrect length")
+    async def async_alarm_arm_home(self, code=None):
+        """Send arm home command."""
+        success = await self.coordinator.api.arm_system("partial")
+        if success:
+            await self.coordinator.async_request_refresh()
 
-    async def async_alarm_arm_away(self, code: str | None = None) -> None:
-        """Arm alarm away."""
-        command = "full"
-        if code and len(code) == self.coordinator.data[self._panel_id]["codelength"]:
-            await self.coordinator.triggeralarm(
-                command, code=code, panel_id=self._panel_id
-            )
-            self._attr_state = STATE_ALARM_ARMED_AWAY
-            if self.coordinator.logname:
-                self._attr_changed_by = self.coordinator.logname
-            self.async_write_ha_state()
-            return
-        raise HomeAssistantError("No code provided or incorrect length")
+    async def async_alarm_disarm(self, code=None):
+        """Send disarm command."""
+        success = await self.coordinator.api.disarm_system()
+        if success:
+            await self.coordinator.async_request_refresh()
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        self._attr_changed_by = self.coordinator.data[self._panel_id].get("changed_by")
-        if alarm_state := self.coordinator.data[self._panel_id].get("alarmstatus"):
-            self._attr_state = ALARM_STATE_TO_HA_STATE[alarm_state]
-        super()._handle_coordinator_update()
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._serial_no)},
+            name="Sector Alarm Panel",
+            manufacturer="Sector Alarm",
+            model="Alarm Panel",
+        )
 
     @property
     def available(self) -> bool:
-        """Return entity available."""
+        """Return entity availability."""
         return True
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "serial_number": self._serial_no,
+        }

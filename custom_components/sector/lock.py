@@ -1,115 +1,77 @@
-"""Adds Lock for Sector integration."""
-from __future__ import annotations
+# lock.py
 
-from homeassistant.components.lock import LockEntity, LockEntityDescription
+from homeassistant.components.lock import LockEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_CODE
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_CODE_FORMAT, DOMAIN
+from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
+import logging
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
-    """Lock platform."""
+_LOGGER = logging.getLogger(__name__)
 
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
+    """Set up Sector Alarm locks."""
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    code_format: int | None = entry.options[CONF_CODE_FORMAT]
+    devices = coordinator.data.get("devices", {})
+    entities = []
 
-    lock_list: list = []
-    for panel, panel_data in coordinator.data.items():
-        if "lock" in panel_data:
-            for lock, lock_data in panel_data["lock"].items():
-                name = lock_data["name"]
-                serial = lock
-                description = LockEntityDescription(
-                    key=lock, name=f"Sector {name} {serial}"
-                )
-                lock_list.append(
-                    SectorAlarmLock(
-                        coordinator,
-                        code_format,
-                        description,
-                        panel,
-                    )
-                )
+    for device in devices.values():
+        if device.get("model") == "Smart Lock":
+            entities.append(SectorAlarmLock(coordinator, device))
 
-    if lock_list:
-        async_add_entities(lock_list)
+    if entities:
+        async_add_entities(entities)
+    else:
+        _LOGGER.debug("No lock entities to add.")
 
+class SectorAlarmLock(CoordinatorEntity, LockEntity):
+    """Representation of a Sector Alarm lock."""
 
-class SectorAlarmLock(CoordinatorEntity[SectorDataUpdateCoordinator], LockEntity):
-    """Sector lock."""
-
-    _attr_has_entity_name = True
-
-    def __init__(
-        self,
-        coordinator: SectorDataUpdateCoordinator,
-        code_format: int | None,
-        description: LockEntityDescription,
-        panel_id: str,
-    ) -> None:
-        """Initialize lock."""
+    def __init__(self, coordinator: SectorDataUpdateCoordinator, device_info: dict):
+        """Initialize the lock."""
         super().__init__(coordinator)
-        self._panel_id = panel_id
-        self._attr_unique_id = f"sa_lock_{description.key}"
-        self._attr_code_format = rf"^\d{{{code_format}}}$"
-        self._attr_is_locked = bool(
-            self.coordinator.data[panel_id]["lock"][description.key]["status"] == "lock"
-        )
-        self.entity_description = description
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_lock_{description.key}")},
-            name=description.name,
+        self._serial_no = device_info["serial_no"]
+        self._device_info = device_info
+        self._attr_unique_id = f"{self._serial_no}_lock"
+        self._attr_name = device_info["name"]
+        _LOGGER.debug(f"Initialized lock with unique_id: {self._attr_unique_id}")
+
+    @property
+    def is_locked(self):
+        """Return true if the lock is locked."""
+        device = self.coordinator.data["devices"].get(self._serial_no)
+        if device:
+            status = device["sensors"].get("lock_status")
+            return status == "lock"
+        return None
+
+    async def async_lock(self, **kwargs):
+        """Lock the device."""
+        await self.coordinator.api.lock_door(self._serial_no)
+        await self.coordinator.async_request_refresh()
+
+    async def async_unlock(self, **kwargs):
+        """Unlock the device."""
+        await self.coordinator.api.unlock_door(self._serial_no)
+        await self.coordinator.async_request_refresh()
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._serial_no)},
+            name=self._device_info["name"],
             manufacturer="Sector Alarm",
-            model="Lock",
-            sw_version="master",
-            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
+            model=self._device_info["model"],
         )
 
     @property
-    def extra_state_attributes(self) -> dict:
-        """Additional states of lock."""
+    def extra_state_attributes(self):
+        """Return the state attributes."""
         return {
-            "Serial No": self.entity_description.key,
+            "serial_number": self._serial_no,
         }
-
-    async def async_unlock(self, **kwargs: str) -> None:
-        """Unlock lock."""
-        command = "unlock"
-        if code := kwargs.get(ATTR_CODE):
-            await self.coordinator.triggerlock(
-                self.entity_description.key, code, command, self._panel_id
-            )
-            self._attr_is_locked = False
-            self.async_write_ha_state()
-
-    async def async_lock(self, **kwargs: str) -> None:
-        """Lock lock."""
-        command = "lock"
-        if code := kwargs.get(ATTR_CODE):
-            await self.coordinator.triggerlock(
-                self.entity_description.key, code, command, self._panel_id
-            )
-            self._attr_is_locked = True
-            self.async_write_ha_state()
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        if lock := self.coordinator.data[self._panel_id]["lock"].get(
-            self.entity_description.key
-        ):
-            self._attr_is_locked = bool(lock.get("status") == "lock")
-        super()._handle_coordinator_update()
-
-    @property
-    def available(self) -> bool:
-        """Return entity available."""
-        return True

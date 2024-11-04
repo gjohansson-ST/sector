@@ -1,109 +1,91 @@
-"""Adds switch for Sector integration."""
+"""Switch platform for Sector Alarm integration."""
 from __future__ import annotations
+
+import logging
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
     SwitchEntity,
-    SwitchEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
+_LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
-    """Switch platform."""
-
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities
+):
+    """Set up Sector Alarm switches."""
     coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    devices = coordinator.data.get("devices", {})
+    entities = []
 
-    switch_list: list = []
-    for panel, panel_data in coordinator.data.items():
-        if "switch" in panel_data:
-            for switch, switch_data in panel_data["switch"].items():
-                name = switch_data["name"]
-                serial = switch_data["serial"]
-                description = SwitchEntityDescription(
-                    key=switch, name=name, device_class=SwitchDeviceClass.OUTLET
-                )
-                switch_list.append(
-                    SectorAlarmSwitch(coordinator, description, serial, panel)
-                )
+    smartplugs = devices.get("smartplugs", [])
 
-    if switch_list:
-        async_add_entities(switch_list)
+    for plug in smartplugs:
+        entities.append(SectorAlarmSwitch(coordinator, plug))
+
+    if entities:
+        async_add_entities(entities)
+    else:
+        _LOGGER.debug("No switch entities to add.")
 
 
-class SectorAlarmSwitch(CoordinatorEntity[SectorDataUpdateCoordinator], SwitchEntity):
-    """Sector Switch."""
+class SectorAlarmSwitch(CoordinatorEntity, SwitchEntity):
+    """Representation of a Sector Alarm smart plug."""
 
-    _attr_has_entity_name = True
+    _attr_device_class = SwitchDeviceClass.OUTLET
 
     def __init__(
-        self,
-        coordinator: SectorDataUpdateCoordinator,
-        description: SwitchEntityDescription,
-        serial: str,
-        panel_id: str,
+        self, coordinator: SectorDataUpdateCoordinator, plug_data: dict
     ) -> None:
-        """Initialize Switch."""
+        """Initialize the switch."""
         super().__init__(coordinator)
-        self._panel_id = panel_id
-        self._attr_unique_id = f"sa_switch_{serial}"
-        self.entity_description = description
-        self._attr_is_on = bool(
-            self.coordinator.data[panel_id]["switch"][description.key]["status"] == "On"
-        )
-        self.serial = serial
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"sa_switch_{serial}")},
-            name=description.name,
-            manufacturer="Sector Alarm",
-            model="Switch",
-            sw_version="master",
-            via_device=(DOMAIN, f"sa_hub_{panel_id}"),
-        )
+        self._plug_data = plug_data
+        self._id = plug_data.get("Id")
+        self._serial_no = str(plug_data.get("SerialNo") or plug_data.get("Serial"))
+        self._attr_unique_id = f"{self._serial_no}_switch"
+        self._attr_name = plug_data.get("Label", "Sector Smart Plug")
+        _LOGGER.debug(f"Initialized switch with unique_id: {self._attr_unique_id}")
 
     @property
-    def extra_state_attributes(self) -> dict:
-        """Additional states for switch."""
-        return {
-            "Serial No": self.serial,
-            "Id": self.entity_description.key,
-        }
+    def is_on(self):
+        """Return true if the switch is on."""
+        smartplugs = self.coordinator.data["devices"].get("smartplugs", [])
+        for plug in smartplugs:
+            if plug.get("Id") == self._id:
+                return plug.get("State") == "On"
+        return False
 
-    async def async_turn_on(self, **kwargs: str) -> None:
+    async def async_turn_on(self, **kwargs):
         """Turn the switch on."""
-        await self.coordinator.triggerswitch(
-            self.entity_description.key, "on", self._panel_id
-        )
-        self._attr_is_on = True
-        self.async_write_ha_state()
+        success = await self.coordinator.api.turn_on_smartplug(self._id)
+        if success:
+            await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self, **kwargs: str) -> None:
+    async def async_turn_off(self, **kwargs):
         """Turn the switch off."""
-        await self.coordinator.triggerswitch(
-            self.entity_description.key, "off", self._panel_id
-        )
-        self._attr_is_on = False
-        self.async_write_ha_state()
+        success = await self.coordinator.api.turn_off_smartplug(self._id)
+        if success:
+            await self.coordinator.async_request_refresh()
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        if switch := self.coordinator.data[self._panel_id]["switch"].get(
-            self.entity_description.key
-        ):
-            self._attr_is_on = bool(switch.get("status") == "On")
-        super()._handle_coordinator_update()
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device info."""
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._serial_no)},
+            name=self._attr_name,
+            manufacturer="Sector Alarm",
+            model="Smart Plug",
+        )
 
     @property
     def available(self) -> bool:
-        """Return entity available."""
+        """Return entity availability."""
         return True

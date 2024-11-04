@@ -1,29 +1,28 @@
-"""SECTOR ALARM INTEGRATION CONSTANTS FOR HOME ASSISTANT."""
-from __future__ import annotations
-
-import logging
-
-from homeassistant.const import Platform
+"""Constants for the Sector Alarm integration."""
 
 DOMAIN = "sector"
+PLATFORMS = ["alarm_control_panel", "binary_sensor", "lock", "sensor", "switch", "camera"]
 
-LOGGER = logging.getLogger(__package__)
+CATEGORY_MODEL_MAPPING = {
+    "1": "Door/Window Sensor",
+    "doors and windows": "Door/Window Sensor",
+    "vibrationsensor": "Door/Window Sensor",
+    "smoke detector": "Smoke Detector",
+    "smoke detectors": "Smoke Detector",
+    "smokedetectorsync": "Smoke Detector",
+    "leakage detectors": "Leakage Detector",
+    "temperatures": "Temperature Sensor",
+    "humidity": "Humidity Sensor",
+    "smartplug status": "Smart Plug",
+    "lock status": "Lock",
+    "cameras": "Camera",
+    "camerapir": "Camera",
+    "keypad": "Keypad",
+}
 
-API_URL = "https://mypagesapi.sectoralarm.net/api"
+CONF_EMAIL = "email"
+CONF_PASSWORD = "password"
+CONF_PANEL_ID = "panel_id"
+CONF_PANEL_CODE = "panel_code"
 
-CONF_USERID = "userid"  # Kept for migration purpose
-CONF_CODE_FORMAT = "code_format"
-CONF_TEMP = "temp"
-CONF_LOCK = "lock"
-UPDATE_INTERVAL = "timesync"
-
-MIN_SCAN_INTERVAL = 60
-
-
-PLATFORMS = [
-    Platform.ALARM_CONTROL_PANEL,
-    Platform.BINARY_SENSOR,
-    Platform.LOCK,
-    Platform.SENSOR,
-    Platform.SWITCH,
-]
+LOGGER = "sector_alarm"
