@@ -15,6 +15,7 @@ from .const import (
     DOMAIN,
     CONF_EMAIL,
     CONF_PASSWORD,
+    CATEGORY_MODEL_MAPPING,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,6 +73,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Process devices from different categories
             for category_name, category_data in data.items():
+                model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
                 if category_name in ["Doors and Windows", "Smoke Detectors", "Leakage Detectors", "Cameras"]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
@@ -83,6 +85,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                             "name": component.get("Label") or component.get("Name"),
                                             "serial_no": serial_no,
                                             "sensors": {},
+                                            "model": model_name,
                                         }
                                     # Add sensors based on component data
                                     if "Closed" in component:
@@ -98,13 +101,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                     if "SmokeDetected" in component:
                                         devices[serial_no]["sensors"]["smoke_detected"] = component["SmokeDetected"]
 
-                                    # Add model based on category
-                                    if category_name == "Cameras":
-                                        devices[serial_no]["model"]: component.get("DeviceTypeName", "Camera")
-                                    if category_name == "Doors and Windows":
-                                        devices[serial_no]["model"]: component.get("DeviceTypeName", "Contact and Shock Detector")
-                                    if category_name == "Smoke Detectors":
-                                        devices[serial_no]["model"]: component.get("DeviceTypeName", "Smoke Detector")
                                 else:
                                     _LOGGER.warning(f"Component missing SerialNo: {component}")
 
@@ -121,7 +117,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                                 "name": component.get("Label") or component.get("Name"),
                                                 "serial_no": serial_no,
                                                 "sensors": {},
-                                                "model": component.get("DeviceTypeName", "Temperature Sensor"),
+                                                "model": model_name,
                                             }
                                         temperature = component.get("Temperature")
                                         if temperature is not None:
@@ -147,7 +143,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                                 "name": component.get("Label") or component.get("Name"),
                                                 "serial_no": serial_no,
                                                 "sensors": {},
-                                                "model": component.get("DeviceTypeName", "Humidity Sensor"),
+                                                "model": model_name,
                                             }
                                         humidity = component.get("Humidity")
                                         if humidity is not None:
