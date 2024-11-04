@@ -31,9 +31,10 @@ async def async_setup_entry(
     for device in devices.values():
         serial_no = device["serial_no"]
         sensors = device.get("sensors", {})
-        model = device.get("model", CATEGORY_MODEL_MAPPING.get(device["type"], "Sensor"))
+        model = device.get("model", CATEGORY_MODEL_MAPPING.get(device.get("model"), "Sensor"))
 
         if "temperature" in sensors:
+            _LOGGER.debug("Adding temperature sensor for device %s with sensors: %s", serial_no, sensors)
             entities.append(
                 SectorAlarmSensor(
                     coordinator,
@@ -49,6 +50,7 @@ async def async_setup_entry(
                 )
             )
         if "humidity" in sensors:
+            _LOGGER.debug("Adding humidity sensor for device %s with sensors: %s", serial_no, sensors)
             entities.append(
                 SectorAlarmSensor(
                     coordinator,

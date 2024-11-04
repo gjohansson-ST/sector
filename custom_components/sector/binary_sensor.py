@@ -129,12 +129,10 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
     @property
     def device_info(self) -> DeviceInfo:
         """Return device info."""
-#        device_model = self._device_info.get("model", "Sensor")
         return DeviceInfo(
             identifiers={(DOMAIN, self._serial_no)},
             name=self._device_info["name"],
             manufacturer="Sector Alarm",
-#            model=device_model,
         )
 
     @property
