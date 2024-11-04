@@ -57,6 +57,8 @@ async def async_setup_entry(
                     device_model,
                 )
             )
+        else:
+            _LOGGER.warning(f"No low_battery sensor found for device {serial_no} ({device_model}). Confirmed sensors: {sensors}")
         if "leak_detected" in sensors:
             entities.append(
                 SectorAlarmBinarySensor(
@@ -134,9 +136,9 @@ class SectorAlarmBinarySensor(CoordinatorEntity, BinarySensorEntity):
             sensor_value = device["sensors"].get(self._sensor_type)
             if self._sensor_type == "closed":
                 return not sensor_value  # Invert because "Closed": true means door is closed
-            elif self._sensor_type == "low_battery":
+            if self._sensor_type == "low_battery":
                 return sensor_value
-            elif self._sensor_type == "alarm":
+            if self._sensor_type == "alarm":
                 return sensor_value
             return bool(sensor_value)
         return False
