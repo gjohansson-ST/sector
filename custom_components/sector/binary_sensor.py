@@ -60,14 +60,14 @@ async def async_setup_entry(
                     BinarySensorDeviceClass.MOISTURE,
                 )
             )
-        if "smoke_detected" in sensors:
+        if "alarm" in sensors:
             entities.append(
                 SectorAlarmBinarySensor(
                     coordinator,
                     serial_no,
-                    "smoke_detected",
+                    "alarm",
                     device,
-                    BinarySensorDeviceClass.SMOKE,
+                    BinarySensorDeviceClass.SAFETY,
                 )
             )
 

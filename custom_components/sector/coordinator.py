@@ -87,6 +87,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                             "serial_no": serial_no,
                                             "sensors": {},
                                             "model": model_name,
+                                            "type": component.get("Type", "")
                                         }
                                     # Add sensors based on component data
                                     if "Closed" in component:
@@ -99,8 +100,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                         devices[serial_no]["sensors"]["temperature"] = float(component["Temperature"])
                                     if "LeakDetected" in component:
                                         devices[serial_no]["sensors"]["leak_detected"] = component["LeakDetected"]
-                                    if "SmokeDetected" in component:
-                                        devices[serial_no]["sensors"]["smoke_detected"] = component["SmokeDetected"]
+                                    if "Alarm" in component:
+                                        devices[serial_no]["sensors"]["alarm"] = component["Alarm"]
 
                                 else:
                                     _LOGGER.warning(f"Component missing SerialNo: {component}")
@@ -119,6 +120,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                                 "serial_no": serial_no,
                                                 "sensors": {},
                                                 "model": model_name,
+                                                "type": component.get("Type", "")
                                             }
                                         temperature = component.get("Temperature")
                                         if temperature is not None:
@@ -145,6 +147,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                                                 "serial_no": serial_no,
                                                 "sensors": {},
                                                 "model": model_name,
+                                                "type": component.get("Type", "")
                                             }
                                             _LOGGER.debug(f"Registering device {serial_no} with model: {model_name}")
                                         humidity = component.get("Humidity")

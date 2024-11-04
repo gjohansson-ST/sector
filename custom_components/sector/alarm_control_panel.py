@@ -30,7 +30,6 @@ ALARM_STATE_TO_HA_STATE = {
     0: STATE_ALARM_PENDING,
 }
 
-
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities
 ):
