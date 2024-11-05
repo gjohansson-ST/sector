@@ -1,17 +1,20 @@
 ---
 name: Feature request
 about: Create an feature request to suggest a new feature
-title: ''
-labels: ''
+title: 'Feature request xyz'
+labels: 'new-feature'
 assignees: ''
 
 ---
 
-**Describe the feature request
-A clear and concise description of the feature request.
+**Describe the feature request**
+
+_Replace this with a clear and concise description of the feature request._
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+
+_Replace this with a clear and concise description of what you expected to happen._
 
 **Additional context**
-Add any other context about the problem here.
+
+_Replace this with adding any other context about the feature here._

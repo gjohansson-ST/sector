@@ -8,13 +8,17 @@ assignees: ''
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+
+_Replace with a clear and concise description of what the bug is._
 
 **Version**
-Which version are you running.
+
+_Replace with which version are you running._
 
 **Expected behavior**
-A clear and concise description of what you expected to happen.
+
+_Replace with a clear and concise description of what you expected to happen._
 
 **Additional context**
-Add any other context about the problem here.
+
+_Replace with adding any other context about the problem here._
