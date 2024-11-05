@@ -78,7 +78,7 @@ class SectorAlarmAPI:
         data = []
         panellist_url = f"{self.API_URL}/api/account/GetPanelList"
         response = await self._get(panellist_url)
-        _LOGGER.error(f"panel_payload: {response}")
+        _LOGGER.debug(f"panel_payload: {response}")
         if response:
             data = [item["PanelId"] for item in response if "PanelId" in item]
         else:
