@@ -85,29 +85,21 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         )
         return mapped_state
 
-    async def async_alarm_arm_away(self, **kwargs):
+    async def async_alarm_arm_away(self, code=None):
         """Send arm away command."""
-        code = kwargs.get("code")
-        is_valid = self._is_valid_code(code)
-        _LOGGER.debug("Arm away requested. Code: %s, Is valid: %s", code, is_valid)
-        if not is_valid:
-            raise HomeAssistantError("Code required to arm the system.")
+        _LOGGER.debug("Arm away requested. Code: %s", code)
         success = await self.coordinator.api.arm_system("total", code=code)
         if success:
             await self.coordinator.async_request_refresh()
 
-    async def async_alarm_arm_home(self, **kwargs):
+    async def async_alarm_arm_home(self, code=None):
         """Send arm home command."""
-        code = kwargs.get("code")
-        is_valid = self._is_valid_code(code)
-        _LOGGER.debug("Arm home requested. Code: %s, Is valid: %s", code, is_valid)
-        if not is_valid:
-            raise HomeAssistantError("Code required to arm the system.")
+        _LOGGER.debug("Arm home requested. Code: %s", code)
         success = await self.coordinator.api.arm_system("partial", code=code)
         if success:
             await self.coordinator.async_request_refresh()
 
-    async def async_alarm_disarm(self, **kwargs):
+    async def async_alarm_disarm(self, code=None):
         """Send disarm command."""
         code = kwargs.get("code")
         is_valid = self._is_valid_code(code)
