@@ -34,8 +34,8 @@ class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
         _LOGGER.debug(
             "Initialized entity %s %s with unique_id: %s",
             self._name,
-            self._attr_name,
-            self._attr_unique_id,
+            self._model,
+            self._serial_no
         )
 
     @property
