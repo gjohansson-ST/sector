@@ -30,7 +30,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.hass = hass
         self.api = SectorAlarmAPI(
-            hass,
+            hass=hass,
             email=entry.data[CONF_EMAIL],
             password=entry.data[CONF_PASSWORD],
             panel_id=entry.data[CONF_PANEL_ID],

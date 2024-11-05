@@ -65,12 +65,27 @@ class SectorAlarmAPI:
                         "Authorization": f"Bearer {self.access_token}",
                         "Accept": "application/json",
                     }
+
         except asyncio.TimeoutError as err:
             _LOGGER.error("Timeout occurred during login")
             raise AuthenticationError("Timeout during login") from err
         except aiohttp.ClientError as err:
             _LOGGER.error("Client error during login: %s", str(err))
             raise AuthenticationError("Client error during login") from err
+
+    async def get_panel_list(self):
+        """Retrieve available panels from the API."""
+        data = []
+        panellist_url = f"{self.API_URL}/api/account/GetPanelList"
+        response = await self._get(panellist_url)
+        _LOGGER.debug(f"panel_payload: {response}")
+        if response:
+            data = [item["PanelId"] for item in response if "PanelId" in item]
+        else:
+            _LOGGER.error("Failed to retrieve any panels")
+            return []
+
+        return data
 
     async def retrieve_all_data(self):
         """Retrieve all relevant data from the API."""
