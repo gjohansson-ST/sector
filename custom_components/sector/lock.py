@@ -4,7 +4,9 @@ import logging
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.core import HomeAssistant
+from homeassistant.const import ATTR_CODE
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import HomeAssistantError
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
@@ -36,6 +38,7 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
 
     _attr_name = None
+    _attr_code_required = True
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator, device_info: dict):
         """Initialize the lock."""
@@ -55,10 +58,26 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
 
     async def async_lock(self, **kwargs):
         """Lock the device."""
-        await self.coordinator.api.lock_door(self._serial_no)
-        await self.coordinator.async_request_refresh()
+        code = kwargs.get(ATTR_CODE)
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug(
+            "Lock requested for lock %s. Code: %s, Is valid: %s", self._serial_no, code, is_valid
+        )
+        if self._attr_code_required and not is_valid:
+            raise HomeAssistantError("Code required to lock the system.")
+        success = await self.coordinator.api.lock_door(self._serial_no, code=code)
+        if success:
+            await self.coordinator.async_request_refresh()
 
     async def async_unlock(self, **kwargs):
         """Unlock the device."""
-        await self.coordinator.api.unlock_door(self._serial_no)
-        await self.coordinator.async_request_refresh()
+        code = kwargs.get(ATTR_CODE)
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug(
+            "Unlock requested for lock %s. Code: %s, Is valid: %s", self._serial_no, code, is_valid
+        )
+        if self._attr_code_required and not is_valid:
+            raise HomeAssistantError("Code required to unlock the system.")
+        success = await self.coordinator.api.unlock_door(self._serial_no, code=code)
+        if success:
+            await self.coordinator.async_request_refresh()

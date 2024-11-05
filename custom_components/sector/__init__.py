@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from .const import PLATFORMS
+from .const import PLATFORMS, DOMAIN
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 
 
@@ -13,6 +13,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     coordinator = SectorDataUpdateCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 

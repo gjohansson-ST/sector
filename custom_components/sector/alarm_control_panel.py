@@ -7,6 +7,7 @@ import logging
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
+    CodeFormat,
 )
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
@@ -16,9 +17,11 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import HomeAssistantError
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,10 +46,6 @@ async def async_setup_entry(
 class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
     """Representation of the Sector Alarm control panel."""
 
-    _attr_supported_features = (
-        AlarmControlPanelEntityFeature.ARM_AWAY
-        | AlarmControlPanelEntityFeature.ARM_HOME
-    )
     _attr_name = None
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
@@ -60,6 +59,16 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         )
 
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
+        self._attr_supported_features = (
+            AlarmControlPanelEntityFeature.ARM_AWAY
+            | AlarmControlPanelEntityFeature.ARM_HOME
+        )
+        self._attr_code_arm_required = True
+        self._attr_code_disarm_required = True
+        self._attr_code_format = CodeFormat.NUMBER
+
+        _LOGGER.debug("Code requirement flags set for %s: arm_required=%s, disarm_required=%s",
+                      self._attr_unique_id, self._attr_code_arm_required, self._attr_code_disarm_required)
 
     @property
     def state(self):
@@ -76,20 +85,35 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         )
         return mapped_state
 
-    async def async_alarm_arm_away(self, code=None):
+    async def async_alarm_arm_away(self, **kwargs):
         """Send arm away command."""
-        success = await self.coordinator.api.arm_system("total")
+        code = kwargs.get("code")
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug("Arm away requested. Code: %s, Is valid: %s", code, is_valid)
+        if not is_valid:
+            raise HomeAssistantError("Code required to arm the system.")
+        success = await self.coordinator.api.arm_system("total", code=code)
         if success:
             await self.coordinator.async_request_refresh()
 
-    async def async_alarm_arm_home(self, code=None):
+    async def async_alarm_arm_home(self, **kwargs):
         """Send arm home command."""
-        success = await self.coordinator.api.arm_system("partial")
+        code = kwargs.get("code")
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug("Arm home requested. Code: %s, Is valid: %s", code, is_valid)
+        if not is_valid:
+            raise HomeAssistantError("Code required to arm the system.")
+        success = await self.coordinator.api.arm_system("partial", code=code)
         if success:
             await self.coordinator.async_request_refresh()
 
-    async def async_alarm_disarm(self, code=None):
+    async def async_alarm_disarm(self, **kwargs):
         """Send disarm command."""
-        success = await self.coordinator.api.disarm_system()
+        code = kwargs.get("code")
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug("Disarm requested. Code: %s, Is valid: %s", code, is_valid)
+        if not is_valid:
+            raise HomeAssistantError("Code required to disarm the system.")
+        success = await self.coordinator.api.disarm_system(code=code)
         if success:
             await self.coordinator.async_request_refresh()
