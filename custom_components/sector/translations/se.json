@@ -13,8 +13,12 @@
                 "data": {
                     "email": "Epost adress",
                     "password": "Lösenord",
-                    "panel_id": "Panel ID",
-                    "panel_code": "Panel kod"
+                    "code_format": "Kodlängd"
+                }
+            },
+            "select_panel": {
+                "data": {
+                    "panel_id": "Panel ID"
                 }
             }
         }

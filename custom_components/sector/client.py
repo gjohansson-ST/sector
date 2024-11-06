@@ -72,17 +72,21 @@ class SectorAlarmAPI:
             _LOGGER.error("Client error during login: %s", str(err))
             raise AuthenticationError("Client error during login") from err
 
-    async def get_panel_list(self):
+    async def get_panel_list(self) -> dict[str, str]:
         """Retrieve available panels from the API."""
-        data = []
+        data = {}
         panellist_url = f"{self.API_URL}/api/account/GetPanelList"
         response = await self._get(panellist_url)
         _LOGGER.debug(f"panel_payload: {response}")
+
         if response:
-            data = [item["PanelId"] for item in response if "PanelId" in item]
+            data = {
+                item["PanelId"]: item["DisplayName"]
+                for item in response
+                if "PanelId" in item
+            }
         else:
             _LOGGER.error("Failed to retrieve any panels")
-            return []
 
         return data
 
