@@ -86,14 +86,20 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
 
     async def async_alarm_arm_away(self, code: str | None = None):
         """Send arm away command."""
-        _LOGGER.debug("Arm away requested. Code: %s", code)
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug("Arm away requested. Code: %s, Is valid: %s", code, is_valid)
+        if not is_valid:
+            raise ServiceValidationError("Provided code not of the correct length")
         success = await self.coordinator.api.arm_system("total", code=code)
         if success:
             await self.coordinator.async_request_refresh()
 
     async def async_alarm_arm_home(self, code: str | None = None):
         """Send arm home command."""
-        _LOGGER.debug("Arm home requested. Code: %s", code)
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug("Arm home requested. Code: %s, Is valid: %s", code, is_valid)
+        if not is_valid:
+            raise ServiceValidationError("Provided code not of the correct length")
         success = await self.coordinator.api.arm_system("partial", code=code)
         if success:
             await self.coordinator.async_request_refresh()
@@ -103,13 +109,15 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         is_valid = self._is_valid_code(code)
         _LOGGER.debug("Disarm requested. Code: %s, Is valid: %s", code, is_valid)
         if not is_valid:
-            raise ServiceValidationError("Code required to disarm the system.")
+            raise ServiceValidationError("Provided code not of the correct length")
         success = await self.coordinator.api.disarm_system(code=code)
         if success:
             await self.coordinator.async_request_refresh()
 
     def _is_valid_code(self, code: str) -> bool:
         expected_length = self.coordinator.code_format
+        if not code:
+            return False
         is_valid = bool(code and len(code) == expected_length)
         _LOGGER.debug(
             "Validating code. Received code: %s, Expected length: %d, Is valid: %s",
