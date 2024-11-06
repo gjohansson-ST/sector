@@ -189,7 +189,7 @@ class SectorAlarmAPI:
 
     async def arm_system(self, mode):
         """Arm the alarm system."""
-        if mode == "totel":
+        if mode == "total":
             url = self.action_endpoints["Arm"][1]
         elif mode == "partial":
             url = self.action_endpoints["PartialArm"][1]
