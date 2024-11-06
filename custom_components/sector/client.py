@@ -195,7 +195,7 @@ class SectorAlarmAPI:
             url = self.action_endpoints["PartialArm"][1]
 
         payload = {
-            "ArmCode": self.panel_code,
+            "PanelCode": self.panel_code,
             "PanelId": self.panel_id,
         }
         result = await self._post(url, payload)
