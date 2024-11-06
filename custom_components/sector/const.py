@@ -30,4 +30,4 @@ CATEGORY_MODEL_MAPPING = {
 }
 
 CONF_PANEL_ID = "panel_id"
-CONF_PANEL_CODE = "panel_code"
+CONF_CODE_FORMAT = 6

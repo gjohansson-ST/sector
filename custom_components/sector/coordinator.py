@@ -13,9 +13,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .client import AuthenticationError, SectorAlarmAPI
 from .const import (
     CATEGORY_MODEL_MAPPING,
-    CONF_PANEL_CODE,
     CONF_PANEL_ID,
     DOMAIN,
+    CONF_CODE_FORMAT,
 )
 
 type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
@@ -29,12 +29,16 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, entry: SectorAlarmConfigEntry) -> None:
         """Initialize the coordinator."""
         self.hass = hass
+        self.code_format = entry.options.get(CONF_CODE_FORMAT, 6)
+        _LOGGER.debug(
+            "Initializing SectorDataUpdateCoordinator with code_format: %s",
+            self.code_format,
+        )
         self.api = SectorAlarmAPI(
             hass=hass,
             email=entry.data[CONF_EMAIL],
             password=entry.data[CONF_PASSWORD],
             panel_id=entry.data[CONF_PANEL_ID],
-            panel_code=entry.data[CONF_PANEL_CODE],
         )
         super().__init__(
             hass,
@@ -45,14 +49,21 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from Sector Alarm API."""
+        data = {}
+
         try:
             await self.api.login()
-            data = await self.api.retrieve_all_data()
+            api_data = await self.api.retrieve_all_data()
+
+            for key, value in api_data.items():
+                if isinstance(value, dict) and key not in ["Lock Status", "Logs"]:
+                    data[key] = value
+                    data[key]["code_format"] = self.code_format
 
             devices = {}
-            logs = data.get("Logs", [])
-            panel_status = data.get("Panel Status", {})
-            locks_data = data.get("Lock Status", [])
+            logs = api_data.get("Logs", [])
+            panel_status = api_data.get("Panel Status", {})
+            locks_data = api_data.get("Lock Status", [])
 
             # Process locks
             if locks_data:

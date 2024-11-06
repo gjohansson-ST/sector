@@ -25,13 +25,12 @@ class SectorAlarmAPI:
 
     API_URL = "https://mypagesapi.sectoralarm.net"
 
-    def __init__(self, hass: HomeAssistant, email, password, panel_id, panel_code):
+    def __init__(self, hass: HomeAssistant, email, password, panel_id):
         """Initialize the API client."""
         self.hass = hass
         self.email = email
         self.password = password
         self.panel_id = panel_id
-        self.panel_code = panel_code
         self.access_token = None
         self.headers = {}
         self.session = None
@@ -187,15 +186,16 @@ class SectorAlarmAPI:
             _LOGGER.error("Client error during POST request to %s: %s", url, str(err))
             return None
 
-    async def arm_system(self, mode):
+    async def arm_system(self, mode: str, code: str):
         """Arm the alarm system."""
+        panel_code = code
         if mode == "total":
             url = self.action_endpoints["Arm"][1]
         elif mode == "partial":
             url = self.action_endpoints["PartialArm"][1]
 
         payload = {
-            "PanelCode": self.panel_code,
+            "PanelCode": panel_code,
             "PanelId": self.panel_id,
         }
         result = await self._post(url, payload)
@@ -206,11 +206,12 @@ class SectorAlarmAPI:
             _LOGGER.error("Failed to arm system")
             return False
 
-    async def disarm_system(self):
+    async def disarm_system(self, code: str):
         """Disarm the alarm system."""
+        panel_code = code
         url = self.action_endpoints["Disarm"][1]
         payload = {
-            "PanelCode": self.panel_code,
+            "PanelCode": panel_code,
             "PanelId": self.panel_id,
         }
         result = await self._post(url, payload)
@@ -221,12 +222,13 @@ class SectorAlarmAPI:
             _LOGGER.error("Failed to disarm system")
             return False
 
-    async def lock_door(self, serial_no):
+    async def lock_door(self, serial_no: str, code: str):
         """Lock a specific door."""
+        panel_code = code
         url = self.action_endpoints["Lock"][1]
         payload = {
             "LockSerial": serial_no,
-            "PanelCode": self.panel_code,
+            "PanelCode": panel_code,
             "PanelId": self.panel_id,
             "SerialNo": serial_no,
         }
@@ -238,12 +240,13 @@ class SectorAlarmAPI:
             _LOGGER.error("Failed to lock door %s", serial_no)
             return False
 
-    async def unlock_door(self, serial_no):
+    async def unlock_door(self, serial_no: str, code: str):
         """Unlock a specific door."""
+        panel_code = code
         url = self.action_endpoints["Unlock"][1]
         payload = {
             "LockSerial": serial_no,
-            "PanelCode": self.panel_code,
+            "PanelCode": panel_code,
             "PanelId": self.panel_id,
             "SerialNo": serial_no,
         }

@@ -35,7 +35,7 @@ class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
             "Initialized entity %s %s with unique_id: %s",
             self._name,
             self._model,
-            self._serial_no
+            self._serial_no,
         )
 
     @property

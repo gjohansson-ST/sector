@@ -7,6 +7,7 @@ import logging
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
+    CodeFormat,
 )
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
@@ -15,6 +16,7 @@ from homeassistant.const import (
     STATE_ALARM_PENDING,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
@@ -43,11 +45,13 @@ async def async_setup_entry(
 class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
     """Representation of the Sector Alarm control panel."""
 
+    _attr_name = None
     _attr_supported_features = (
         AlarmControlPanelEntityFeature.ARM_AWAY
         | AlarmControlPanelEntityFeature.ARM_HOME
     )
-    _attr_name = None
+    _attr_code_arm_required = True
+    _attr_code_format = CodeFormat.NUMBER
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
         """Initialize the control panel."""
@@ -60,6 +64,10 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         )
 
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
+        _LOGGER.debug(
+            "Code requirement flags set for %s: arm_required=True",
+            self._attr_unique_id,
+        )
 
     @property
     def state(self):
@@ -76,20 +84,45 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         )
         return mapped_state
 
-    async def async_alarm_arm_away(self, code=None):
+    async def async_alarm_arm_away(self, code: str | None = None):
         """Send arm away command."""
-        success = await self.coordinator.api.arm_system("total")
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug("Arm away requested. Code: %s, Is valid: %s", code, is_valid)
+        if not is_valid:
+            raise ServiceValidationError("Provided code not of the correct length")
+        success = await self.coordinator.api.arm_system("total", code=code)
         if success:
             await self.coordinator.async_request_refresh()
 
-    async def async_alarm_arm_home(self, code=None):
+    async def async_alarm_arm_home(self, code: str | None = None):
         """Send arm home command."""
-        success = await self.coordinator.api.arm_system("partial")
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug("Arm home requested. Code: %s, Is valid: %s", code, is_valid)
+        if not is_valid:
+            raise ServiceValidationError("Provided code not of the correct length")
+        success = await self.coordinator.api.arm_system("partial", code=code)
         if success:
             await self.coordinator.async_request_refresh()
 
-    async def async_alarm_disarm(self, code=None):
+    async def async_alarm_disarm(self, code: str | None = None):
         """Send disarm command."""
-        success = await self.coordinator.api.disarm_system()
+        is_valid = self._is_valid_code(code)
+        _LOGGER.debug("Disarm requested. Code: %s, Is valid: %s", code, is_valid)
+        if not is_valid:
+            raise ServiceValidationError("Provided code not of the correct length")
+        success = await self.coordinator.api.disarm_system(code=code)
         if success:
             await self.coordinator.async_request_refresh()
+
+    def _is_valid_code(self, code: str) -> bool:
+        expected_length = self.coordinator.code_format
+        if not code:
+            return False
+        is_valid = bool(code and len(code) == expected_length)
+        _LOGGER.debug(
+            "Validating code. Received code: %s, Expected length: %d, Is valid: %s",
+            code,
+            expected_length,
+            is_valid,
+        )
+        return is_valid
