@@ -189,11 +189,14 @@ class SectorAlarmAPI:
 
     async def arm_system(self, mode):
         """Arm the alarm system."""
-        url = self.action_endpoints["Arm"][1]
+        if mode == "total":
+            url = self.action_endpoints["Arm"][1]
+        elif mode == "partial":
+            url = self.action_endpoints["PartialArm"][1]
+
         payload = {
-            "ArmCode": self.panel_code,
+            "PanelCode": self.panel_code,
             "PanelId": self.panel_id,
-            "ArmType": mode,  # 'total' or 'partial'
         }
         result = await self._post(url, payload)
         if result is not None:
@@ -207,7 +210,7 @@ class SectorAlarmAPI:
         """Disarm the alarm system."""
         url = self.action_endpoints["Disarm"][1]
         payload = {
-            "DisarmCode": self.panel_code,
+            "PanelCode": self.panel_code,
             "PanelId": self.panel_id,
         }
         result = await self._post(url, payload)
