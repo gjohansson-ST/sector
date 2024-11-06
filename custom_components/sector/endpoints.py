@@ -37,6 +37,7 @@ def get_action_endpoints():
         "Lock": ("POST", f"{API_URL}/api/Panel/Lock"),
         # Arm/Disarm endpoints
         "Arm": ("POST", f"{API_URL}/api/Panel/Arm"),
+        "PartialArm": ("POST", f"{API_URL}/api/Panel/PartialArm"),
         "Disarm": ("POST", f"{API_URL}/api/Panel/Disarm"),
     }
     return endpoints
