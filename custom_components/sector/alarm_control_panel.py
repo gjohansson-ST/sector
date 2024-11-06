@@ -16,7 +16,7 @@ from homeassistant.const import (
     STATE_ALARM_PENDING,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
@@ -103,7 +103,7 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         is_valid = self._is_valid_code(code)
         _LOGGER.debug("Disarm requested. Code: %s, Is valid: %s", code, is_valid)
         if not is_valid:
-            raise HomeAssistantError("Code required to disarm the system.")
+            raise ServiceValidationError("Code required to disarm the system.")
         success = await self.coordinator.api.disarm_system(code=code)
         if success:
             await self.coordinator.async_request_refresh()
