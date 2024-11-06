@@ -13,8 +13,12 @@
                 "data": {
                     "email": "E-mail address",
                     "password": "Password",
-                    "panel_id": "Panel ID",
-                    "panel_code": "Panel code"
+                    "code_format": "Code length"
+                }
+            },
+            "select_panel": {
+                "data": {
+                    "panel_id": "Panel ID"
                 }
             }
         }
