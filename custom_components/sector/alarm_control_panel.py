@@ -13,7 +13,7 @@ from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY,
     STATE_ALARM_ARMED_HOME,
     STATE_ALARM_DISARMED,
-    STATE_ALARM_PENDING,
+    STATE_UNKNOWN,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
@@ -28,7 +28,7 @@ ALARM_STATE_TO_HA_STATE = {
     3: STATE_ALARM_ARMED_AWAY,
     2: STATE_ALARM_ARMED_HOME,
     1: STATE_ALARM_DISARMED,
-    0: STATE_ALARM_PENDING,
+    0: STATE_UNKNOWN,
 }
 
 
@@ -74,11 +74,11 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         """Return the state of the device."""
         status = self.coordinator.data.get("panel_status", {})
         if status.get("IsOnline", False) is False:
-            return "offline"
+            return STATE_UNKNOWN
         # Get the status code from the panel data
         status_code = status.get("Status", 0)
         # Map the status code to the appropriate Home Assistant state
-        mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code, STATE_ALARM_PENDING)
+        mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code, STATE_UNKNOWN)
         _LOGGER.debug(
             "Alarm status_code: %s, Mapped state: %s", status_code, mapped_state
         )
