@@ -30,7 +30,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.hass = hass
         self.code_format = entry.options.get(CONF_CODE_FORMAT, 6)
-        _LOGGER.debug("Initializing SectorDataUpdateCoordinator with code_format: %s", self.code_format)
+        _LOGGER.debug(
+            "Initializing SectorDataUpdateCoordinator with code_format: %s",
+            self.code_format,
+        )
         self.api = SectorAlarmAPI(
             hass=hass,
             email=entry.data[CONF_EMAIL],

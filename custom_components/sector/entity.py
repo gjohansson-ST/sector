@@ -35,7 +35,7 @@ class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
             "Initialized entity %s %s with unique_id: %s",
             self._name,
             self._model,
-            self._serial_no
+            self._serial_no,
         )
 
     @property
@@ -61,9 +61,3 @@ class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
             return {
                 "serial_number": self._serial_no,
             }
-
-    def _is_valid_code(self, code: str) -> bool:
-        expected_length = self.coordinator.code_format
-        is_valid = bool(code and len(code) == expected_length)
-        _LOGGER.debug("Validating code. Received code: %s, Expected length: %d, Is valid: %s", code, expected_length, is_valid)
-        return is_valid

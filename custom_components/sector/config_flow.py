@@ -8,13 +8,15 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.helpers.selector import (
-    TextSelector,
-    TextSelectorConfig,
-    TextSelectorType,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
-    NumberSelectorMode
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .const import CONF_CODE_FORMAT, CONF_PANEL_ID, DOMAIN
@@ -40,7 +42,7 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self.email = user_input[CONF_EMAIL]
             self.password = user_input[CONF_PASSWORD]
-            self.code_format = user_input[CONF_CODE_FORMAT]
+            self.code_format = int(user_input[CONF_CODE_FORMAT])
             _LOGGER.debug("Setting CONF_CODE_FORMAT: %s", self.code_format)
 
             # Import SectorAlarmAPI here to avoid blocking calls during module import
@@ -64,6 +66,8 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_EMAIL: self.email,
                             CONF_PASSWORD: self.password,
                             CONF_PANEL_ID: self.panel_ids[0],
+                        },
+                        options={
                             CONF_CODE_FORMAT: self.code_format,
                         },
                     )
@@ -90,7 +94,9 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Optional(CONF_CODE_FORMAT, default=6): NumberSelector(
-                    NumberSelectorConfig(min=0, max=6, step=1, mode=NumberSelectorMode.BOX)
+                    NumberSelectorConfig(
+                        min=0, max=6, step=1, mode=NumberSelectorMode.BOX
+                    )
                 ),
             }
         )
@@ -112,19 +118,22 @@ class SectorAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data={
                     CONF_EMAIL: self.email,
                     CONF_PASSWORD: self.password,
-                    CONF_CODE_FORMAT: self.code_format,
                     CONF_PANEL_ID: user_input[CONF_PANEL_ID],
+                },
+                options={
+                    CONF_CODE_FORMAT: self.code_format,
                 },
             )
 
         # Generate dropdown options based on retrieved panel IDs
-        panel_options = [{"value": pid, "label": f"Panel {pid}"} for pid in self.panel_ids]
+        panel_options = [
+            {"value": pid, "label": f"Panel {pid}"} for pid in self.panel_ids
+        ]
         data_schema = vol.Schema(
             {
                 vol.Required(CONF_PANEL_ID): SelectSelector(
                     SelectSelectorConfig(
-                        options=panel_options,
-                        mode=SelectSelectorMode.DROPDOWN
+                        options=panel_options, mode=SelectSelectorMode.DROPDOWN
                     )
                 )
             }
