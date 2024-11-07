@@ -23,13 +23,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up Sector Alarm cameras."""
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    # Access coordinator directly by entry.entry_id
+    coordinator: SectorDataUpdateCoordinator = hass.data[entry.entry_id]
     devices = coordinator.data.get("devices", {})
     cameras = devices.get("cameras", [])
-    entities = []
-
-    for camera_data in cameras:
-        entities.append(SectorAlarmCamera(coordinator, camera_data))
+    entities = [SectorAlarmCamera(coordinator, camera_data) for camera_data in cameras]
 
     if entities:
         async_add_entities(entities)

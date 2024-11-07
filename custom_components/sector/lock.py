@@ -30,7 +30,7 @@ async def async_setup_entry(
             serial_no = device["serial_no"]
             description = LockEntityDescription(
                 key=serial_no,
-                name=f"Sector {device.get('name', 'Lock')} {serial_no}",
+                name=f"{device.get('name', 'Lock')}",
             )
             entities.append(
                 SectorAlarmLock(coordinator, code_format, description, serial_no)
@@ -41,6 +41,8 @@ async def async_setup_entry(
     else:
         _LOGGER.debug("No lock entities to add.")
 
+    _LOGGER.debug("Sector Lock: Firing sector_alarm_lock_setup_complete event to notify event.py")
+    hass.bus.async_fire("sector_alarm_lock_setup_complete")
 
 class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
@@ -50,7 +52,7 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
-        code_format: int,
+         code_format: int,
         description: LockEntityDescription,
         serial_no: str,
     ):

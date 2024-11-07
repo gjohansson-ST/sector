@@ -30,6 +30,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.hass = hass
         self.code_format = entry.options.get(CONF_CODE_FORMAT, 6)
+        self.last_processed_events = set()
         _LOGGER.debug(
             "Initializing SectorDataUpdateCoordinator with code_format: %s",
             self.code_format,
@@ -87,6 +88,18 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         _LOGGER.warning("Lock missing Serial: %s", lock)
             else:
                 _LOGGER.debug("No locks data found.")
+
+            # Retrieve logs
+            raw_logs = await self.api.get_logs()
+            logs = self._filter_duplicate_logs(raw_logs)
+
+            # Add processed logs to data
+            data["logs"] = logs
+
+            # Update last processed events with the latest batch
+            self.last_processed_events.update(
+                {self._get_event_id(log) for log in logs}
+            )
 
             # Process devices from different categories
             for category_name, category_data in data.items():
@@ -360,3 +373,15 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as error:
             _LOGGER.exception("Failed to update data")
             raise UpdateFailed(f"Failed to update data: {error}") from error
+
+    def _filter_duplicate_logs(self, logs):
+        """Filter out logs that were already processed."""
+        return [
+            log for log in logs
+            if self._get_event_id(log) not in self.last_processed_events
+        ]
+
+    @staticmethod
+    def _get_event_id(log):
+        """Create a unique identifier for each log event."""
+        return f"{log['LockName']}_{log['EventType']}_{log['Time']}"
