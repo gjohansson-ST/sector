@@ -17,9 +17,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     # Register the listener for configuration updates
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
-    # Store the coordinator in hass.data using entry ID for unique identification
-    hass.data.setdefault(entry.entry_id, coordinator)
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
