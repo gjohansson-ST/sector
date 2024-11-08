@@ -4,7 +4,7 @@ import logging
 import asyncio
 
 from collections import defaultdict
-from homeassistant.components.event import EventEntity
+from homeassistant.components.event import EventEntity, EventEntityDescription, EventDeviceClass
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_call_later
@@ -111,7 +111,10 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
         # Parse the ISO 8601 timestamp to a datetime object
         time_str = recent_event.get("Time", "unknown")
         try:
-            # Parse the string and localize it to UTC
+            # Replace "Z" with "+00:00" for compatibility with fromisoformat
+            if time_str.endswith("Z"):
+                time_str = time_str.replace("Z", "+00:00") # Parse the string and localize it to UTC
+
             timestamp = datetime.fromisoformat(time_str).astimezone(timezone.utc)
             timestamp_str = timestamp.isoformat()  # Convert back to ISO 8601 format
         except ValueError:
