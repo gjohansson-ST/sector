@@ -21,7 +21,7 @@ async def async_setup_entry(
 ):
     """Set up event entities based on processed data in Sector Alarm coordinator."""
     coordinator: SectorDataUpdateCoordinator = entry.runtime_data
-    grouped_events = coordinator.process_events()
+    grouped_events = await coordinator.process_events()
 
     entities = []
 
@@ -113,7 +113,7 @@ class SectorAlarmEvent(CoordinatorEntity, EventEntity):
 
     async def async_update(self):
         """Handle only new logs from coordinator and trigger events for them."""
-        grouped_events = self.coordinator.process_events()
+        grouped_events = await self.coordinator.process_events()
 
         # Process only new logs for this entity
         if self._serial_no in grouped_events:

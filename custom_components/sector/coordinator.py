@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+import unicodedata
+from datetime import datetime, timedelta, timezone
 
+from homeassistant.components.recorder import history, get_instance
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
@@ -22,6 +24,12 @@ type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
 
 _LOGGER = logging.getLogger(__name__)
 _lock_event_types = ["lock", "unlock", "lock_failed"]
+
+def normalize_name(name):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', name)
+        if unicodedata.category(c) != 'Mn'
+    ).lower()
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     """Coordinator to manage data fetching from Sector Alarm."""
@@ -53,9 +61,13 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=1)  # Assuming history within 1 day is sufficient
 
-        # Retrieve history data for the entity
-        history_data = await history.get_state_changes_during_period(
-            self.hass, start_time, end_time, entity_id=entity_id
+        # Use async_add_executor_job to avoid blocking the event loop
+        history_data = await get_instance(self.hass).async_add_executor_job(
+            history.state_changes_during_period,
+            self.hass,
+            start_time,
+            end_time,
+            entity_id
         )
 
         # Extract the latest timestamp if any history is found
@@ -80,20 +92,22 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
         for log in logs:
             lock_name = log.get("LockName")
+            normalized_lock_name = normalize_name(lock_name)
             event_type = log.get("EventType")
             event_timestamp = datetime.fromisoformat(log.get("Time").replace("Z", "+00:00"))
 
             if lock_name not in event_timestamp_cache:
-                event_timestamp_cache[lock_name] = self.get_last_event_timestamp(lock_name)
+                event_timestamp_cache[normalized_lock_name] = await self.get_last_event_timestamp(normalized_lock_name)
 
             # Fetch the latest event timestamp for this device from history
-            last_event_timestamp = event_timestamp_cache[lock_name]
+            last_event_timestamp = event_timestamp_cache[normalized_lock_name]
+            _LOGGER.debug("Fetched last event timestamp for lock_name '%s': %s", normalized_lock_name, last_event_timestamp)
 
             # Skip logs that are older than the latest event timestamp
             if last_event_timestamp and event_timestamp <= last_event_timestamp:
                 _LOGGER.debug(
-                    "Skipping log '%s' for %s as it's older than the last event timestamp %s",
-                    event_type, lock_name, last_event_timestamp.isoformat()
+                    "Skipping log '%s' for %s as it's older than the last event timestamp %s >= %s",
+                    event_type, lock_name, last_event_timestamp.isoformat(), event_timestamp.isoformat()
                 )
                 continue
 
