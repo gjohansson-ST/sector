@@ -71,8 +71,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
                 if event_type in _lock_event_types:
                     grouped_events[device_serial]["lock"].append(log)
-                else:
-                    grouped_events[device_serial]["general"].append(log)
 
         return grouped_events
 
