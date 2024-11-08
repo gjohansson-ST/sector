@@ -69,7 +69,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 if device_serial not in grouped_events:
                     grouped_events[device_serial] = {"lock": []}
 
-                if event_type in self._lock_event_types:
+                if event_type in _lock_event_types:
                     grouped_events[device_serial]["lock"].append(log)
                 else:
                     grouped_events[device_serial]["general"].append(log)
