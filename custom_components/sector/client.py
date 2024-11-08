@@ -306,12 +306,12 @@ class SectorAlarmAPI:
         _LOGGER.error("Failed to retrieve image for camera %s", serial_no)
         return None
 
-    async def get_logs(self, take=100):
+    async def get_logs(self, pageSize=40):
         """Retrieve logs from the API."""
-        url = f"{self.API_URL}/api/panel/GetLogs?panelId={self.panel_id}&take={take}"
+        url = f"{self.API_URL}/api/v2/panel/logs?panelId={self.panel_id}&pageNumber=1&pageSize={pageSize}"
         response = await self._get(url)
         if response:
-            return response
+            return response.get("Records", [])
         _LOGGER.error("Failed to retrieve logs")
 
         return []
