@@ -30,7 +30,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         self.hass = hass
         self.code_format = entry.options.get(CONF_CODE_FORMAT, 6)
-        self.last_processed_events = set()
         _LOGGER.debug(
             "Initializing SectorDataUpdateCoordinator with code_format: %s",
             self.code_format,
@@ -48,9 +47,28 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=60),
         )
 
-    def process_events(self):
-        """Process only new events and group them by device."""
-        _LOGGER.debug("Starting LockName-to-device mapping for logs")  # New debug statement
+    async def get_last_event_timestamp(self, device_name):
+        """Fetch the last event timestamp from Home Assistant history for the specific device."""
+        entity_id = f"event.{device_name}_{device_name}_event_log"
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(days=1)  # Assuming history within 1 day is sufficient
+
+        # Retrieve history data for the entity
+        history_data = await history.get_state_changes_during_period(
+            self.hass, start_time, end_time, entity_id=entity_id
+        )
+
+        # Extract the latest timestamp if any history is found
+        if entity_id in history_data and history_data[entity_id]:
+            latest_state = history_data[entity_id][-1]  # Get the last entry
+            return datetime.fromisoformat(latest_state.last_changed.isoformat())
+
+        # Default to None if no history found
+        return None
+
+    async def process_events(self):
+        """Process only new events and group them by device, based on the latest event timestamp."""
+        _LOGGER.debug("Starting LockName-to-device mapping for logs")
         logs = self.data.get("logs", {}).get("Records", [])
 
         if not isinstance(logs, list):
@@ -58,15 +76,31 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             return {}
 
         grouped_events = {}
+        event_timestamp_cache = {}
+
         for log in logs:
-            _LOGGER.debug("Processing log with LockName '%s'", log.get("LockName"))
-            event_id = self._get_event_id(log)
-            if event_id in self.last_processed_events:
-                continue  # Skip already processed logs
-
             lock_name = log.get("LockName")
+            event_type = log.get("EventType")
+            event_timestamp = datetime.fromisoformat(log.get("Time").replace("Z", "+00:00"))
 
-            # Adjusted lookup to find device by `name` field
+            if lock_name not in event_timestamp_cache:
+                event_timestamp_cache[lock_name] = self.get_last_event_timestamp(lock_name)
+
+            # Fetch the latest event timestamp for this device from history
+            last_event_timestamp = event_timestamp_cache[lock_name]
+
+            # Skip logs that are older than the latest event timestamp
+            if last_event_timestamp and event_timestamp <= last_event_timestamp:
+                _LOGGER.debug(
+                    "Skipping log '%s' for %s as it's older than the last event timestamp %s",
+                    event_type, lock_name, last_event_timestamp.isoformat()
+                )
+                continue
+
+            # Process new event as it's newer than the last history entry
+            _LOGGER.debug("Processing new event: %s at %s", event_type, event_timestamp.isoformat())
+
+            # Perform a full lookup to find the device by name
             matched_device = None
             for serial_no, device_info in self.data["devices"].items():
                 if device_info.get("name") == lock_name:
@@ -77,18 +111,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("LockName '%s' matched to device with serial '%s'", lock_name, matched_device["serial_no"])
                 device_serial = matched_device["serial_no"]
                 grouped_events.setdefault(device_serial, {}).setdefault("lock", []).append(log)
-                self.last_processed_events.add(self._get_event_id(log))
+
+                _LOGGER.debug("Added log entry to grouped events for device '%s' with serial '%s'", lock_name, device_serial)
             else:
                 _LOGGER.warning("No match found for LockName '%s'", lock_name)
 
-            if device_serial:
-                grouped_events.setdefault(device_serial, {}).setdefault("lock", []).append(log)
-                self.last_processed_events.add(event_id)  # Mark log as processed
-
-                # Debug: Confirm log added to grouped_events
-                _LOGGER.debug("Added log entry to grouped events for device '%s' with serial '%s'", lock_name, device_serial)
-
-        _LOGGER.debug("Final grouped events structure: %s", grouped_events)  # New debug statement
+        _LOGGER.debug("Final grouped events structure: %s", grouped_events)
         return grouped_events
 
     def get_device_info(self, serial):
