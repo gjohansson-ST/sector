@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
@@ -21,7 +22,7 @@ from .const import (
 type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
 
 _LOGGER = logging.getLogger(__name__)
-
+_lock_event_types = ["lock", "unlock", "lock_failed"]
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     """Coordinator to manage data fetching from Sector Alarm."""
@@ -47,6 +48,35 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             name=DOMAIN,
             update_interval=timedelta(seconds=60),
         )
+
+    def process_events(self):
+        """Process events and group them by device, deduplicating by time and event type."""
+        logs = self.data.get("logs", [])
+        device_map = {device_info["name"]: serial for serial, device_info in self.data["devices"].items()}
+
+        grouped_events = defaultdict(lambda: {"lock": []})
+        unique_log_keys = set()  # Track unique log entries by "time-eventtype"
+
+        for log in logs:
+            device_serial = device_map.get(log.get("DeviceName") or log.get("LockName"))
+            log_time = log.get("Time")
+            event_type = log.get("EventType")
+            unique_key = f"{log_time}-{event_type}"
+
+            # Only add the log if it hasn't been processed before
+            if device_serial and unique_key not in unique_log_keys:
+                unique_log_keys.add(unique_key)
+                if event_type in self._lock_event_types:
+                    grouped_events[device_serial]["lock"].append(log)
+                else:
+                    grouped_events[device_serial]["general"].append(log)
+
+        return grouped_events
+
+    @staticmethod
+    def get_device_info(self, serial):
+        """Fetch device information by serial number."""
+        return self.data["devices"].get(serial, {"name": "Unknown Device", "model": "Unknown Model"})
 
     async def _async_update_data(self):
         """Fetch data from Sector Alarm API."""

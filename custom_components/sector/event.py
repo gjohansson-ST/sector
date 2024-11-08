@@ -18,55 +18,24 @@ async def async_setup_entry(
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ):
-    """Set up event entities based on log entries for Sector Alarm."""
+    """Set up event entities based on processed data in Sector Alarm coordinator."""
     coordinator: SectorDataUpdateCoordinator = entry.runtime_data
-    logs = coordinator.data.get("logs", [])
-    device_map = {device_info["name"]: serial for serial, device_info in coordinator.data["devices"].items()}
+    grouped_events = coordinator.process_events()
 
     entities = []
 
-    # Separate lock events and general events, creating appropriate entities
-    logs_by_device = defaultdict(list)
-    for log in logs:
-        lock_name = log.get("LockName")
-        if lock_name:
-            device_serial = device_map.get(lock_name)
-            if device_serial:
-                device_info = coordinator.data["devices"].get(device_serial, {})
-                device_name = device_info.get("name", "Unknown Device")
-                device_model = device_info.get("model", "Unknown Model")
+    for device_serial, events in grouped_events.items():
+        device_info = coordinator.get_device_info(device_serial)
+        device_name = device_info["name"]
+        device_model = device_info["model"]
 
-                existing_entity = next(
-                    (entity for entity in entities if isinstance(entity, LockEventEntity) and entity._serial_no == device_serial),
-                    None
-                )
-                if not existing_entity:
-                    event_entity = LockEventEntity(coordinator, device_serial, device_name, device_model)
-                    entities.append(event_entity)
-                else:
-                    event_entity = existing_entity
-                event_entity.queue_event(log)
-        else:
-            device_serial = device_map.get(log.get("DeviceName"))
-            if device_serial:
-                device_info = coordinator.data["devices"].get(device_serial, {})
-                device_name = device_info.get("name", "Unknown Device")
-                device_model = device_info.get("model", "Unknown Model")
-
-                existing_entity = next(
-                    (entity for entity in entities if isinstance(entity, SectorAlarmEvent) and entity._serial_no == device_serial),
-                    None
-                )
-                if not existing_entity:
-                    event_entity = SectorAlarmEvent(coordinator, device_serial, device_name, device_model)
-                    entities.append(event_entity)
-                else:
-                    event_entity = existing_entity
-                event_entity.queue_event(log)
+        if events["lock"]:
+            lock_entity = LockEventEntity(coordinator, device_serial, device_name, device_model)
+            lock_entity.queue_events(events["lock"])
+            entities.append(lock_entity)
 
     async_add_entities(entities)
     _LOGGER.debug("Added %d event entities", len(entities))
-
 
 class SectorAlarmEvent(CoordinatorEntity, EventEntity):
     """Representation of a general event entity for Sector Alarm integration."""
@@ -100,6 +69,11 @@ class SectorAlarmEvent(CoordinatorEntity, EventEntity):
         for event in self._event_queue:
             self.add_event(event)
         self._event_queue.clear()  # Clear the queue after processing
+
+    def queue_events(self, logs):
+        """Queue multiple events at once."""
+        for log in logs:
+            self.queue_event(log)
 
     @property
     def state(self):
