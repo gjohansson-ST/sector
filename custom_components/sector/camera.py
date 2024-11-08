@@ -22,7 +22,6 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up Sector Alarm cameras."""
-    # Access coordinator directly by entry.entry_id
     coordinator: SectorDataUpdateCoordinator = entry.runtime_data
     devices = coordinator.data.get("devices", {})
     cameras = devices.get("cameras", [])

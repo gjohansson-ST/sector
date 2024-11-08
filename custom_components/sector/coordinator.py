@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
@@ -54,7 +53,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         logs = self.data.get("logs", [])
         device_map = {device_info["name"]: serial for serial, device_info in self.data["devices"].items()}
 
-        grouped_events = defaultdict(lambda: {"lock": []})
+        grouped_events = {}
         unique_log_keys = set()  # Track unique log entries by "time-eventtype"
 
         for log in logs:
@@ -66,6 +65,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             # Only add the log if it hasn't been processed before
             if device_serial and unique_key not in unique_log_keys:
                 unique_log_keys.add(unique_key)
+
+                if device_serial not in grouped_events:
+                    grouped_events[device_serial] = {"lock": []}
+
                 if event_type in self._lock_event_types:
                     grouped_events[device_serial]["lock"].append(log)
                 else:
