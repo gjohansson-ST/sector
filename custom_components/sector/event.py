@@ -31,7 +31,8 @@ async def async_setup_entry(
 
         if events["lock"]:
             lock_entity = LockEventEntity(coordinator, device_serial, device_name, device_model)
-            lock_entity.queue_events(events["lock"])
+            for log in events["lock"]:
+                lock_entity._trigger_event(log.get("EventType"), log.get("Time"), log)
             entities.append(lock_entity)
 
     async_add_entities(entities)
@@ -47,11 +48,28 @@ class SectorAlarmEvent(CoordinatorEntity, EventEntity):
         self._device_name = device_name
         self._device_model = device_model
         self._events = []  # Store all general events
-        self._event_queue = []  # Queue to store events before entity is added to Home Assistant
         self._attr_unique_id = f"{device_serial}_event"
         self._attr_name = f"{device_name} Event Log"
         self._attr_device_class = "sector_alarm_timestamp"  # Use a custom string identifier
+        self._event_queue = []
         _LOGGER.debug("Created SectorAlarmEvent for device: %s", device_name)
+
+    def _trigger_event(self, event_type: str, event_time: str, event_attributes: dict[str, any] = None):
+        """Process a new event by setting state and attributes."""
+        log = {"EventType": event_type, "Time": event_time}
+        if event_attributes:
+            log.update(event_attributes)
+
+        # If Home Assistant is not ready, queue the event
+        if not self.hass:
+            self._event_queue.append(log)
+            _LOGGER.debug("Queued event: %s for processing later", log)
+            return
+
+        # Add the event to the list and update HA state
+        self._events.append(log)
+        self.async_write_ha_state()
+        _LOGGER.debug("Triggered event: %s with attributes: %s", event_type, log)
 
     @property
     def device_info(self):
@@ -66,19 +84,18 @@ class SectorAlarmEvent(CoordinatorEntity, EventEntity):
     async def async_added_to_hass(self):
         """Handle entity addition to Home Assistant and process queued events."""
         await super().async_added_to_hass()
+        # Process any queued events now that self.hass is available
         for event in self._event_queue:
-            self.add_event(event)
+            self._trigger_event(event.get("EventType"), event.get("Time"), event)
         self._event_queue.clear()  # Clear the queue after processing
-
-    def queue_events(self, logs):
-        """Queue multiple events at once."""
-        for log in logs:
-            self.queue_event(log)
 
     @property
     def state(self):
         """Return the latest event type as the entity state."""
-        return self._events[-1]["EventType"] if self._events else "No events"
+        if self._events:
+            _LOGGER.debug("Setting state to latest event type: %s", self._events[-1]["EventType"])
+            return self._events[-1].get("EventType", "Unknown")
+        return "No events"
 
     @property
     def extra_state_attributes(self):
@@ -94,22 +111,6 @@ class SectorAlarmEvent(CoordinatorEntity, EventEntity):
             "user": recent_event.get("User", "unknown"),
             "channel": recent_event.get("Channel", "unknown"),
         }
-
-    def queue_event(self, log):
-        """Queue an event if the entity is not yet added to Home Assistant."""
-        if self.hass:
-            self.add_event(log)
-        else:
-            self._event_queue.append(log)
-
-    def add_event(self, log):
-        """Add a general event to the entity."""
-        self._events.append(log)
-        if self.hass:  # Ensure entity is fully initialized before calling write_ha_state
-            _LOGGER.debug("Adding event to %s: %s", self._attr_name, log)
-            self.async_write_ha_state()
-        else:
-            _LOGGER.warning("Tried to add event to uninitialized entity: %s", self._attr_name)
 
     @staticmethod
     def _format_timestamp(time_str):
@@ -133,8 +134,3 @@ class LockEventEntity(SectorAlarmEvent):
         """Initialize the lock-specific event entity."""
         super().__init__(coordinator, device_serial, device_name, device_model)
         _LOGGER.debug("Created LockEventEntity for device: %s", device_name)
-
-    def queue_event(self, log):
-        """Queue a lock event if the event type is lock-related."""
-        if log.get("EventType") in self._attr_event_types:
-            super().queue_event(log)

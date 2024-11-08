@@ -138,10 +138,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             for category_name, category_data in data.items():
                 _LOGGER.debug("Processing category: %s", category_name)
                 model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
-                if category_name not in [
-                        "Panel Status",
-                        "Lock Status",
-                        "Logs",
+                if category_name in [
+                        "Doors and Windows",
+                        "Smoke Detectors",
+                        "Leakage Detectors",
+                        "Cameras",
+                        "Keypad",
                 ]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
