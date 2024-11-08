@@ -18,6 +18,28 @@ from .const import BINARY_SENSOR_DESCRIPTIONS
 
 _LOGGER = logging.getLogger(__name__)
 
+BINARY_SENSOR_DESCRIPTIONS = (
+    BinarySensorEntityDescription(
+        key="closed",
+        name="Closed",
+        device_class=BinarySensorDeviceClass.DOOR,
+    ),
+    BinarySensorEntityDescription(
+        key="low_battery",
+        name="Battery",
+        device_class=BinarySensorDeviceClass.BATTERY,
+    ),
+    BinarySensorEntityDescription(
+        key="leak_detected",
+        name="Leak Detected",
+        device_class=BinarySensorDeviceClass.MOISTURE,
+    ),
+    BinarySensorEntityDescription(
+        key="alarm",
+        name="Alarm",
+        device_class=BinarySensorDeviceClass.SAFETY,
+    ),
+)
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -84,12 +106,12 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     """Representation of a Sector Alarm binary sensor."""
 
     def __init__(
-        self,
-        coordinator: SectorDataUpdateCoordinator,
-        serial_no: str,
-        device_info: dict,
-        description: BinarySensorEntityDescription
-        model: str,
+            self,
+            coordinator: SectorDataUpdateCoordinator,
+            serial_no: str,
+            device_info: dict,
+            description: BinarySensorEntityDescription,
+            model: str,
     ) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator, serial_no, device_info, model)

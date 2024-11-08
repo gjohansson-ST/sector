@@ -31,26 +31,3 @@ CATEGORY_MODEL_MAPPING = {
 
 CONF_PANEL_ID = "panel_id"
 CONF_CODE_FORMAT = "code_format"
-
-BINARY_SENSOR_DESCRIPTIONS = (
-    BinarySensorEntityDescription(
-        key="closed",
-        name="Closed",
-        device_class=BinarySensorDeviceClass.DOOR,
-    ),
-    BinarySensorEntityDescription(
-        key="low_battery",
-        name="Battery",
-        device_class=BinarySensorDeviceClass.BATTERY,
-    ),
-    BinarySensorEntityDescription(
-        key="leak_detected",
-        name="Leak Detected",
-        device_class=BinarySensorDeviceClass.MOISTURE,
-    ),
-    BinarySensorEntityDescription(
-        key="alarm",
-        name="Alarm",
-        device_class=BinarySensorDeviceClass.SAFETY,
-    ),
-)
