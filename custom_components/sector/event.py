@@ -63,7 +63,6 @@ class SectorAlarmEvent(CoordinatorEntity, EventEntity):
         self._event_type = event_type  # Initialize event_type
         self._lock_name = lock_name  # Initialize lock_name
         self._events = []  # Store all general events
-        self._queued_events = []  # Queue for events before hass is set up
         self._attr_unique_id = f"{device_serial}_event"
         self._attr_name = f"{device_name} Event Log"
         self._attr_device_class = "sector_alarm_timestamp"  # Use a custom string identifier
