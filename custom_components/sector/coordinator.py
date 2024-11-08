@@ -49,28 +49,34 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     def process_events(self):
-        """Process events and group them by device, deduplicating by time and event type."""
-        logs = self.data.get("logs", [])
+        """Process events and group them by device."""
+        logs_data = self.data.get("logs", [])
+        logs = logs_data.get("Records", [])
+
+        if not isinstance(logs, list) or not all(isinstance(log, dict) for log in logs):
+            _LOGGER.error("Unexpected logs format: expected list of dictionaries")
+            _LOGGER.debug("Logs content: %s", logs)
+            return {}
+
         device_map = {device_info["name"]: serial for serial, device_info in self.data["devices"].items()}
 
         grouped_events = {}
-        unique_log_keys = set()  # Track unique log entries by "time-eventtype"
 
         for log in logs:
-            device_serial = device_map.get(log.get("DeviceName") or log.get("LockName"))
-            log_time = log.get("Time")
-            event_type = log.get("EventType")
-            unique_key = f"{log_time}-{event_type}"
+            lock_name = log.get("LockName")
 
-            # Only add the log if it hasn't been processed before
-            if device_serial and unique_key not in unique_log_keys:
-                unique_log_keys.add(unique_key)
+            if not isinstance(lock_name, str):
+                _LOGGER.warning("Skipping log with invalid LockName: %s", log)
+                continue
 
-                if device_serial not in grouped_events:
-                    grouped_events[device_serial] = {"lock": []}
+            if not lock_name:
+                continue
 
-                if event_type in _lock_event_types:
-                    grouped_events[device_serial]["lock"].append(log)
+            device_serial = device_map.get(lock_name)
+
+            # Only group by serial if valid and ensure device_serial exists in device_map
+            if device_serial:
+                grouped_events.setdefault(device_serial, {}).setdefault("lock", []).append(log)
 
         return grouped_events
 
@@ -91,20 +97,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     data[key] = value
                     data[key]["code_format"] = self.code_format
 
-            # Retrieve and filter logs
-            raw_logs = api_data.get("Logs", [])
-            logs = []
-
-            # Ensure raw_logs is a list; handle unexpected formats
-            if isinstance(raw_logs, list):
-                logs = self._filter_duplicate_logs(raw_logs)
-            elif isinstance(raw_logs, dict) and "Records" in raw_logs:
-                logs = self._filter_duplicate_logs(raw_logs.get("Records", []))
-
-            # Update last_processed_events to track processed logs
-            self.last_processed_events.update(
-                {self._get_event_id(log) for log in logs}
-            )
+            # Retrieve and limit logs to the latest 40 entries
+            logs = api_data.get("Logs", [])
+            if isinstance(logs, list):
+                data["Logs"] = logs
+            elif isinstance(logs, dict) and "Records" in logs:
+                data["Logs"] = logs.get("Records", [])
 
             # Process devices, panel status, and lock status as usual
             devices = {}
@@ -422,3 +420,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     def _get_event_id(log):
         """Create a unique identifier for each log event."""
         return f"{log['LockName']}_{log['EventType']}_{log['Time']}"
+
+    def get_latest_log(self, event_type: str, lock_name: str = None):
+        """Retrieve the latest log for a specific event type, optionally by LockName."""
+        logs = self.data.get("logs", [])
+        for log in logs:
+            if log.get("EventType") == event_type and (lock_name is None or log.get("LockName") == lock_name):
+                return log
+        _LOGGER.debug("No matching log found for event type '%s' and lock name '%s'", event_type, lock_name)
+        return None  # Return None if no matching log is found
