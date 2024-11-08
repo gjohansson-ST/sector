@@ -76,7 +76,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
         return grouped_events
 
-    @staticmethod
     def get_device_info(self, serial):
         """Fetch device information by serial number."""
         return self.data["devices"].get(serial, {"name": "Unknown Device", "model": "Unknown Model"})
