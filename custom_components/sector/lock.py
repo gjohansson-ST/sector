@@ -41,9 +41,6 @@ async def async_setup_entry(
     else:
         _LOGGER.debug("No lock entities to add.")
 
-    _LOGGER.debug("Sector Lock: Firing sector_alarm_lock_setup_complete event to notify event.py")
-    hass.bus.async_fire("sector_alarm_lock_setup_complete")
-
 class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
 
@@ -52,7 +49,7 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
-         code_format: int,
+        code_format: int,
         description: LockEntityDescription,
         serial_no: str,
     ):
