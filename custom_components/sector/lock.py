@@ -30,17 +30,20 @@ async def async_setup_entry(
             serial_no = device["serial_no"]
             description = LockEntityDescription(
                 key=serial_no,
-                name=f"Sector {device.get('name', 'Lock')} {serial_no}",
+                name=f"{device.get('name', 'Lock')}",
             )
             entities.append(
                 SectorAlarmLock(coordinator, code_format, description, serial_no)
             )
+            _LOGGER.debug("Added lock entity with serial: %s and name: %s", serial_no, description.name)
 
     if entities:
         async_add_entities(entities)
     else:
         _LOGGER.debug("No lock entities to add.")
 
+    _LOGGER.debug("Sector Lock: Firing sector_alarm_lock_setup_complete event to notify event.py")
+    hass.bus.async_fire("sector_alarm_lock_setup_complete")
 
 class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
@@ -65,7 +68,9 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
         device = self.coordinator.data["devices"].get(self._serial_no)
         if device:
             status = device["sensors"].get("lock_status")
+            _LOGGER.debug("Lock %s status is currently: %s", self._serial_no, status)
             return status == "lock"
+        _LOGGER.warning("No lock status found for lock %s", self._serial_no)
         return None
 
     async def async_lock(self, **kwargs):
