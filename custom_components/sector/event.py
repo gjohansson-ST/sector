@@ -1,17 +1,15 @@
 """Event platform for Sector Alarm integration."""
 
 import logging
-import asyncio
-
+from datetime import datetime, timezone
 from collections import defaultdict
-from homeassistant.components.event import EventEntity, EventEntityDescription, EventDeviceClass
+from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_call_later
-from datetime import datetime, timezone
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
-from .entity import SectorAlarmBaseEntity
+from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,123 +18,149 @@ async def async_setup_entry(
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ):
-    """Set up Sector Alarm events for each device based on log entries."""
+    """Set up event entities based on log entries for Sector Alarm."""
     coordinator: SectorDataUpdateCoordinator = entry.runtime_data
+    logs = coordinator.data.get("logs", [])
+    device_map = {device_info["name"]: serial for serial, device_info in coordinator.data["devices"].items()}
 
-    # Define setup_events to be triggered once the lock setup is complete
-    async def setup_events(event=None):
-        _LOGGER.debug("Sector Entry: sector_alarm_lock_setup_complete event received, starting event setup")
-        logs = coordinator.data.get("logs", [])
-        _LOGGER.debug("Sector Entry: Processing log entries: %d logs found", len(logs))
+    entities = []
 
-        # Map device labels (LockName) to device serial numbers
-        device_map = {device_info["name"]: serial for serial, device_info in coordinator.data["devices"].items()}
-        _LOGGER.debug("Sector Entry: Device map created: %s", device_map)
-
-        # Group logs by device serial number, using the map
-        logs_by_device = defaultdict(list)
-        for log in logs:
-            lock_name = log.get("LockName")
-            _LOGGER.debug("Sector Entry: Processing log entry: %s", log)
-
-            # Skip entries with empty or missing LockName
-            if not lock_name:
-                _LOGGER.debug("Sector Entry: Skipping log entry with missing LockName: %s", log)
-                continue
-
+    # Separate lock events and general events, creating appropriate entities
+    logs_by_device = defaultdict(list)
+    for log in logs:
+        lock_name = log.get("LockName")
+        if lock_name:
             device_serial = device_map.get(lock_name)
             if device_serial:
-                logs_by_device[device_serial].append(log)
-                _LOGGER.debug("Sector Entry: Log entry associated with device %s (serial: %s)", lock_name, device_serial)
-            else:
-                _LOGGER.warning("Sector Entry: Log entry for unrecognized device: %s", lock_name)
+                device_info = coordinator.data["devices"].get(device_serial, {})
+                device_name = device_info.get("name", "Unknown Device")
+                device_model = device_info.get("model", "Unknown Model")
 
-        # Create an event entity for each device with logs
-        entities = []
-        for device_serial, device_logs in logs_by_device.items():
-            device_info = coordinator.data["devices"].get(device_serial, {})
-            device_name = device_info.get("name", "Unknown Device")
+                existing_entity = next(
+                    (entity for entity in entities if isinstance(entity, LockEventEntity) and entity._serial_no == device_serial),
+                    None
+                )
+                if not existing_entity:
+                    event_entity = LockEventEntity(coordinator, device_serial, device_name, device_model)
+                    entities.append(event_entity)
+                else:
+                    event_entity = existing_entity
+                event_entity.queue_event(log)
+        else:
+            device_serial = device_map.get(log.get("DeviceName"))
+            if device_serial:
+                device_info = coordinator.data["devices"].get(device_serial, {})
+                device_name = device_info.get("name", "Unknown Device")
+                device_model = device_info.get("model", "Unknown Model")
 
-            _LOGGER.debug("Sector Entry: Creating event entity for device %s with logs: %d entries", device_name, len(device_logs))
+                existing_entity = next(
+                    (entity for entity in entities if isinstance(entity, SectorAlarmEvent) and entity._serial_no == device_serial),
+                    None
+                )
+                if not existing_entity:
+                    event_entity = SectorAlarmEvent(coordinator, device_serial, device_name, device_model)
+                    entities.append(event_entity)
+                else:
+                    event_entity = existing_entity
+                event_entity.queue_event(log)
 
-            # Initialize event entity for this device and add its logs
-            event_entity = SectorAlarmEvent(coordinator, device_serial, device_name, device_info.get("model", "Unknown Model"))
-            entities.append(event_entity)
-            for log in device_logs:
-                event_entity.add_event(log)
+    async_add_entities(entities)
+    _LOGGER.debug("Added %d event entities", len(entities))
 
-        _LOGGER.debug("Sector Entry: Adding %d event entities to Home Assistant", len(entities))
-        async_add_entities(entities)
 
-    # Attempt listener for custom event
-    _LOGGER.debug("Sector Entry: Registering listener for sector_alarm_lock_setup_complete")
-    hass.bus.async_listen_once("sector_alarm_lock_setup_complete", lambda _: hass.async_create_task(setup_events()))
+class SectorAlarmEvent(CoordinatorEntity, EventEntity):
+    """Representation of a general event entity for Sector Alarm integration."""
 
-    # Fallback in case the custom event never fires
-    _LOGGER.debug("Sector Entry: Scheduling fallback setup after 5 seconds")
-    async_call_later(hass, 5, lambda _: hass.create_task(setup_events()))
-
-class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
-    """Representation of a Sector Alarm log event."""
-
-    def __init__(self, coordinator: SectorDataUpdateCoordinator, device_serial: str, device_name: str, device_model: str):
-        """Initialize the log event entity for a specific device."""
-        super().__init__(coordinator, device_serial, {"name": device_name}, device_model)
-
+    def __init__(self, coordinator, device_serial, device_name, device_model):
+        """Initialize the general event entity."""
+        super().__init__(coordinator)
+        self._serial_no = device_serial
+        self._device_name = device_name
+        self._device_model = device_model
+        self._events = []  # Store all general events
+        self._event_queue = []  # Queue to store events before entity is added to Home Assistant
         self._attr_unique_id = f"{device_serial}_event"
         self._attr_name = f"{device_name} Event Log"
-        self._attr_device_class = "timestamp"
-        self._events = []  # List to store recent log events for this device
-        self._initialized = False
-        _LOGGER.debug("Sector Entry: Created SectorAlarmEvent for device: %s with serial: %s", device_name, device_serial)
-
-    async def async_added_to_hass(self):
-        """Handle entity addition to Home Assistant."""
-        self._initialized = True  # Entity is now added to Home Assistant
-        _LOGGER.debug("Sector Entry: SectorAlarmEvent entity added to Home Assistant for: %s", self._attr_name)
+        self._attr_device_class = "sector_alarm_timestamp"  # Use a custom string identifier
+        _LOGGER.debug("Created SectorAlarmEvent for device: %s", device_name)
 
     @property
-    def state(self) -> str:
-        """Return the most recent event type as the state."""
+    def device_info(self):
+        """Return device information to associate this entity with a device."""
+        return {
+            "identifiers": {(DOMAIN, self._serial_no)},
+            "name": self._device_name,
+            "manufacturer": "Sector Alarm",
+            "model": self._device_model,
+        }
+
+    async def async_added_to_hass(self):
+        """Handle entity addition to Home Assistant and process queued events."""
+        await super().async_added_to_hass()
+        for event in self._event_queue:
+            self.add_event(event)
+        self._event_queue.clear()  # Clear the queue after processing
+
+    @property
+    def state(self):
+        """Return the latest event type as the entity state."""
         return self._events[-1]["EventType"] if self._events else "No events"
 
     @property
-    def extra_state_attributes(self) -> dict:
-        """Return additional attributes for the most recent log event."""
+    def extra_state_attributes(self):
+        """Return additional attributes for the most recent event."""
         if not self._events:
             return {}
 
         recent_event = self._events[-1]
-
-        # Parse the ISO 8601 timestamp to a datetime object
-        time_str = recent_event.get("Time", "unknown")
-        try:
-            # Replace "Z" with "+00:00" for compatibility with fromisoformat
-            if time_str.endswith("Z"):
-                time_str = time_str.replace("Z", "+00:00") # Parse the string and localize it to UTC
-
-            timestamp = datetime.fromisoformat(time_str).astimezone(timezone.utc)
-            timestamp_str = timestamp.isoformat()  # Convert back to ISO 8601 format
-        except ValueError:
-            _LOGGER.warning("Invalid timestamp format: %s", time_str)
-            timestamp_str = "unknown"
+        timestamp_str = self._format_timestamp(recent_event.get("Time"))
 
         return {
             "time": timestamp_str,
-            "channel": recent_event.get("Channel", "unknown"),
             "user": recent_event.get("User", "unknown"),
+            "channel": recent_event.get("Channel", "unknown"),
         }
 
-    @property
-    def event_types(self) -> list[str]:
-        """Return all unique event types for this entity's logs."""
-        return list({event["EventType"] for event in self._events})
-
-    def add_event(self, log: dict):
-        """Add a new log event to this entity."""
-        self._events.append(log)
-        if self._initialized:
-            _LOGGER.debug("Sector Entry: Adding event to %s: %s", self._attr_name, log)
-            self.async_write_ha_state()  # Only update if entity is initialized
+    def queue_event(self, log):
+        """Queue an event if the entity is not yet added to Home Assistant."""
+        if self.hass:
+            self.add_event(log)
         else:
-            _LOGGER.debug("Sector Entry: Event added to uninitialized entity %s: %s", self._attr_name, log)
+            self._event_queue.append(log)
+
+    def add_event(self, log):
+        """Add a general event to the entity."""
+        self._events.append(log)
+        if self.hass:  # Ensure entity is fully initialized before calling write_ha_state
+            _LOGGER.debug("Adding event to %s: %s", self._attr_name, log)
+            self.async_write_ha_state()
+        else:
+            _LOGGER.warning("Tried to add event to uninitialized entity: %s", self._attr_name)
+
+    @staticmethod
+    def _format_timestamp(time_str):
+        """Helper to format the timestamp for state attributes."""
+        if not time_str:
+            return "unknown"
+        try:
+            timestamp = datetime.fromisoformat(time_str.replace("Z", "+00:00")).astimezone(timezone.utc)
+            return timestamp.isoformat()
+        except ValueError:
+            _LOGGER.warning("Invalid timestamp format: %s", time_str)
+            return "unknown"
+
+
+class LockEventEntity(SectorAlarmEvent):
+    """Representation of a lock-specific event entity for Sector Alarm integration."""
+
+    _attr_event_types = ["lock", "unlock", "lock_failed"]
+
+    def __init__(self, coordinator, device_serial, device_name, device_model):
+        """Initialize the lock-specific event entity."""
+        super().__init__(coordinator, device_serial, device_name, device_model)
+        _LOGGER.debug("Created LockEventEntity for device: %s", device_name)
+
+    def queue_event(self, log):
+        """Queue a lock event if the event type is lock-related."""
+        if log.get("EventType") in self._attr_event_types:
+            super().queue_event(log)

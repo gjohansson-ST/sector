@@ -61,8 +61,23 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     data[key] = value
                     data[key]["code_format"] = self.code_format
 
+            # Retrieve and filter logs
+            raw_logs = api_data.get("Logs", [])
+            logs = []
+
+            # Ensure raw_logs is a list; handle unexpected formats
+            if isinstance(raw_logs, list):
+                logs = self._filter_duplicate_logs(raw_logs)
+            elif isinstance(raw_logs, dict) and "Records" in raw_logs:
+                logs = self._filter_duplicate_logs(raw_logs.get("Records", []))
+
+            # Update last_processed_events to track processed logs
+            self.last_processed_events.update(
+                {self._get_event_id(log) for log in logs}
+            )
+
+            # Process devices, panel status, and lock status as usual
             devices = {}
-            logs = api_data.get("Logs", [])
             panel_status = api_data.get("Panel Status", {})
             locks_data = api_data.get("Lock Status", [])
 
@@ -89,28 +104,14 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 _LOGGER.debug("No locks data found.")
 
-            # Retrieve logs
-            raw_logs = await self.api.get_logs()
-            logs = self._filter_duplicate_logs(raw_logs)
-
-            # Add processed logs to data
-            data["logs"] = logs
-
-            # Update last processed events with the latest batch
-            self.last_processed_events.update(
-                {self._get_event_id(log) for log in logs}
-            )
-
             # Process devices from different categories
             for category_name, category_data in data.items():
                 _LOGGER.debug("Processing category: %s", category_name)
                 model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
-                if category_name in [
-                    "Doors and Windows",
-                    "Smoke Detectors",
-                    "Leakage Detectors",
-                    "Cameras",
-                    "Keypad",
+                if category_name not in [
+                        "Panel Status",
+                        "Lock Status",
+                        "Logs",
                 ]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
@@ -350,14 +351,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         _LOGGER.warning(
                             "Unexpected smartplug data format: %s", category_data
                         )
-
-                elif category_name == "Lock Status":
-                    # Locks data is already retrieved in locks_data
-                    pass
-
-                elif category_name == "Panel Status":
-                    # Panel status is already retrieved
-                    pass
 
                 else:
                     _LOGGER.debug("Unhandled category %s", category_data)
