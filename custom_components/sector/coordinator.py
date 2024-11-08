@@ -49,35 +49,46 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     def process_events(self):
-        """Process events and group them by device."""
-        logs_data = self.data.get("logs", [])
-        logs = logs_data.get("Records", [])
+        """Process only new events and group them by device."""
+        _LOGGER.debug("Starting LockName-to-device mapping for logs")  # New debug statement
+        logs = self.data.get("logs", {}).get("Records", [])
 
-        if not isinstance(logs, list) or not all(isinstance(log, dict) for log in logs):
-            _LOGGER.error("Unexpected logs format: expected list of dictionaries")
-            _LOGGER.debug("Logs content: %s", logs)
+        if not isinstance(logs, list):
+            _LOGGER.error("Unexpected logs format, expected list of dictionaries")
             return {}
 
-        device_map = {device_info["name"]: serial for serial, device_info in self.data["devices"].items()}
-
         grouped_events = {}
-
         for log in logs:
+            _LOGGER.debug("Processing log with LockName '%s'", log.get("LockName"))
+            event_id = self._get_event_id(log)
+            if event_id in self.last_processed_events:
+                continue  # Skip already processed logs
+
             lock_name = log.get("LockName")
 
-            if not isinstance(lock_name, str):
-                _LOGGER.warning("Skipping log with invalid LockName: %s", log)
-                continue
+            # Adjusted lookup to find device by `name` field
+            matched_device = None
+            for serial_no, device_info in self.data["devices"].items():
+                if device_info.get("name") == lock_name:
+                    matched_device = device_info
+                    break
 
-            if not lock_name:
-                continue
+            if matched_device:
+                _LOGGER.debug("LockName '%s' matched to device with serial '%s'", lock_name, matched_device["serial_no"])
+                device_serial = matched_device["serial_no"]
+                grouped_events.setdefault(device_serial, {}).setdefault("lock", []).append(log)
+                self.last_processed_events.add(self._get_event_id(log))
+            else:
+                _LOGGER.warning("No match found for LockName '%s'", lock_name)
 
-            device_serial = device_map.get(lock_name)
-
-            # Only group by serial if valid and ensure device_serial exists in device_map
             if device_serial:
                 grouped_events.setdefault(device_serial, {}).setdefault("lock", []).append(log)
+                self.last_processed_events.add(event_id)  # Mark log as processed
 
+                # Debug: Confirm log added to grouped_events
+                _LOGGER.debug("Added log entry to grouped events for device '%s' with serial '%s'", lock_name, device_serial)
+
+        _LOGGER.debug("Final grouped events structure: %s", grouped_events)  # New debug statement
         return grouped_events
 
     def get_device_info(self, serial):
@@ -86,7 +97,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from Sector Alarm API."""
-        data = {}
+        data = {}  # Initialize data dictionary
 
         try:
             await self.api.login()
@@ -397,6 +408,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 else:
                     _LOGGER.debug("Unhandled category %s", category_data)
 
+            for serial, device_info in devices.items():
+                _LOGGER.debug("Initialized device with name '%s' and serial '%s'", device_info["name"], serial)
+
             return {
                 "devices": devices,
                 "panel_status": panel_status,
@@ -404,17 +418,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             }
 
         except AuthenticationError as error:
+            _LOGGER.error("Authentication failed: %s", error)
             raise UpdateFailed(f"Authentication failed: {error}") from error
         except Exception as error:
             _LOGGER.exception("Failed to update data")
             raise UpdateFailed(f"Failed to update data: {error}") from error
-
-    def _filter_duplicate_logs(self, logs):
-        """Filter out logs that were already processed."""
-        return [
-            log for log in logs
-            if self._get_event_id(log) not in self.last_processed_events
-        ]
 
     @staticmethod
     def _get_event_id(log):
