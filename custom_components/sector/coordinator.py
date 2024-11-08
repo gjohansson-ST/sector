@@ -384,6 +384,18 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             "Unexpected smartplug data format: %s", category_data
                         )
 
+                elif category_name == "Lock Status":
+                    # Locks data is already retrieved in locks_data
+                    pass
+
+                elif category_name == "Panel Status":
+                    # Panel status is already retrieved
+                    pass
+
+                elif category_name == "Logs":
+                    # Logs are already retrieved
+                    pass
+
                 else:
                     _LOGGER.debug("Unhandled category %s", category_data)
 
