@@ -81,7 +81,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def process_events(self):
         """Process only new events and group them by device, based on the latest event timestamp."""
-        _LOGGER.debug("Starting LockName-to-device mapping for logs")
+        _LOGGER.debug("Starting to process events for all devices")
         logs = list(reversed(self.data.get("logs", {}).get("Records", [])))
 
         if not isinstance(logs, list):
@@ -126,10 +126,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("LockName '%s' matched to device with serial '%s'", lock_name, matched_device["serial_no"])
                 device_serial = matched_device["serial_no"]
                 grouped_events.setdefault(device_serial, {}).setdefault("lock", []).append(log)
-
-                _LOGGER.debug("Added log entry to grouped events for device '%s' with serial '%s'", lock_name, device_serial)
+                _LOGGER.debug("Log added to grouped events for device %s: %s", device_serial, log)
             else:
                 _LOGGER.warning("No match found for LockName '%s'", lock_name)
+
+        for serial_no in self.data["devices"]:
+            grouped_events.setdefault(serial_no, {})
 
         _LOGGER.debug("Final grouped events structure: %s", grouped_events)
         return grouped_events
