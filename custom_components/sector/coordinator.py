@@ -82,7 +82,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     async def process_events(self):
         """Process only new events and group them by device, based on the latest event timestamp."""
         _LOGGER.debug("Starting LockName-to-device mapping for logs")
-        logs = self.data.get("logs", {}).get("Records", [])
+        logs = list(reversed(self.data.get("logs", {}).get("Records", [])))
 
         if not isinstance(logs, list):
             _LOGGER.error("Unexpected logs format, expected list of dictionaries")
