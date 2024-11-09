@@ -30,7 +30,7 @@ async def async_setup_entry(
             serial_no = device["serial_no"]
             description = LockEntityDescription(
                 key=serial_no,
-                name=f"Sector {device.get('name', 'Lock')} {serial_no}",
+                name=f"{device.get('name', 'Lock')}",
             )
             entities.append(
                 SectorAlarmLock(coordinator, code_format, description, serial_no)
@@ -40,7 +40,6 @@ async def async_setup_entry(
         async_add_entities(entities)
     else:
         _LOGGER.debug("No lock entities to add.")
-
 
 class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""

@@ -10,7 +10,6 @@ from homeassistant.components.camera import Camera
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
@@ -23,13 +22,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up Sector Alarm cameras."""
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: SectorDataUpdateCoordinator = entry.runtime_data
     devices = coordinator.data.get("devices", {})
     cameras = devices.get("cameras", [])
-    entities = []
-
-    for camera_data in cameras:
-        entities.append(SectorAlarmCamera(coordinator, camera_data))
+    entities = [SectorAlarmCamera(coordinator, camera_data) for camera_data in cameras]
 
     if entities:
         async_add_entities(entities)

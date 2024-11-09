@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+import unicodedata
+from datetime import datetime, timedelta, timezone
 
+from homeassistant.components.recorder import history, get_instance
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
@@ -21,7 +23,13 @@ from .const import (
 type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
 
 _LOGGER = logging.getLogger(__name__)
+_lock_event_types = ["lock", "unlock", "lock_failed"]
 
+def normalize_name(name):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', name)
+        if unicodedata.category(c) != 'Mn'
+    ).lower()
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     """Coordinator to manage data fetching from Sector Alarm."""
@@ -47,9 +55,92 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=60),
         )
 
+    async def get_last_event_timestamp(self, device_name):
+        """Fetch the last event timestamp from Home Assistant history for the specific device."""
+        entity_id = f"event.{device_name}_event_log"
+        end_time = datetime.now(timezone.utc)
+        start_time = end_time - timedelta(days=1)  # Assuming history within 1 day is sufficient
+
+        # Use async_add_executor_job to avoid blocking the event loop
+        history_data = await get_instance(self.hass).async_add_executor_job(
+            history.state_changes_during_period,
+            self.hass,
+            start_time,
+            end_time,
+            entity_id
+        )
+
+        # Extract the latest timestamp if any history is found
+        if entity_id in history_data and history_data[entity_id]:
+            latest_state = history_data[entity_id][-1]  # Get the last entry
+            _LOGGER.debug(f"Last available state for {device_name}: {latest_state}")
+            return datetime.fromisoformat(latest_state.last_changed.isoformat())
+
+        # Default to None if no history found
+        return None
+
+    async def process_events(self):
+        """Process only new events and group them by device, based on the latest event timestamp."""
+        _LOGGER.debug("Starting LockName-to-device mapping for logs")
+        logs = list(reversed(self.data.get("logs", {}).get("Records", [])))
+
+        if not isinstance(logs, list):
+            _LOGGER.error("Unexpected logs format, expected list of dictionaries")
+            return {}
+
+        grouped_events = {}
+        event_timestamp_cache = {}
+
+        for log in logs:
+            lock_name = log.get("LockName")
+            normalized_lock_name = normalize_name(lock_name)
+            event_type = log.get("EventType")
+            event_timestamp = datetime.fromisoformat(log.get("Time").replace("Z", "+00:00"))
+
+            if lock_name not in event_timestamp_cache:
+                event_timestamp_cache[normalized_lock_name] = await self.get_last_event_timestamp(normalized_lock_name)
+
+            # Fetch the latest event timestamp for this device from history
+            last_event_timestamp = event_timestamp_cache[normalized_lock_name]
+            _LOGGER.debug("Fetched last event timestamp for lock_name '%s': %s", normalized_lock_name, last_event_timestamp)
+
+            # Skip logs that are older than the latest event timestamp
+            if last_event_timestamp and event_timestamp <= last_event_timestamp:
+                _LOGGER.debug(
+                    "Skipping log '%s' for %s as it's older than the last event timestamp %s >= %s",
+                    event_type, lock_name, last_event_timestamp.isoformat(), event_timestamp.isoformat()
+                )
+                continue
+
+            # Process new event as it's newer than the last history entry
+            _LOGGER.debug("Processing new event: %s at %s", event_type, event_timestamp.isoformat())
+
+            # Perform a full lookup to find the device by name
+            matched_device = None
+            for serial_no, device_info in self.data["devices"].items():
+                if device_info.get("name") == lock_name:
+                    matched_device = device_info
+                    break
+
+            if matched_device:
+                _LOGGER.debug("LockName '%s' matched to device with serial '%s'", lock_name, matched_device["serial_no"])
+                device_serial = matched_device["serial_no"]
+                grouped_events.setdefault(device_serial, {}).setdefault("lock", []).append(log)
+
+                _LOGGER.debug("Added log entry to grouped events for device '%s' with serial '%s'", lock_name, device_serial)
+            else:
+                _LOGGER.warning("No match found for LockName '%s'", lock_name)
+
+        _LOGGER.debug("Final grouped events structure: %s", grouped_events)
+        return grouped_events
+
+    def get_device_info(self, serial):
+        """Fetch device information by serial number."""
+        return self.data["devices"].get(serial, {"name": "Unknown Device", "model": "Unknown Model"})
+
     async def _async_update_data(self):
         """Fetch data from Sector Alarm API."""
-        data = {}
+        data = {}  # Initialize data dictionary
 
         try:
             await self.api.login()
@@ -60,8 +151,15 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     data[key] = value
                     data[key]["code_format"] = self.code_format
 
-            devices = {}
+            # Retrieve and limit logs to the latest 40 entries
             logs = api_data.get("Logs", [])
+            if isinstance(logs, list):
+                data["Logs"] = logs
+            elif isinstance(logs, dict) and "Records" in logs:
+                data["Logs"] = logs.get("Records", [])
+
+            # Process devices, panel status, and lock status as usual
+            devices = {}
             panel_status = api_data.get("Panel Status", {})
             locks_data = api_data.get("Lock Status", [])
 
@@ -93,11 +191,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Processing category: %s", category_name)
                 model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
                 if category_name in [
-                    "Doors and Windows",
-                    "Smoke Detectors",
-                    "Leakage Detectors",
-                    "Cameras",
-                    "Keypad",
+                        "Doors and Windows",
+                        "Smoke Detectors",
+                        "Leakage Detectors",
+                        "Cameras",
+                        "Keypad",
                 ]:
                     for section in category_data.get("Sections", []):
                         for place in section.get("Places", []):
@@ -346,8 +444,15 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     # Panel status is already retrieved
                     pass
 
+                elif category_name == "Logs":
+                    # Logs are already retrieved
+                    pass
+
                 else:
                     _LOGGER.debug("Unhandled category %s", category_data)
+
+            for serial, device_info in devices.items():
+                _LOGGER.debug("Initialized device with name '%s' and serial '%s'", device_info["name"], serial)
 
             return {
                 "devices": devices,
@@ -356,7 +461,22 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             }
 
         except AuthenticationError as error:
+            _LOGGER.error("Authentication failed: %s", error)
             raise UpdateFailed(f"Authentication failed: {error}") from error
         except Exception as error:
             _LOGGER.exception("Failed to update data")
             raise UpdateFailed(f"Failed to update data: {error}") from error
+
+    @staticmethod
+    def _get_event_id(log):
+        """Create a unique identifier for each log event."""
+        return f"{log['LockName']}_{log['EventType']}_{log['Time']}"
+
+    def get_latest_log(self, event_type: str, lock_name: str = None):
+        """Retrieve the latest log for a specific event type, optionally by LockName."""
+        logs = self.data.get("logs", [])
+        for log in logs:
+            if log.get("EventType") == event_type and (lock_name is None or log.get("LockName") == lock_name):
+                return log
+        _LOGGER.debug("No matching log found for event type '%s' and lock name '%s'", event_type, lock_name)
+        return None  # Return None if no matching log is found
