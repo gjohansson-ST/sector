@@ -57,7 +57,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def get_last_event_timestamp(self, device_name):
         """Fetch the last event timestamp from Home Assistant history for the specific device."""
-        entity_id = f"event.{device_name}_{device_name}_event_log"
+        entity_id = f"event.{device_name}_event_log"
         end_time = datetime.now(timezone.utc)
         start_time = end_time - timedelta(days=1)  # Assuming history within 1 day is sufficient
 
@@ -73,6 +73,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         # Extract the latest timestamp if any history is found
         if entity_id in history_data and history_data[entity_id]:
             latest_state = history_data[entity_id][-1]  # Get the last entry
+            _LOGGER.debug(f"Last available state for {device_name}: {latest_state}")
             return datetime.fromisoformat(latest_state.last_changed.isoformat())
 
         # Default to None if no history found
