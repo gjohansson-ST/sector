@@ -74,10 +74,22 @@ class SectorAlarmEvent(CoordinatorEntity, EventEntity):
 
         for event_type, logs in grouped_events[self._serial_no].items():
             latest_log = logs[-1]  # Get the latest log
-            self._last_event_type = latest_log["EventType"]
+            event_time = latest_log["Time"]
+
+            # Set state as the latest event type to trigger the state update
+            self._last_event_type = event_type
             self._events.append(latest_log)  # Store the event for attributes
-            self._trigger_event(self._last_event_type, {"timestamp": latest_log["Time"]})
-            _LOGGER.debug("Updated entity %s to event type %s", self._attr_unique_id, self._last_event_type)
+
+            # Explicitly trigger an event update and set the state
+            self._trigger_event(self._last_event_type, {"timestamp": event_time})
+            self.async_write_ha_state()  # Explicitly write state to force update in Home Assistant
+
+            _LOGGER.debug(
+                "Updated entity %s with event type %s at %s",
+                self._attr_unique_id,
+                self._last_event_type,
+                event_time
+            )
 
     def _trigger_event(self, event_type, event_attributes):
         """Trigger an event update with the latest type."""

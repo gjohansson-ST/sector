@@ -76,7 +76,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         event_timestamp_cache = {}
 
         for log in logs:
-            _LOGGER.debug("Processing log entry: %s", log)  # Log each log entry
             normalized_lock_name = normalize_name(log.get("LockName"))
             event_type = log.get("EventType")
             event_timestamp = datetime.fromisoformat(log.get("Time").replace("Z", "+00:00"))
@@ -91,6 +90,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             for serial_no, device_info in self.data["devices"].items():
                 if device_info.get("name") == log.get("LockName"):
                     grouped_events.setdefault(serial_no, {}).setdefault(event_type, []).append(log)
+                    # Update timestamp to prevent reprocessing
+                    event_timestamp_cache[normalized_lock_name] = event_timestamp
 
         return grouped_events
 

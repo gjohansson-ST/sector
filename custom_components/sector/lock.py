@@ -71,14 +71,47 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
         """Lock the device."""
         code = kwargs.get(ATTR_CODE)
         _LOGGER.debug("Lock requested for lock %s. Code: %s", self._serial_no, code)
-        success = await self.coordinator.api.lock_door(self._serial_no, code=code)
-        if success:
-            await self.coordinator.async_request_refresh()
+
+        try:
+            success = await self.coordinator.api.lock_door(self._serial_no, code=code)
+            if success:
+                await self.coordinator.async_request_refresh()
+                await self.coordinator.process_events()  # Explicitly trigger event processing
+            else:
+                await self.async_lock_failed()
+        except Exception as e:
+            _LOGGER.error("Lock failed for %s: %s", self._serial_no, e)
+            await self.async_lock_failed()
 
     async def async_unlock(self, **kwargs):
         """Unlock the device."""
         code = kwargs.get(ATTR_CODE)
         _LOGGER.debug("Unlock requested for lock %s. Code: %s", self._serial_no, code)
-        success = await self.coordinator.api.unlock_door(self._serial_no, code=code)
-        if success:
-            await self.coordinator.async_request_refresh()
+
+        try:
+            success = await self.coordinator.api.unlock_door(self._serial_no, code=code)
+            if success:
+                await self.coordinator.async_request_refresh()
+                await self.coordinator.process_events()  # Explicitly trigger event processing
+            else:
+                await self.async_lock_failed()
+        except Exception as e:
+            _LOGGER.error("Unlock failed for %s: %s", self._serial_no, e)
+            await self.async_lock_failed()
+
+    async def async_lock_failed(self, **kwargs):
+        """Handle a failed lock attempt."""
+        _LOGGER.debug("Lock failed for lock %s", self._serial_no)
+
+        # Trigger the state update for Home Assistant to reflect lock_failed
+        self._last_event_type = "lock_failed"
+        self.async_write_ha_state()  # Force state update in Home Assistant
+
+        # Directly log lock_failed event in the event history
+        self.coordinator.data["logs"].append({
+            "LockName": self._serial_no,
+            "EventType": "lock_failed",
+            "Time": datetime.now(timezone.utc).isoformat()
+        })
+
+        await self.coordinator.process_events()  # Explicitly trigger event processing
