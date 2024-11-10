@@ -56,84 +56,42 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def get_last_event_timestamp(self, device_name):
-        """Fetch the last event timestamp from Home Assistant history for the specific device."""
         entity_id = f"event.{device_name}_event_log"
         end_time = datetime.now(timezone.utc)
-        start_time = end_time - timedelta(days=1)  # Assuming history within 1 day is sufficient
+        start_time = end_time - timedelta(days=1)
 
-        # Use async_add_executor_job to avoid blocking the event loop
         history_data = await get_instance(self.hass).async_add_executor_job(
-            history.state_changes_during_period,
-            self.hass,
-            start_time,
-            end_time,
-            entity_id
+            history.state_changes_during_period, self.hass, start_time, end_time, entity_id
         )
 
-        # Extract the latest timestamp if any history is found
         if entity_id in history_data and history_data[entity_id]:
-            latest_state = history_data[entity_id][-1]  # Get the last entry
-            _LOGGER.debug(f"Last available state for {device_name}: {latest_state}")
+            latest_state = history_data[entity_id][-1]
             return datetime.fromisoformat(latest_state.last_changed.isoformat())
 
-        # Default to None if no history found
         return None
 
     async def process_events(self):
-        """Process only new events and group them by device, based on the latest event timestamp."""
-        _LOGGER.debug("Starting to process events for all devices")
         logs = list(reversed(self.data.get("logs", {}).get("Records", [])))
-
-        if not isinstance(logs, list):
-            _LOGGER.error("Unexpected logs format, expected list of dictionaries")
-            return {}
-
         grouped_events = {}
         event_timestamp_cache = {}
 
         for log in logs:
-            lock_name = log.get("LockName")
-            normalized_lock_name = normalize_name(lock_name)
+            _LOGGER.debug("Processing log entry: %s", log)  # Log each log entry
+            normalized_lock_name = normalize_name(log.get("LockName"))
             event_type = log.get("EventType")
             event_timestamp = datetime.fromisoformat(log.get("Time").replace("Z", "+00:00"))
 
-            if lock_name not in event_timestamp_cache:
+            if normalized_lock_name not in event_timestamp_cache:
                 event_timestamp_cache[normalized_lock_name] = await self.get_last_event_timestamp(normalized_lock_name)
 
-            # Fetch the latest event timestamp for this device from history
             last_event_timestamp = event_timestamp_cache[normalized_lock_name]
-            _LOGGER.debug("Fetched last event timestamp for lock_name '%s': %s", normalized_lock_name, last_event_timestamp)
-
-            # Skip logs that are older than the latest event timestamp
             if last_event_timestamp and event_timestamp <= last_event_timestamp:
-                _LOGGER.debug(
-                    "Skipping log '%s' for %s as it's older than the last event timestamp %s >= %s",
-                    event_type, lock_name, last_event_timestamp.isoformat(), event_timestamp.isoformat()
-                )
                 continue
 
-            # Process new event as it's newer than the last history entry
-            _LOGGER.debug("Processing new event: %s at %s", event_type, event_timestamp.isoformat())
-
-            # Perform a full lookup to find the device by name
-            matched_device = None
             for serial_no, device_info in self.data["devices"].items():
-                if device_info.get("name") == lock_name:
-                    matched_device = device_info
-                    break
+                if device_info.get("name") == log.get("LockName"):
+                    grouped_events.setdefault(serial_no, {}).setdefault(event_type, []).append(log)
 
-            if matched_device:
-                _LOGGER.debug("LockName '%s' matched to device with serial '%s'", lock_name, matched_device["serial_no"])
-                device_serial = matched_device["serial_no"]
-                grouped_events.setdefault(device_serial, {}).setdefault("lock", []).append(log)
-                _LOGGER.debug("Log added to grouped events for device %s: %s", device_serial, log)
-            else:
-                _LOGGER.warning("No match found for LockName '%s'", lock_name)
-
-        for serial_no in self.data["devices"]:
-            grouped_events.setdefault(serial_no, {})
-
-        _LOGGER.debug("Final grouped events structure: %s", grouped_events)
         return grouped_events
 
     def get_device_info(self, serial):
@@ -148,6 +106,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             await self.api.login()
             api_data = await self.api.retrieve_all_data()
 
+            _LOGGER.debug("API data retrieved: %s", api_data)  # Log the full data response
+
             for key, value in api_data.items():
                 if isinstance(value, dict) and key not in ["Lock Status", "Logs"]:
                     data[key] = value
@@ -159,6 +119,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 data["Logs"] = logs
             elif isinstance(logs, dict) and "Records" in logs:
                 data["Logs"] = logs.get("Records", [])
+
+            _LOGGER.debug("Logs data: %s", data["Logs"])  # Log extracted logs
 
             # Process devices, panel status, and lock status as usual
             devices = {}
