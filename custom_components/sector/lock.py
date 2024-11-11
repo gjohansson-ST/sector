@@ -30,7 +30,7 @@ async def async_setup_entry(
             serial_no = device["serial_no"]
             description = LockEntityDescription(
                 key=serial_no,
-                name=f"{device.get('name', 'Lock')}",
+                name=f"{device.get('name', 'Smart Lock')}",
             )
             entities.append(
                 SectorAlarmLock(coordinator, code_format, description, serial_no)
@@ -54,7 +54,7 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
         serial_no: str,
     ):
         """Initialize the lock."""
-        super().__init__(coordinator, serial_no, {"name": description.name}, "Lock")
+        super().__init__(coordinator, serial_no, {"name": description.name}, "Smart Lock")
         self._attr_unique_id = f"{self._serial_no}_lock"
         self._attr_code_format = rf"^\d{{{code_format}}}$"
 
