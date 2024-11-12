@@ -14,6 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
+from .const import BINARY_SENSOR_DESCRIPTIONS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,9 +86,13 @@ async def async_setup_entry(
             SectorAlarmBinarySensor(
                 coordinator,
                 serial_no,
-                "Sector Alarm Panel",
+                {"name": "Sector Alarm Panel"},
+                next(
+                    desc
+                    for desc in SENSOR_DESCRIPTIONS
+                    if desc.sensor_type == "online"
+                ),
                 "Alarm Panel",
-                "Sector Alarm Panel",
             )
         )
 
@@ -117,7 +122,7 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     def is_on(self) -> bool:
         """Return true if the sensor is on."""
         sensor_type = self.entity_description.key
-        if sensor_type == "online":
+	if sensor_type == "online":
             # Handle panel online status separately
             panel_status = self.coordinator.data.get("panel_status", {})
             return panel_status.get("IsOnline", False)
