@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
@@ -75,6 +76,8 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
         """Send arm away command."""
+        if TYPE_CHECKING:
+            assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
         _LOGGER.debug("Arming away with code: %s", code)
@@ -83,6 +86,8 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send arm home command."""
+        if TYPE_CHECKING:
+            assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
         _LOGGER.debug("Arming home with code: %s", code)
@@ -91,6 +96,8 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Send disarm command."""
+        if TYPE_CHECKING:
+            assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
         _LOGGER.debug("Disarming with code: %s", code)

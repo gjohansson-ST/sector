@@ -1,7 +1,7 @@
 """Locks for Sector Alarm."""
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.const import ATTR_CODE
@@ -28,7 +28,7 @@ async def async_setup_entry(
 
     for serial_no, device_info in devices.items():
         if device_info.get("model") == "Smart Lock":
-            device_name = device_info.get("name")
+            device_name:str = device_info["name"]
             entities.append(
                 SectorAlarmLock(
                     coordinator, code_format, serial_no, device_name, "Smart Lock"
@@ -78,6 +78,8 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     async def async_lock(self, **kwargs) -> None:
         """Lock the device."""
         code: str | None = kwargs.get(ATTR_CODE)
+        if TYPE_CHECKING:
+            assert code is not None
         _LOGGER.debug("Lock requested for lock %s. Code: %s", self._serial_no, code)
         success = await self.coordinator.api.lock_door(self._serial_no, code=code)
         if success:
@@ -86,6 +88,8 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     async def async_unlock(self, **kwargs) -> None:
         """Unlock the device."""
         code: str | None = kwargs.get(ATTR_CODE)
+        if TYPE_CHECKING:
+            assert code is not None
         _LOGGER.debug("Unlock requested for lock %s. Code: %s", self._serial_no, code)
         success = await self.coordinator.api.unlock_door(self._serial_no, code=code)
         if success:

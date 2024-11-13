@@ -58,10 +58,10 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 4
 
     def __init__(self):
-        self.email: str | None = None
-        self.password: str | None = None
-        self.code_format: int | None = None
-        self.panel_ids: dict[str, str] = {}
+        self.email: str | None
+        self.password: str | None
+        self.code_format: int | None
+        self.panel_ids: dict[str, str]
 
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
