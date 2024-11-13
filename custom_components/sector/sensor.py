@@ -12,12 +12,26 @@ from homeassistant.components.sensor import (
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import StateType
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
+
+SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
+    SensorEntityDescription(
+        key="temperature",
+        name="Temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+    ),
+    SensorEntityDescription(
+        key="humidity",
+        name="Humidity",
+        device_class=SensorDeviceClass.HUMIDITY,
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+)
 
 
 async def async_setup_entry(
@@ -29,7 +43,7 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     await coordinator.async_refresh()
     devices = coordinator.data.get("devices", {})
-    entities: list[SectorAlarmTemperatureSensor | SectorAlarmHumiditySensor] = []
+    entities: list[SectorAlarmSensor] = []
 
     for device in devices.values():
         serial_no = device["serial_no"]
@@ -37,21 +51,14 @@ async def async_setup_entry(
         device_name = device.get("name", "Unknown Device")
         device_model = device.get("model", "")
 
-        if "temperature" in sensors:
-            entities.append(
-                SectorAlarmTemperatureSensor(
-                    coordinator, serial_no, device_name, device_model
+        for description in SENSOR_TYPES:
+            if description.key in sensors:
+                entities.append(
+                    SectorAlarmSensor(
+                        coordinator, serial_no, description, device_name, device_model
+                    )
                 )
-            )
-            _LOGGER.debug("Added temperature sensor for device %s", serial_no)
-
-        if "humidity" in sensors:
-            entities.append(
-                SectorAlarmHumiditySensor(
-                    coordinator, serial_no, device_name, device_model
-                )
-            )
-            _LOGGER.debug("Added humidity sensor for device %s", serial_no)
+                _LOGGER.debug("Added temperature sensor for device %s", serial_no)
 
     if entities:
         async_add_entities(entities)
@@ -62,60 +69,23 @@ async def async_setup_entry(
 class SectorAlarmSensor(SectorAlarmBaseEntity, SensorEntity):
     """Base class for a Sector Alarm sensor."""
 
+    entity_description: SensorEntityDescription
+
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
         serial_no: str,
+        entity_description: SensorEntityDescription,
         device_name: str,
         device_model: str | None,
-        sensor_type: str,
-        description: SensorEntityDescription,
     ) -> None:
         """Initialize the sensor with description and device info."""
         super().__init__(coordinator, serial_no, device_name, device_model)
-        self._sensor_type = sensor_type
-        self.entity_description = description
-        self._attr_unique_id = f"{serial_no}_{sensor_type}"
-        self._attr_name = f"{sensor_type.capitalize()}"
+        self.entity_description = entity_description
+        self._attr_unique_id = f"{serial_no}_{entity_description.key}"
 
     @property
-    def native_value(self) -> StateType:
+    def native_value(self) -> float | None:
         """Return the sensor value."""
         device = self.coordinator.data["devices"].get(self._serial_no)
-        return device["sensors"].get(self._sensor_type) if device else None
-
-
-class SectorAlarmTemperatureSensor(SectorAlarmSensor):
-    """Temperature sensor for Sector Alarm devices."""
-
-    def __init__(self, coordinator, serial_no, device_name, device_model) -> None:
-        super().__init__(
-            coordinator,
-            serial_no,
-            device_name,
-            device_model,
-            "temperature",
-            SensorEntityDescription(
-                key="temperature",
-                device_class=SensorDeviceClass.TEMPERATURE,
-                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-            ),
-        )
-
-
-class SectorAlarmHumiditySensor(SectorAlarmSensor):
-    """Humidity sensor for Sector Alarm devices."""
-
-    def __init__(self, coordinator, serial_no, device_name, device_model) -> None:
-        super().__init__(
-            coordinator,
-            serial_no,
-            device_name,
-            device_model,
-            "humidity",
-            SensorEntityDescription(
-                key="humidity",
-                device_class=SensorDeviceClass.HUMIDITY,
-                native_unit_of_measurement=PERCENTAGE,
-            ),
-        )
+        return device["sensors"].get(self.entity_description.key) if device else None
