@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_CODE_FORMAT
+from .const import CONF_CODE_FORMAT, CONF_PANEL_ID
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
@@ -51,11 +51,7 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
         """Initialize the control panel."""
-        panel_status = coordinator.data.get("panel_status", {})
-        serial_no = (
-            panel_status.get("SerialNo") or coordinator.config_entry.data["panel_id"]
-        )
-        super().__init__(coordinator, serial_no, "Sector Alarm Panel", "Alarm panel")
+        super().__init__(coordinator, coordinator.config_entry.data[CONF_PANEL_ID], "Sector Alarm Panel", "Alarm panel")
 
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
         _LOGGER.debug(
