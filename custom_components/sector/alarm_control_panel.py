@@ -52,7 +52,12 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
 
     def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
         """Initialize the control panel."""
-        super().__init__(coordinator, coordinator.config_entry.data[CONF_PANEL_ID], "Sector Alarm Panel", "Alarm panel")
+        super().__init__(
+            coordinator,
+            coordinator.config_entry.data[CONF_PANEL_ID],
+            "Sector Alarm Panel",
+            "Alarm panel",
+        )
 
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
         _LOGGER.debug(

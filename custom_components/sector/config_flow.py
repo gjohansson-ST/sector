@@ -185,6 +185,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="select_panel", data_schema=data_schema)
 
+
 class SectorAlarmOptionsFlow(OptionsFlowWithConfigEntry):
     """Handle Sector options."""
 

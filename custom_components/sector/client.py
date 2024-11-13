@@ -32,7 +32,7 @@ class SectorAlarmAPI:
         self.password = password
         self.panel_id = panel_id
         self.access_token = None
-        self.headers:dict[str,str] = {}
+        self.headers: dict[str, str] = {}
         self.session = None
         self.data_endpoints = get_data_endpoints(self.panel_id)
         self.action_endpoints = get_action_endpoints()

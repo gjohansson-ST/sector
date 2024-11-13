@@ -68,7 +68,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     def _process_devices(self, api_data) -> tuple[dict[str, Any], dict[str, Any]]:
         """Process device data from the API, including humidity, closed, and alarm sensors."""
-        devices:dict[str,Any] = {}
+        devices: dict[str, Any] = {}
         panel_status = api_data.get("Panel Status", {})
 
         for category_name, category_data in api_data.items():
