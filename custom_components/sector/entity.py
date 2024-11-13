@@ -13,51 +13,41 @@ from .coordinator import SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-
 class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
     """Representation of a Sector Alarm base entity."""
-
-    _attr_has_entity_name = True
 
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
         serial_no: str,
-        device_info: dict,
-        model: str,
+        device_info: Dict[str, str]
     ) -> None:
-        """Initialize the sensor."""
+        """Initialize the base entity with device info."""
         super().__init__(coordinator)
         self._serial_no = serial_no
-        self._name = device_info["name"]
-        self._model = model
+        self._device_info = device_info  # Store device info centrally
+        self._attr_unique_id = f"{serial_no}_{self.__class__.__name__.lower()}"
         _LOGGER.debug(
-            "Initialized entity %s %s with unique_id: %s",
-            self._name,
-            self._model,
-            self._serial_no,
+            "Initialized entity %s with serial number: %s", self.__class__.__name__, serial_no
         )
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return device info."""
+        """Return device info for integration."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._serial_no)},
-            name=self._name,
+            name=self._device_info.get("name"),
             manufacturer="Sector Alarm",
-            model=self._model,
+            model=self._device_info.get("model"),
             serial_number=self._serial_no,
         )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional state attributes."""
+        return {"serial_number": self._serial_no}
 
     @property
     def available(self) -> bool:
         """Return entity availability."""
         return True
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the state attributes."""
-        if hasattr(self, "_serial_no"):
-            return {
-                "serial_number": self._serial_no,
-            }
