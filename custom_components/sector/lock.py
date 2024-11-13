@@ -28,7 +28,7 @@ async def async_setup_entry(
 
     for serial_no, device_info in devices.items():
         if device_info.get("model") == "Smart Lock":
-            device_name:str = device_info["name"]
+            device_name: str = device_info["name"]
             entities.append(
                 SectorAlarmLock(
                     coordinator, code_format, serial_no, device_name, "Smart Lock"

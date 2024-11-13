@@ -20,8 +20,10 @@ class Locks:
 
     name: str
     serial_no: str
-    lock_status: str
-    low_battery: str  # Needs to be checked
+    lock_status: str  # Which are valid?
+    low_battery: bool
+    sound_level: int
+    autolock: bool
     model: str = "Smart Lock"
 
 
@@ -31,9 +33,12 @@ class Devices:
 
     name: str
     serial_no: str
-    device_status: str  # Needs to be checked
+    device_status: int | bool  # Needs to be checked
     model: str
     type: str
+    low_battery: bool
+    closed: bool  # Only valid doors/windows
+    alarm: bool  # Only valid doors/windows+smoke detectors+leakage detectors likely
 
 
 @dataclass
@@ -42,3 +47,4 @@ class PanelStatus:
 
     alarm_state: int
     is_online: bool
+    ready_to_arm: bool
