@@ -8,9 +8,11 @@ from dataclasses import dataclass
 @dataclass
 class SectorData:
     """Dataclass for all data."""
+
     alarm: PanelStatus
     devices: Devices
     locks: Locks
+
 
 @dataclass
 class Locks:
@@ -19,8 +21,9 @@ class Locks:
     name: str
     serial_no: str
     lock_status: str
-    low_battery: str # Needs to be checked
+    low_battery: str  # Needs to be checked
     model: str = "Smart Lock"
+
 
 @dataclass
 class Devices:
@@ -28,7 +31,7 @@ class Devices:
 
     name: str
     serial_no: str
-    device_status: str # Needs to be checked
+    device_status: str  # Needs to be checked
     model: str
     type: str
 
@@ -39,4 +42,3 @@ class PanelStatus:
 
     alarm_state: int
     is_online: bool
-

@@ -46,7 +46,7 @@ DATA_SCHEMA = vol.Schema(
 class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Sector Alarm."""
 
-    VERSION = 1
+    VERSION = 4
 
     def __init__(self):
         self.email: str | None = None
