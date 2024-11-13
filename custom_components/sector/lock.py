@@ -2,9 +2,10 @@
 
 import logging
 
-from homeassistant.components.lock import LockEntity, LockEntityDescription
+from homeassistant.components.lock import LockEntity
 from homeassistant.const import ATTR_CODE
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_CODE_FORMAT
@@ -12,7 +13,6 @@ from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -25,41 +25,29 @@ async def async_setup_entry(
     devices = coordinator.data.get("devices", {})
     entities = []
 
-    for device in devices.values():
-        if device.get("model") == "Smart Lock":
-            serial_no = device["serial_no"]
-            description = LockEntityDescription(
-                key=serial_no,
-                name=f"{device.get('name', 'Lock')}",
-            )
-            entities.append(
-                SectorAlarmLock(coordinator, code_format, description, serial_no)
-            )
-            _LOGGER.debug("Added lock entity with serial: %s and name: %s", serial_no, description.name)
+    for serial_no, device_info in devices.items():
+        if device_info.get("model") == "Smart Lock":
+            entities.append(SectorAlarmLock(coordinator, code_format, serial_no, device_info))
+            _LOGGER.debug("Added lock entity with serial: %s and name: %s", serial_no, device_info.get("name"))
 
     if entities:
         async_add_entities(entities)
     else:
         _LOGGER.debug("No lock entities to add.")
 
-    _LOGGER.debug("Sector Lock: Firing sector_alarm_lock_setup_complete event to notify event.py")
-    hass.bus.async_fire("sector_alarm_lock_setup_complete")
 
 class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
-
-    _attr_name = None
 
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
         code_format: int,
-        description: LockEntityDescription,
         serial_no: str,
+        device_info: dict
     ):
-        """Initialize the lock."""
-        super().__init__(coordinator, serial_no, {"name": description.name}, "Lock")
-        self._attr_unique_id = f"{self._serial_no}_lock"
+        """Initialize the lock with device info."""
+        super().__init__(coordinator, serial_no, device_info)
         self._attr_code_format = rf"^\d{{{code_format}}}$"
 
     @property
