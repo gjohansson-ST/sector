@@ -13,14 +13,17 @@ from .coordinator import SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
     """Representation of a Sector Alarm base entity."""
+
+    _attr_has_entity_name = True
 
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
         serial_no: str,
-        device_info: Dict[str, str]
+        device_info: dict[str, Any],
     ) -> None:
         """Initialize the base entity with device info."""
         super().__init__(coordinator)
@@ -28,7 +31,9 @@ class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
         self._device_info = device_info  # Store device info centrally
         self._attr_unique_id = f"{serial_no}_{self.__class__.__name__.lower()}"
         _LOGGER.debug(
-            "Initialized entity %s with serial number: %s", self.__class__.__name__, serial_no
+            "Initialized entity %s with serial number: %s",
+            self.__class__.__name__,
+            serial_no,
         )
 
     @property
