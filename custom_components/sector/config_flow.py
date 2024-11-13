@@ -12,6 +12,7 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -125,7 +126,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Generate dropdown options based on retrieved panel IDs
         panel_options = [
-            {"value": pid, "label": f"Panel {name}"}
+            SelectOptionDict(value=pid, label=f"Panel {name}")
             for pid, name in self.panel_ids.items()
         ]
         data_schema = vol.Schema(
