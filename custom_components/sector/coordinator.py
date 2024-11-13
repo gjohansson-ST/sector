@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .client import AuthenticationError, SectorAlarmAPI
-from .const import CATEGORY_MODEL_MAPPING, DOMAIN, CONF_CODE_FORMAT
+from .const import CATEGORY_MODEL_MAPPING, DOMAIN, CONF_CODE_FORMAT, CONF_PANEL_ID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,23 +106,22 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             device_type = str(component.get("Type", "")).lower()
                             model_name = CATEGORY_MODEL_MAPPING.get(device_type, default_model_name)
 
-                            # Initialize device entry with sensors
-                            device_info = {
+                            # Initialize or update device entry with sensors
+                            device_info = devices.setdefault(serial_no, {
                                 "name": component.get("Label") or component.get("Name"),
                                 "serial_no": serial_no,
                                 "sensors": {},
                                 "model": model_name,
                                 "type": component.get("Type", ""),
-                            }
+                            })
 
-                            # Add binary and regular sensors
+                            # Add or update each sensor in the device
                             self._add_sensor_if_present(device_info["sensors"], component, "closed", "Closed", bool)
                             self._add_sensor_if_present(device_info["sensors"], component, "low_battery", ["LowBattery", "BatteryLow"], bool)
                             self._add_sensor_if_present(device_info["sensors"], component, "alarm", "Alarm", bool)
                             self._add_sensor_if_present(device_info["sensors"], component, "temperature", "Temperature", float)
                             self._add_sensor_if_present(device_info["sensors"], component, "humidity", "Humidity", float)
 
-                            devices[serial_no] = device_info
                             _LOGGER.debug(
                                 "Processed device %s with model: %s, category: %s, type: %s",
                                 serial_no, model_name, category_name, device_type
@@ -136,6 +135,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Add a sensor to the sensors dictionary if it exists in component."""
         if isinstance(source_keys, str):
             source_keys = [source_keys]
+
         for key in source_keys:
             if key in component:
                 value = component[key]
@@ -144,13 +144,14 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         value = transform(value)
                     except ValueError as e:
                         _LOGGER.warning("Failed to transform value '%s' for key '%s': %s", value, key, e)
-                        continue
+                        return  # Skip adding this sensor if transformation fails
+
+                # Add sensor to the dictionary if found and transformed successfully
                 sensors[sensor_key] = value
                 _LOGGER.debug("Successfully added sensor '%s' with value '%s' to sensors", sensor_key, value)
-                return
-            else:
-                if sensor_key in ["closed", "alarm", "humidity"]:
-                    _LOGGER.debug("Sensor key '%s' not found in component for sensor '%s'", key, sensor_key)
+                return  # Exit after the first match to avoid overwriting
+
+        # Log a debug message if none of the source keys are found
         _LOGGER.debug("Sensor keys %s were not found in component for sensor '%s'", source_keys, sensor_key)
 
     def _process_event_logs(self, logs, devices):

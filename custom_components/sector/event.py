@@ -18,15 +18,18 @@ async def async_setup_entry(
 ):
     """Set up Sector Alarm event entities."""
     coordinator: SectorDataUpdateCoordinator = entry.runtime_data
-    await coordinator.async_refresh()
+    await coordinator.async_refresh()  # Ensure data is up-to-date before creating entities
     devices = coordinator.data.get("devices", {})
+    logs = coordinator.data.get("logs", {})
     entities = []
 
-    # Only add event entities for devices with supported event types, e.g., Smart Locks
+    # Create event entities for each supported device with event logs
     for serial_no, device_info in devices.items():
         if device_info.get("model") == "Smart Lock":  # Filter for Smart Locks
-            entities.append(SectorAlarmEvent(coordinator, serial_no, device_info))
-            _LOGGER.debug("SECTOR_EVENT: Created event entity for Smart Lock with serial: %s", serial_no)
+            # Check if there are logs for this Smart Lock to create event entities
+            if serial_no in logs:
+                entities.append(SectorAlarmEvent(coordinator, serial_no, device_info))
+                _LOGGER.debug("SECTOR_EVENT: Created event entity for Smart Lock with serial: %s", serial_no)
 
     _LOGGER.debug("SECTOR_EVENT: Total event entities added: %d", len(entities))
     async_add_entities(entities)
