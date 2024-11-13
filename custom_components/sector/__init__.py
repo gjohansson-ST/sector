@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.core import HomeAssistant
 
 from .const import PLATFORMS
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) -> bool:
@@ -33,3 +37,18 @@ async def async_unload_entry(
 ) -> bool:
     """Unload a Sector Alarm config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant, entry: SectorAlarmConfigEntry
+) -> bool:
+    """Migrate old entry."""
+    _LOGGER.debug("Migrating from version %s", entry.version)
+
+    if entry.version < 4:
+        _LOGGER.error(
+            "Migration is not supported, please remove the integration and add it again"
+        )
+        return False
+
+    return True
