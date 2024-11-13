@@ -1,27 +1,35 @@
 """Diagnostics support for Sector."""
 
 from __future__ import annotations
+
 from typing import Any
+
 from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+
 from .const import DOMAIN
 from .coordinator import SectorDataUpdateCoordinator
 
 TO_REDACT = {
-    "PanelId",
-    "LegalOwnerName",
     "AuthorizationToken",
-    "Id",
-    "UserName",
-    "FirstName",
-    "LastName",
-    "CustomerNo",
     "CellPhone",
+    "CustomerNo",
     "DefaultPanelId",
-    "SerialNo",
     "DeviceId",
+    "FirstName",
+    "Id",
+    "Key",
+    "LastName",
+    "LegalOwnerName",
+    "PanelId",
+    "PersonId",
+    "RemoteControlSerialNumber",
+    "Serial",
+    "SerialNo",
+    "SerialString",
     "User",
+    "UserName",
 }
 
 
