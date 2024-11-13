@@ -28,5 +28,14 @@
                 }
             }
         }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "code_format": "Kodlängd"
+                }
+            }
+        }
     }
 }
