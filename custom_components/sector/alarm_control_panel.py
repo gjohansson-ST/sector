@@ -1,17 +1,16 @@
 """Alarm Control Panel for Sector Alarm integration."""
 
 from __future__ import annotations
+
 import logging
 
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
     AlarmControlPanelEntityFeature,
+    AlarmControlPanelState,
     CodeFormat,
 )
 from homeassistant.const import (
-    STATE_ALARM_ARMED_AWAY,
-    STATE_ALARM_ARMED_HOME,
-    STATE_ALARM_DISARMED,
     STATE_UNKNOWN,
 )
 from homeassistant.core import HomeAssistant
@@ -24,9 +23,9 @@ from .entity import SectorAlarmBaseEntity
 _LOGGER = logging.getLogger(__name__)
 
 ALARM_STATE_TO_HA_STATE = {
-    3: STATE_ALARM_ARMED_AWAY,
-    2: STATE_ALARM_ARMED_HOME,
-    1: STATE_ALARM_DISARMED,
+    3: AlarmControlPanelState.ARMED_AWAY,
+    2: AlarmControlPanelState.ARMED_HOME,
+    1: AlarmControlPanelState.DISARMED,
     0: STATE_UNKNOWN,
 }
 
@@ -62,15 +61,15 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
         _LOGGER.debug("Initialized Sector Alarm Control Panel with ID %s", self._attr_unique_id)
 
     @property
-    def state(self):
+    def alarm_state(self):
         """Return the state of the device."""
         status = self.coordinator.data.get("panel_status", {})
         if not status.get("IsOnline", True):
-            return STATE_UNKNOWN  # or another valid state for HomeKit
+            return None
 
         # Map status code to the appropriate Home Assistant state
         status_code = status.get("Status", 0)
-        mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code, STATE_UNKNOWN)
+        mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code)
         _LOGGER.debug(
             "Alarm status_code: %s, Mapped state: %s", status_code, mapped_state
         )
