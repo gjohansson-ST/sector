@@ -20,6 +20,12 @@
                 "data": {
                     "panel_id": "Panel ID"
                 }
+            },
+            "reauth_confirm": {
+                "data": {
+                    "email": "Epost adress",
+                    "password": "Lösenord"
+                }
             }
         }
     }
