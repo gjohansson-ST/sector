@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from homeassistant.components.camera import Camera
 from homeassistant.core import HomeAssistant
@@ -28,15 +27,14 @@ async def async_setup_entry(
 
     for camera_data in cameras:
         serial_no = str(camera_data.get("SerialNo") or camera_data.get("Serial"))
-        device_info = {
-            "name": camera_data.get("Label", "Sector Camera"),
-            "model": "Camera",
-        }
-        entities.append(SectorAlarmCamera(coordinator, serial_no, device_info))
+        device_name = camera_data.get("Label", "Sector Camera")
+        entities.append(
+            SectorAlarmCamera(coordinator, serial_no, device_name, "Camera")
+        )
         _LOGGER.debug(
             "Added camera entity with serial: %s and name: %s",
             serial_no,
-            device_info["name"],
+            device_name,
         )
 
     if entities:
@@ -54,10 +52,11 @@ class SectorAlarmCamera(SectorAlarmBaseEntity, Camera):
         self,
         coordinator: SectorDataUpdateCoordinator,
         serial_no: str,
-        device_info: dict[str, Any],
+        device_name: str,
+        device_model: str | None,
     ) -> None:
         """Initialize the camera entity with device info."""
-        super().__init__(coordinator, serial_no, device_info)
+        super().__init__(coordinator, serial_no, device_name, device_model)
         Camera.__init__(self)
         self._attr_unique_id = f"{self._serial_no}_camera"
         _LOGGER.debug(
