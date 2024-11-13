@@ -52,7 +52,7 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
+) -> None:
     """Set up Sector Alarm binary sensors."""
     coordinator = entry.runtime_data
     devices: dict[str, Any] = coordinator.data.get("devices", {})

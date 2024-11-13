@@ -18,7 +18,7 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
+) -> None:
     """Set up Sector Alarm cameras."""
     coordinator: SectorDataUpdateCoordinator = entry.runtime_data
     devices = coordinator.data.get("devices", {})
