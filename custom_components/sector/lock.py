@@ -1,6 +1,7 @@
 """Locks for Sector Alarm."""
 
 import logging
+from typing import Any
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.const import ATTR_CODE
@@ -18,11 +19,11 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
+) -> None:
     """Set up Sector Alarm locks."""
     coordinator = entry.runtime_data
     code_format = entry.options.get(CONF_CODE_FORMAT, 6)
-    devices = coordinator.data.get("devices", {})
+    devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
     entities = []
 
     for serial_no, device_info in devices.items():

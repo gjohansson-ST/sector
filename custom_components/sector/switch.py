@@ -22,19 +22,14 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
+) -> None:
     """Set up Sector Alarm switches."""
     coordinator = entry.runtime_data
     devices = coordinator.data.get("devices", {})
-    entities = []
-
     smartplugs = devices.get("smartplugs", [])
 
-    for plug in smartplugs:
-        entities.append(SectorAlarmSwitch(coordinator, plug))
-
-    if entities:
-        async_add_entities(entities)
+    if smartplugs:
+        async_add_entities(SectorAlarmSwitch(coordinator, plug) for plug in smartplugs)
     else:
         _LOGGER.debug("No switch entities to add.")
 

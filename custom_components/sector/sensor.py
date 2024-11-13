@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -38,10 +39,10 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
+) -> None:
     """Set up Sector Alarm sensors."""
     coordinator = entry.runtime_data
-    devices = coordinator.data.get("devices", {})
+    devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
     entities: list[SectorAlarmSensor] = []
 
     for device in devices.values():

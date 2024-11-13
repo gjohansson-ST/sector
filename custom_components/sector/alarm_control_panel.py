@@ -32,7 +32,7 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
+) -> None:
     """Set up the Sector Alarm control panel."""
     coordinator = entry.runtime_data
     async_add_entities([SectorAlarmControlPanel(coordinator)])
