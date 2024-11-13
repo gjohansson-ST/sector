@@ -23,13 +23,14 @@ class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
         self,
         coordinator: SectorDataUpdateCoordinator,
         serial_no: str,
-        device_info: dict[str, Any],
+        device_name: str,
+        device_model: str | None,
     ) -> None:
         """Initialize the base entity with device info."""
         super().__init__(coordinator)
         self._serial_no = serial_no
-        self._device_info = device_info  # Store device info centrally
-        self._attr_unique_id = f"{serial_no}_{self.__class__.__name__.lower()}"
+        self.device_name = device_name
+        self.device_model = device_model
         _LOGGER.debug(
             "Initialized entity %s with serial number: %s",
             self.__class__.__name__,
@@ -41,9 +42,9 @@ class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
         """Return device info for integration."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._serial_no)},
-            name=self._device_info.get("name"),
+            name=self.device_name,
             manufacturer="Sector Alarm",
-            model=self._device_info.get("model"),
+            model=self.device_model,
             serial_number=self._serial_no,
         )
 

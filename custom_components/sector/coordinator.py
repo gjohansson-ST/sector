@@ -21,6 +21,8 @@ type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     """Coordinator to manage data fetching from Sector Alarm."""
 
+    config_entry: SectorAlarmConfigEntry
+
     def __init__(self, hass: HomeAssistant, entry: SectorAlarmConfigEntry) -> None:
         """Initialize the coordinator."""
         self.hass = hass
@@ -33,6 +35,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=timedelta(seconds=60),
         )
