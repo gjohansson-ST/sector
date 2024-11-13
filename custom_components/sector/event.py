@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
+
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -19,9 +20,6 @@ async def async_setup_entry(
 ):
     """Set up Sector Alarm event entities."""
     coordinator: SectorDataUpdateCoordinator = entry.runtime_data
-    await (
-        coordinator.async_refresh()
-    )  # Ensure data is up-to-date before creating entities
     devices = coordinator.data.get("devices", {})
     logs = coordinator.data.get("logs", {})
     entities = []
