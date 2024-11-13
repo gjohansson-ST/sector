@@ -1,7 +1,7 @@
 {
   "domain": "sector",
   "name": "Sector Alarm",
-  "codeowners": ["@gjohansson-ST","@garnser"],
+  "codeowners": ["@gjohansson-ST", "@garnser"],
   "config_flow": true,
   "documentation": "https://github.com/gjohansson-ST/sector/blob/master/readme.md",
   "integration_type": "hub",

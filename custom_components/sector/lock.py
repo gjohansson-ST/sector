@@ -1,11 +1,11 @@
 """Locks for Sector Alarm."""
 
 import logging
+from typing import Any
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.const import ATTR_CODE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_CODE_FORMAT
@@ -13,6 +13,7 @@ from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -27,8 +28,14 @@ async def async_setup_entry(
 
     for serial_no, device_info in devices.items():
         if device_info.get("model") == "Smart Lock":
-            entities.append(SectorAlarmLock(coordinator, code_format, serial_no, device_info))
-            _LOGGER.debug("Added lock entity with serial: %s and name: %s", serial_no, device_info.get("name"))
+            entities.append(
+                SectorAlarmLock(coordinator, code_format, serial_no, device_info)
+            )
+            _LOGGER.debug(
+                "Added lock entity with serial: %s and name: %s",
+                serial_no,
+                device_info.get("name"),
+            )
 
     if entities:
         async_add_entities(entities)
@@ -39,19 +46,21 @@ async def async_setup_entry(
 class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
 
+    _attr_name = None
+
     def __init__(
         self,
         coordinator: SectorDataUpdateCoordinator,
         code_format: int,
         serial_no: str,
-        device_info: dict
-    ):
+        device_info: dict[str, Any],
+    ) -> None:
         """Initialize the lock with device info."""
         super().__init__(coordinator, serial_no, device_info)
         self._attr_code_format = rf"^\d{{{code_format}}}$"
 
     @property
-    def is_locked(self):
+    def is_locked(self) -> bool:
         """Return true if the lock is locked."""
         device = self.coordinator.data["devices"].get(self._serial_no)
         if device:
@@ -61,7 +70,7 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
         _LOGGER.warning("No lock status found for lock %s", self._serial_no)
         return None
 
-    async def async_lock(self, **kwargs):
+    async def async_lock(self, **kwargs) -> None:
         """Lock the device."""
         code = kwargs.get(ATTR_CODE)
         _LOGGER.debug("Lock requested for lock %s. Code: %s", self._serial_no, code)
@@ -69,7 +78,7 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
         if success:
             await self.coordinator.async_request_refresh()
 
-    async def async_unlock(self, **kwargs):
+    async def async_unlock(self, **kwargs) -> None:
         """Unlock the device."""
         code = kwargs.get(ATTR_CODE)
         _LOGGER.debug("Unlock requested for lock %s. Code: %s", self._serial_no, code)

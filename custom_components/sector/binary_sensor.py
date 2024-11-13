@@ -1,7 +1,9 @@
 """Binary sensor platform for Sector Alarm integration."""
 
 from __future__ import annotations
+
 import logging
+from typing import Any
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -10,7 +12,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .coordinator import SectorAlarmConfigEntry
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -24,8 +26,8 @@ async def async_setup_entry(
     """Set up Sector Alarm binary sensors."""
     coordinator = entry.runtime_data
     await coordinator.async_refresh()
-    devices = coordinator.data.get("devices", {})
-    entities = []
+    devices: dict[str, Any] = coordinator.data.get("devices", {})
+    entities: list[SectorAlarmBinarySensor] = []
 
     for device in devices.values():
         serial_no = device["serial_no"]
@@ -36,11 +38,15 @@ async def async_setup_entry(
         }
 
         if "low_battery" in sensors:
-            entities.append(SectorAlarmLowBatterySensor(coordinator, serial_no, device_info))
+            entities.append(
+                SectorAlarmLowBatterySensor(coordinator, serial_no, device_info)
+            )
             _LOGGER.debug("Added low battery sensor for device %s", serial_no)
 
         if "closed" in sensors:
-            entities.append(SectorAlarmClosedSensor(coordinator, serial_no, device_info))
+            entities.append(
+                SectorAlarmClosedSensor(coordinator, serial_no, device_info)
+            )
             _LOGGER.debug("Added closed sensor for device %s", serial_no)
 
         if "leak_detected" in sensors:
@@ -73,16 +79,18 @@ async def async_setup_entry(
 class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     """Base class for a Sector Alarm binary sensor."""
 
-    def __init__(self, coordinator, serial_no, device_info, sensor_type, device_class):
+    def __init__(
+        self, coordinator, serial_no, device_info, sensor_type, device_class
+    ) -> None:
         """Initialize the sensor with device info."""
         super().__init__(coordinator, serial_no, device_info)
         self._sensor_type = sensor_type
         self._attr_device_class = device_class
         self._attr_unique_id = f"{serial_no}_{sensor_type}"
-        self._attr_name = f"{device_info['name']} {sensor_type.replace('_', ' ').capitalize()}"
+        self._attr_name = f"{sensor_type.replace('_', ' ').capitalize()}"
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return True if the sensor is on."""
         device = self.coordinator.data["devices"].get(self._serial_no)
         if device:
@@ -94,18 +102,26 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
 class SectorAlarmLowBatterySensor(SectorAlarmBinarySensor):
     """Binary sensor for detecting low battery status."""
 
-    def __init__(self, coordinator, serial_no, device_info):
-        super().__init__(coordinator, serial_no, device_info, "low_battery", BinarySensorDeviceClass.BATTERY)
+    def __init__(self, coordinator, serial_no, device_info) -> None:
+        super().__init__(
+            coordinator,
+            serial_no,
+            device_info,
+            "low_battery",
+            BinarySensorDeviceClass.BATTERY,
+        )
 
 
 class SectorAlarmClosedSensor(SectorAlarmBinarySensor):
     """Binary sensor for detecting closed status of doors/windows."""
 
-    def __init__(self, coordinator, serial_no, device_info):
-        super().__init__(coordinator, serial_no, device_info, "closed", BinarySensorDeviceClass.DOOR)
+    def __init__(self, coordinator, serial_no, device_info) -> None:
+        super().__init__(
+            coordinator, serial_no, device_info, "closed", BinarySensorDeviceClass.DOOR
+        )
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Return True if the door/window is open (closed: False)."""
         device = self.coordinator.data["devices"].get(self._serial_no)
         return not device["sensors"].get("closed", True) if device else False
@@ -114,15 +130,23 @@ class SectorAlarmClosedSensor(SectorAlarmBinarySensor):
 class SectorAlarmLeakSensor(SectorAlarmBinarySensor):
     """Binary sensor for detecting leaks."""
 
-    def __init__(self, coordinator, serial_no, device_info):
-        super().__init__(coordinator, serial_no, device_info, "leak_detected", BinarySensorDeviceClass.MOISTURE)
+    def __init__(self, coordinator, serial_no, device_info) -> None:
+        super().__init__(
+            coordinator,
+            serial_no,
+            device_info,
+            "leak_detected",
+            BinarySensorDeviceClass.MOISTURE,
+        )
 
 
 class SectorAlarmAlarmSensor(SectorAlarmBinarySensor):
     """Binary sensor for detecting alarms."""
 
     def __init__(self, coordinator, serial_no, device_info):
-        super().__init__(coordinator, serial_no, device_info, "alarm", BinarySensorDeviceClass.SAFETY)
+        super().__init__(
+            coordinator, serial_no, device_info, "alarm", BinarySensorDeviceClass.SAFETY
+        )
 
 
 class SectorAlarmPanelOnlineBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
