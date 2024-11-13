@@ -1,7 +1,10 @@
+"""Sector Alarm coordinator."""
+
 import logging
 from datetime import timedelta
 from typing import Any
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -21,9 +24,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         self.hass = hass
         self.api = SectorAlarmAPI(
             hass=hass,
-            email=entry.data["email"],
-            password=entry.data["password"],
-            panel_id=entry.data["panel_id"],
+            email=entry.data[CONF_EMAIL],
+            password=entry.data[CONF_PASSWORD],
+            panel_id=entry.data[CONF_PANEL_ID],
         )
         super().__init__(
             hass,
