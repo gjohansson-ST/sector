@@ -13,6 +13,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import CONF_PANEL_ID
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
@@ -63,7 +64,7 @@ async def async_setup_entry(
     ] = []
 
     panel_status = coordinator.data.get("panel_status", {})
-    panel_id = entry.data.get("panel_id")
+    panel_id = entry.data[CONF_PANEL_ID]
     serial_no = panel_status.get("SerialNo") or panel_id
 
     for device in devices.values():

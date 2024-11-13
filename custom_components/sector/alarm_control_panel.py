@@ -102,5 +102,5 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
             await self.coordinator.async_request_refresh()
 
     def _is_valid_code(self, code: str) -> bool:
-        code_format = self.coordinator.config_entry.options.get(CONF_CODE_FORMAT, 6)
+        code_format = self.coordinator.config_entry.options[CONF_CODE_FORMAT]
         return bool(code and len(code) == code_format)
