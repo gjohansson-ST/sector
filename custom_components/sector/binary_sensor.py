@@ -55,7 +55,6 @@ async def async_setup_entry(
 ):
     """Set up Sector Alarm binary sensors."""
     coordinator = entry.runtime_data
-    await coordinator.async_refresh()
     devices: dict[str, Any] = coordinator.data.get("devices", {})
     entities: list[
         SectorAlarmBinarySensor

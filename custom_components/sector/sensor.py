@@ -27,7 +27,6 @@ async def async_setup_entry(
 ):
     """Set up Sector Alarm sensors."""
     coordinator = entry.runtime_data
-    await coordinator.async_refresh()
     devices = coordinator.data.get("devices", {})
     entities: list[SectorAlarmTemperatureSensor | SectorAlarmHumiditySensor] = []
 
