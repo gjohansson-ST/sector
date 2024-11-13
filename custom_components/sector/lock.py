@@ -22,7 +22,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Sector Alarm locks."""
     coordinator = entry.runtime_data
-    code_format = entry.options.get(CONF_CODE_FORMAT, 6)
+    code_format = entry.options[CONF_CODE_FORMAT]
     devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
     entities = []
 
