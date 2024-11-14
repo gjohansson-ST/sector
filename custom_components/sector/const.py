@@ -29,5 +29,21 @@ CATEGORY_MODEL_MAPPING = {
     "keypad": "Keypad",
 }
 
+POLLING_INTERVALS = {
+        "Humidity": 120,
+        "Doors and Windows": 30,
+        "Leakage Detectors": 300,
+        "Smoke Detectors": 300,
+        "Cameras": 300,
+        "Persons": 300,
+        "Temperatures": 300,
+        "Panel Status": 30,
+        "Smartplug Status": 300,
+        "Lock Status": 15,
+        "Logs": 60,
+}
+
+DEFAULT_POLLING_INTERVAL = 300
+
 CONF_PANEL_ID = "panel_id"
 CONF_CODE_FORMAT = "code_format"

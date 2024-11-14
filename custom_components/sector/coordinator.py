@@ -37,11 +37,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             config_entry=entry,
             name=DOMAIN,
-            update_interval=timedelta(seconds=60),
+            update_interval=timedelta(seconds=15),
         )
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
+
         try:
             await self.api.login()
             api_data = await self.api.retrieve_all_data()
@@ -51,7 +52,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             devices, panel_status = self._process_devices(api_data)
 
             # Process logs for event handling
-            logs_data = api_data.get("Logs", [])
+            logs_data = api_data.get("Logs", []) or []
             self._event_logs = self._process_event_logs(logs_data, devices)
 
             return {

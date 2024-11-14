@@ -8,10 +8,12 @@ import logging
 
 import aiohttp
 import async_timeout
+from datetime import datetime, timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .endpoints import get_action_endpoints, get_data_endpoints
+from .const import POLLING_INTERVALS, DEFAULT_POLLING_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +38,9 @@ class SectorAlarmAPI:
         self.session = None
         self.data_endpoints = get_data_endpoints(self.panel_id)
         self.action_endpoints = get_action_endpoints()
+
+        self.last_update_times = {key: datetime.now() for key in self.data_endpoints}
+        self.cached_data = {key: None for key in self.data_endpoints}
 
     async def login(self):
         """Authenticate with the API and obtain an access token."""
@@ -90,29 +95,45 @@ class SectorAlarmAPI:
 
         return data
 
-    async def retrieve_all_data(self):
-        """Retrieve all relevant data from the API."""
+    async def retrieve_all_data(self) -> dict[str, Any]:
+        """Retrieve data from API, using intervals for each endpoint."""
+        current_time = datetime.now()
         data = {}
 
-        # Iterate over data endpoints
         for key, (method, url) in self.data_endpoints.items():
-            if method == "GET":
-                response = await self._get(url)
-            elif method == "POST":
-                # For POST requests, we need to provide the panel ID in the payload
-                payload = {"PanelId": self.panel_id}
-                response = await self._post(url, payload)
-            else:
-                _LOGGER.error("Unsupported HTTP method %s for endpoint %s", method, key)
+            interval = timedelta(seconds=POLLING_INTERVALS.get(key, DEFAULT_POLLING_INTERVAL))
+            last_update = self.last_update_times.get(key)
+
+            if last_update and current_time - last_update < interval:
+                _LOGGER.debug("Interval not reached for %s; using cached data", key)
+                data[key] = self.cached_data[key]  # Use cached data if interval not reached
                 continue
 
-            if response:
-                data[key] = response
-            else:
-                _LOGGER.info("No data retrieved for %s", key)
+            _LOGGER.debug("Polling data for %s", key)
+            try:
+                response = await (self._get(url) if method == "GET" else self._post(url, {"PanelId": self.panel_id}))
+                if response:
+                    data[key] = response
+                    self.cached_data[key] = response  # Cache the data
+                    self.last_update_times[key] = current_time
+                else:
+                    _LOGGER.info("No data retrieved for %s; using cached data", key)
+                    data[key] = self.cached_data[key]
+            except Exception as error:
+                _LOGGER.error("Failed to update %s: %s", key, error)
+                data[key] = self.cached_data[key]
 
-        locks_status = await self.get_lock_status()
-        data["Lock Status"] = locks_status
+        # Log remaining time to next update for debugging
+        for endpoint, last_time in self.last_update_times.items():
+            interval = timedelta(seconds=POLLING_INTERVALS.get(endpoint, DEFAULT_POLLING_INTERVAL))
+            time_since_last_update = (current_time - last_time).total_seconds()
+            time_until_next_update = interval.total_seconds() - time_since_last_update
+            _LOGGER.debug(
+                "Endpoint %s last updated %.2f seconds ago; %.2f seconds until next update",
+                endpoint,
+                time_since_last_update,
+                max(0, time_until_next_update)
+            )
 
         return data
 
@@ -120,6 +141,7 @@ class SectorAlarmAPI:
         """Retrieve the lock status."""
         url = f"{self.API_URL}/api/panel/GetLockStatus?panelId={self.panel_id}"
         response = await self._get(url)
+        _LOGGER.debug("Retrieved lock status")
         if response:
             return response
         else:
