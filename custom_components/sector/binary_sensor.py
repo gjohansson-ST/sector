@@ -130,6 +130,7 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     ) -> None:
         """Initialize the sensor with device info."""
         super().__init__(coordinator, serial_no, device_name, device_model)
+        self.entity_description = entity_description
         self._sensor_type = entity_description.key
         self._attr_unique_id = f"{serial_no}_{entity_description.key}"
 
