@@ -14,7 +14,6 @@ from .client import AuthenticationError, SectorAlarmAPI
 from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-_lock_event_types = ["lock", "unlock", "lock_failed"]
 
 def normalize_name(name):
     return ''.join(
@@ -105,9 +104,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             logs_data = api_data.get("Logs", [])
             self._event_logs = self._process_event_logs(logs_data, devices)
 
-            for serial, device_info in devices.items():
-                _LOGGER.debug("Initialized device with name '%s' and serial '%s'", device_info["name"], serial)
-
             return {
                 "devices": devices,
                 "panel_status": panel_status,
@@ -115,7 +111,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             }
 
         except AuthenticationError as error:
-            _LOGGER.error("Authentication failed: %s", error)
             raise UpdateFailed(f"Authentication failed: {error}") from error
         except Exception as error:
             _LOGGER.exception("Failed to update data")

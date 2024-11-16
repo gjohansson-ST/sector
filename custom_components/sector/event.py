@@ -2,7 +2,6 @@
 
 import logging
 from datetime import datetime, timezone
-<<<<<<< HEAD
 from typing import Any
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant
@@ -10,22 +9,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
-
-_LOGGER = logging.getLogger(__name__)
-
-=======
-
-from homeassistant.components.event import EventEntity
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-
->>>>>>> master
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,
@@ -59,21 +46,21 @@ async def async_setup_entry(
     _LOGGER.debug("SECTOR_EVENT: Total event entities added: %d", len(entities))
     async_add_entities(entities)
 
-class SectorAlarmEvent(CoordinatorEntity, EventEntity):
+class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
     """Representation of a single event entity for a Sector Alarm device."""
 
-    def __init__(self, coordinator, device_serial, device_name, device_model):
+    def __init__(self, coordinator, serial_no, device_info):
         """Initialize the single event entity for the device."""
         super().__init__(coordinator)
-        self._serial_no = device_serial
-        self._device_name = device_name
-        self._device_model = device_model
+        self._serial_no = serial_no
+        self._device_name = device_info["name"]
+        self._device_model = device_info["model"]
         self._events = []  # Store all events
-        self._attr_unique_id = f"{device_serial}_event"
-        self._attr_name = f"{device_name} Event Log"
+        self._attr_unique_id = f"{self.device_name}_event"
+        self._attr_name = f"{self.device_name} Event Log"
         self._attr_device_class = "timestamp"
         self._last_event_type = None
-        _LOGGER.debug("SECTOR_EVENT: Initialized SectorAlarmEvent for device: %s (%s)", device_name, device_serial)
+        _LOGGER.debug("SECTOR_EVENT: Initialized SectorAlarmEvent for device: %s (%s)", self.device_name, self._serial_no)
 
     @property
     def event_types(self):
@@ -116,7 +103,7 @@ class SectorAlarmEvent(CoordinatorEntity, EventEntity):
             "SECTOR_EVENT: Triggering event update for device %s with event type %s and timestamp %s",
             self._serial_no,
             event_type,
-            event_timestamp
+            event_timestamp,
         )
         super()._trigger_event(event_type, event_attributes)
 
