@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
+<<<<<<< HEAD
 from typing import Any
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant
@@ -12,6 +13,19 @@ from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+=======
+
+from homeassistant.components.event import EventEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .entity import SectorAlarmBaseEntity
+
+_LOGGER = logging.getLogger(__name__)
+
+
+>>>>>>> master
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,

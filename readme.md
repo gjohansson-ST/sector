@@ -16,6 +16,8 @@
 
 **Last update:** 2023-11-04
 
+**Required HA version:** 2024.11.0
+
 **Join the Discussion on Development:** [https://discord.gg/VnKkSHfNHc](https://discord.gg/VnKkSHfNHc)
 
 ---

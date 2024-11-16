@@ -39,5 +39,8 @@ def get_action_endpoints():
         "Arm": ("POST", f"{API_URL}/api/Panel/Arm"),
         "PartialArm": ("POST", f"{API_URL}/api/Panel/PartialArm"),
         "Disarm": ("POST", f"{API_URL}/api/Panel/Disarm"),
+        # Smartplug endpoints
+        "TurnOnSmartplug": ("POST", f"{API_URL}/api/Panel/TurnOnSmartplug"),
+        "TurnOffSmartplug": ("POST", f"{API_URL}/api/Panel/TurnOffSmartplug"),
     }
     return endpoints

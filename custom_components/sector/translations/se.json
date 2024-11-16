@@ -20,6 +20,21 @@
                 "data": {
                     "panel_id": "Panel ID"
                 }
+            },
+            "reauth_confirm": {
+                "data": {
+                    "email": "Epost adress",
+                    "password": "Lösenord"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "code_format": "Kodlängd"
+                }
             }
         }
     }

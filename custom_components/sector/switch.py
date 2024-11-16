@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -21,19 +22,14 @@ async def async_setup_entry(
     hass: HomeAssistant,
     entry: SectorAlarmConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
+) -> None:
     """Set up Sector Alarm switches."""
     coordinator = entry.runtime_data
     devices = coordinator.data.get("devices", {})
-    entities = []
-
     smartplugs = devices.get("smartplugs", [])
 
-    for plug in smartplugs:
-        entities.append(SectorAlarmSwitch(coordinator, plug))
-
-    if entities:
-        async_add_entities(entities)
+    if smartplugs:
+        async_add_entities(SectorAlarmSwitch(coordinator, plug) for plug in smartplugs)
     else:
         _LOGGER.debug("No switch entities to add.")
 
@@ -45,7 +41,7 @@ class SectorAlarmSwitch(SectorAlarmBaseEntity, SwitchEntity):
     _attr_name = None
 
     def __init__(
-        self, coordinator: SectorDataUpdateCoordinator, plug_data: dict
+        self, coordinator: SectorDataUpdateCoordinator, plug_data: dict[str, Any]
     ) -> None:
         """Initialize the switch."""
         self._id = plug_data.get("Id")
@@ -53,7 +49,7 @@ class SectorAlarmSwitch(SectorAlarmBaseEntity, SwitchEntity):
         super().__init__(
             coordinator,
             serial_no,
-            {"name": plug_data.get("Label", "Sector Smart Plug")},
+            plug_data.get("Label", "Sector Smart Plug"),
             "Smart Plug",
         )
 
@@ -68,13 +64,13 @@ class SectorAlarmSwitch(SectorAlarmBaseEntity, SwitchEntity):
                 return plug.get("State") == "On"
         return False
 
-    async def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs) -> None:
         """Turn the switch on."""
         success = await self.coordinator.api.turn_on_smartplug(self._id)
         if success:
             await self.coordinator.async_request_refresh()
 
-    async def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs) -> None:
         """Turn the switch off."""
         success = await self.coordinator.api.turn_off_smartplug(self._id)
         if success:

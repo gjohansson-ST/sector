@@ -32,7 +32,7 @@ class SectorAlarmAPI:
         self.password = password
         self.panel_id = panel_id
         self.access_token = None
-        self.headers = {}
+        self.headers: dict[str, str] = {}
         self.session = None
         self.data_endpoints = get_data_endpoints(self.panel_id)
         self.action_endpoints = get_action_endpoints()
@@ -264,7 +264,7 @@ class SectorAlarmAPI:
 
     async def turn_on_smartplug(self, plug_id):
         """Turn on a smart plug."""
-        url = f"{self.API_URL}/api/Panel/TurnOnSmartplug"
+        url = self.action_endpoints["TurnOnSmartplug"][1]
         payload = {
             "PanelId": self.panel_id,
             "DeviceId": plug_id,
@@ -279,7 +279,7 @@ class SectorAlarmAPI:
 
     async def turn_off_smartplug(self, plug_id):
         """Turn off a smart plug."""
-        url = f"{self.API_URL}/api/Panel/TurnOffSmartplug"
+        url = self.action_endpoints["TurnOffSmartplug"][1]
         payload = {
             "PanelId": self.panel_id,
             "DeviceId": plug_id,
