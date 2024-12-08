@@ -428,6 +428,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Grouped events by lock: %s", grouped_events)
         return grouped_events
 
-    async def process_events(self):
+    @property
+    def process_events(self) -> dict:
         """Return processed event logs grouped by device."""
         return self._event_logs

@@ -1,12 +1,13 @@
 """Event platform for Sector Alarm integration."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
@@ -89,9 +90,10 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
         """Return the list of event types this entity can handle."""
         return ["lock", "unlock", "lock_failed"]
 
-    async def async_update(self):
+    @callback
+    def _async_handle_event(self):
         """Update entity based on the most recent event."""
-        grouped_events = await self.coordinator.process_events()
+        grouped_events = self.coordinator.process_events
         _LOGGER.debug("SECTOR_EVENT: Processing events for device %s", self._serial_no)
 
         if self._serial_no not in grouped_events:
@@ -120,6 +122,7 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
                 self._last_formatted_event = latest_log.get(
                     "formatted_event", f"{event_type.capitalize()} occurred"
                 )
+                event_time = event_time.replace(tzinfo=dt_util.UTC)
                 self._trigger_event(
                     self._last_event_type, {"timestamp": event_time.isoformat()}
                 )
@@ -135,7 +138,7 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
     def _trigger_event(self, event_type, event_attributes):
         """Trigger an event update with the latest type."""
         event_timestamp = event_attributes.get(
-            "timestamp", datetime.now(timezone.utc).isoformat()
+            "timestamp", datetime.now(dt_util.UTC).isoformat()
         )
         event_attributes["timestamp"] = event_timestamp
         _LOGGER.debug(
@@ -195,7 +198,7 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
         try:
             timestamp = datetime.fromisoformat(
                 time_str.replace("Z", "+00:00")
-            ).astimezone(timezone.utc)
+            ).astimezone(dt_util.UTC)
             _LOGGER.debug(
                 "SECTOR_EVENT: Formatted timestamp: %s", timestamp.isoformat()
             )
@@ -208,11 +211,9 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
         """Set up continuous event processing once added to Home Assistant."""
         await super().async_added_to_hass()
 
-        # Set up listener to call async_update whenever the coordinator updates
+        # Set up listener to call _async_handle_event whenever the coordinator updates
         self.async_on_remove(
-            self.coordinator.async_add_listener(
-                lambda: self.hass.async_create_task(self.async_update())
-            )
+            self.coordinator.async_add_listener(self._async_handle_event)
         )
 
         _LOGGER.debug(
