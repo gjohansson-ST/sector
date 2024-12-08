@@ -19,15 +19,17 @@ from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def normalize_name(name):
     """Normalize and prepare names for entity ID usage."""
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', name)
-        if unicodedata.category(c) != 'Mn'
+    return "".join(
+        c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn"
     ).lower()
+
 
 # Make sure the SectorAlarmConfigEntry type is present
 type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
+
 
 class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     """Coordinator to manage data fetching from Sector Alarm."""
@@ -58,7 +60,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         start_time = end_time - timedelta(days=1)
 
         history_data = await get_instance(self.hass).async_add_executor_job(
-            history.state_changes_during_period, self.hass, start_time, end_time, entity_id
+            history.state_changes_during_period,
+            self.hass,
+            start_time,
+            end_time,
+            entity_id,
         )
 
         if entity_id in history_data and history_data[entity_id]:
@@ -70,7 +76,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     def get_device_info(self, serial):
         """Fetch device information by serial number."""
-        return self.data["devices"].get(serial, {"name": "Unknown Device", "model": "Unknown Model"})
+        return self.data["devices"].get(
+            serial, {"name": "Unknown Device", "model": "Unknown Model"}
+        )
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
@@ -141,7 +149,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 parsed_time = datetime.fromisoformat(latest_time)
                 _LOGGER.debug(
-                    "Parsed latest event time for entity '%s': %s", entity_id, parsed_time
+                    "Parsed latest event time for entity '%s': %s",
+                    entity_id,
+                    parsed_time,
                 )
                 return {
                     "event_type": latest_event_type,
@@ -157,7 +167,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 return None
 
         _LOGGER.debug(
-            "No matching event found for type '%s' in entity '%s'.", event_type, entity_id
+            "No matching event found for type '%s' in entity '%s'.",
+            event_type,
+            entity_id,
         )
         return None
 
@@ -371,7 +383,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             serial_no = lock_names.get(lock_name)
             if not serial_no:
-                _LOGGER.debug("Unknown lock name '%s', skipping log entry: %s", lock_name, log_entry)
+                _LOGGER.debug(
+                    "Unknown lock name '%s', skipping log entry: %s",
+                    lock_name,
+                    log_entry,
+                )
                 continue
 
             # Check against the latest event from Home Assistant

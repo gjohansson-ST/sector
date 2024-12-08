@@ -3,15 +3,16 @@
 import logging
 from datetime import datetime, timezone
 from typing import Any
+
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -28,14 +29,21 @@ async def async_setup_entry(
         device_name = device_info["name"]
         device_model = device_info["model"]
 
-        _LOGGER.debug("SECTOR_EVENT: Creating event entity for device: %s, Model: %s", device_name, device_model)
+        _LOGGER.debug(
+            "SECTOR_EVENT: Creating event entity for device: %s, Model: %s",
+            device_name,
+            device_model,
+        )
 
         # Define unique entity ID for each device, regardless of event type
         entity_unique_id = f"{device_serial}_event"
 
         # Check if the entity already exists by unique ID
         if hass.states.get(f"event.{entity_unique_id}"):
-            _LOGGER.debug("SECTOR_EVENT: Entity with unique ID '%s' already exists, skipping.", entity_unique_id)
+            _LOGGER.debug(
+                "SECTOR_EVENT: Entity with unique ID '%s' already exists, skipping.",
+                entity_unique_id,
+            )
             continue
 
         # Create a single entity to handle multiple event types for the device
@@ -51,13 +59,16 @@ async def async_setup_entry(
     _LOGGER.debug("SECTOR_EVENT: Total event entities added: %d", len(entities))
     async_add_entities(entities)
 
+
 class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
     """Representation of a single event entity for a Sector Alarm device."""
 
     def __init__(self, coordinator, serial_no, device_info):
         """Initialize the single event entity for the device."""
         # Pass serial_no, device_name, and device_model to the parent class
-        super().__init__(coordinator, serial_no, device_info["name"], device_info["model"])
+        super().__init__(
+            coordinator, serial_no, device_info["name"], device_info["model"]
+        )
         self._serial_no = serial_no
         self._device_name = device_info["name"]
         self._device_model = device_info["model"]
@@ -84,7 +95,9 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
         _LOGGER.debug("SECTOR_EVENT: Processing events for device %s", self._serial_no)
 
         if self._serial_no not in grouped_events:
-            _LOGGER.debug("SECTOR_EVENT: No events found for device %s", self._serial_no)
+            _LOGGER.debug(
+                "SECTOR_EVENT: No events found for device %s", self._serial_no
+            )
             return
 
         if self._serial_no in grouped_events:
@@ -92,7 +105,10 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
                 latest_log = logs[-1]  # Get the latest log
                 event_time = datetime.fromisoformat(latest_log["time"])
 
-                if self._events and datetime.fromisoformat(self._events[-1]["time"]) >= event_time:
+                if (
+                    self._events
+                    and datetime.fromisoformat(self._events[-1]["time"]) >= event_time
+                ):
                     _LOGGER.debug(
                         "Skipping update for %s: Event is not newer than the last processed event.",
                         self._serial_no,
@@ -101,8 +117,12 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
 
                 self._last_event_type = event_type
                 self._events.append(latest_log)
-                self._last_formatted_event = latest_log.get("formatted_event", f"{event_type.capitalize()} occurred")
-                self._trigger_event(self._last_event_type, {"timestamp": event_time.isoformat()})
+                self._last_formatted_event = latest_log.get(
+                    "formatted_event", f"{event_type.capitalize()} occurred"
+                )
+                self._trigger_event(
+                    self._last_event_type, {"timestamp": event_time.isoformat()}
+                )
                 self.async_write_ha_state()
 
                 _LOGGER.debug(
@@ -114,7 +134,9 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
 
     def _trigger_event(self, event_type, event_attributes):
         """Trigger an event update with the latest type."""
-        event_timestamp = event_attributes.get("timestamp", datetime.now(timezone.utc).isoformat())
+        event_timestamp = event_attributes.get(
+            "timestamp", datetime.now(timezone.utc).isoformat()
+        )
         event_attributes["timestamp"] = event_timestamp
         _LOGGER.debug(
             "SECTOR_EVENT: Triggering event update for device %s with event type %s and timestamp %s",
@@ -127,7 +149,11 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
     @property
     def state(self) -> str:
         """Return the latest event type for the device."""
-        _LOGGER.debug("SECTOR_EVENT: Returning state for device %s: %s", self._serial_no, self._last_event_type or "No events")
+        _LOGGER.debug(
+            "SECTOR_EVENT: Returning state for device %s: %s",
+            self._serial_no,
+            self._last_event_type or "No events",
+        )
         return self._last_event_type or "No events"
 
     @property
@@ -137,8 +163,14 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
             return {}
 
         recent_event = self._events[-1]
-        self._last_formatted_event = recent_event.get("formatted_event", "Event occurred")
-        _LOGGER.debug("SECTOR_EVENT: Returning extra state attributes for device %s: %s", self._serial_no, recent_event)
+        self._last_formatted_event = recent_event.get(
+            "formatted_event", "Event occurred"
+        )
+        _LOGGER.debug(
+            "SECTOR_EVENT: Returning extra state attributes for device %s: %s",
+            self._serial_no,
+            recent_event,
+        )
         return {
             "time": recent_event.get("Time"),
             "user": recent_event.get("User", "unknown"),
@@ -161,8 +193,12 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
         if not time_str:
             return "unknown"
         try:
-            timestamp = datetime.fromisoformat(time_str.replace("Z", "+00:00")).astimezone(timezone.utc)
-            _LOGGER.debug("SECTOR_EVENT: Formatted timestamp: %s", timestamp.isoformat())
+            timestamp = datetime.fromisoformat(
+                time_str.replace("Z", "+00:00")
+            ).astimezone(timezone.utc)
+            _LOGGER.debug(
+                "SECTOR_EVENT: Formatted timestamp: %s", timestamp.isoformat()
+            )
             return timestamp.isoformat()
         except ValueError:
             _LOGGER.warning("SECTOR_EVENT: Invalid timestamp format: %s", time_str)
@@ -174,10 +210,14 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
 
         # Set up listener to call async_update whenever the coordinator updates
         self.async_on_remove(
-            self.coordinator.async_add_listener(lambda: self.hass.async_create_task(self.async_update()))
+            self.coordinator.async_add_listener(
+                lambda: self.hass.async_create_task(self.async_update())
+            )
         )
 
-        _LOGGER.debug("SECTOR_EVENT: Continuous event processing set up for %s", self._attr_name)
+        _LOGGER.debug(
+            "SECTOR_EVENT: Continuous event processing set up for %s", self._attr_name
+        )
 
     @property
     def device_info(self):
