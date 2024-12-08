@@ -2,16 +2,17 @@
 
 import logging
 import unicodedata
-
 from datetime import datetime, timedelta
 from typing import Any
-from pytz import timezone
 
-from homeassistant.components.recorder import history, get_instance
+from aiozoneinfo import async_get_time_zone
+from homeassistant.components.recorder import get_instance, history
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
+from zoneinfo import ZoneInfoNotFoundError
 
 from .client import AuthenticationError, SectorAlarmAPI
 from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
@@ -51,8 +52,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def get_last_event_timestamp(self, device_name):
+        """Get last event timestamp for a device."""
         entity_id = f"event.{device_name}_event_log"
-        end_time = datetime.now(timezone.utc)
+        end_time = datetime.now(dt_util.UTC)
         start_time = end_time - timedelta(days=1)
 
         history_data = await get_instance(self.hass).async_add_executor_job(
@@ -82,7 +84,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Process logs for event handling
             logs_data = api_data.get("Logs", [])
-            self._event_logs = self._process_event_logs(logs_data, devices)
+            self._event_logs = await self._process_event_logs(logs_data, devices)
 
             return {
                 "devices": devices,
@@ -145,12 +147,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                     "event_type": latest_event_type,
                     "time": datetime.fromisoformat(latest_time),
                 }
-            except ValueError:
+            except ValueError as err:
                 _LOGGER.warning(
                     "Invalid timestamp format in entity '%s': %s (%s)",
                     entity_id,
                     latest_time,
-                    e,
+                    err,
                 )
                 return None
 
@@ -323,17 +325,17 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             sensor_key,
         )
 
-    def _process_event_logs(self, logs, devices):
+    async def _process_event_logs(self, logs, devices):
         """Process event logs, associating them with the correct lock devices using LockName."""
         grouped_events = {}
 
         # Get the user's configured timezone from Home Assistant
         user_time_zone = self.hass.config.time_zone or "UTC"
         try:
-            tz = timezone(user_time_zone)
-        except pytz.UnknownTimeZoneError:
+            tz = async_get_time_zone(user_time_zone)
+        except ZoneInfoNotFoundError:
             _LOGGER.warning("Invalid timezone '%s', defaulting to UTC.", user_time_zone)
-            tz = timezone("UTC")
+            tz = async_get_time_zone("UTC")
 
         records = list(reversed(logs.get("Records", [])))
         _LOGGER.debug("Processing %d log records", len(records))
@@ -385,10 +387,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                             latest_time,
                         )
                         continue
-                except Exception as e:
+                except Exception as err:
                     _LOGGER.warning(
                         "Error comparing timestamps for event: %s. Skipping event.",
-                        e,
+                        err,
                     )
                     continue
 
