@@ -3,6 +3,7 @@
   "name": "Sector Alarm",
   "codeowners": ["@gjohansson-ST", "@garnser"],
   "config_flow": true,
+  "dependencies": ["recorder"],
   "documentation": "https://github.com/gjohansson-ST/sector/blob/master/readme.md",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
