@@ -1,7 +1,6 @@
 """Sector Alarm coordinator."""
 
 import logging
-import unicodedata
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -12,19 +11,13 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
 from zoneinfo import ZoneInfoNotFoundError
 
 from .client import AuthenticationError, SectorAlarmAPI
 from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def normalize_name(name):
-    """Normalize and prepare names for entity ID usage."""
-    return "".join(
-        c for c in unicodedata.normalize("NFD", name) if unicodedata.category(c) != "Mn"
-    ).lower()
 
 
 # Make sure the SectorAlarmConfigEntry type is present
@@ -118,7 +111,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             return None
 
         # Normalize lock_name for consistent naming
-        normalized_name = normalize_name(lock_name)
+        normalized_name = slugify(lock_name)
         entity_id = f"event.{normalized_name}_{normalized_name}_event_log"  # Adjusted format for entity IDs
 
         # Log the generated entity ID
