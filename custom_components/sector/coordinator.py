@@ -339,7 +339,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             tz = async_get_time_zone(user_time_zone)
         except ZoneInfoNotFoundError:
-            _LOGGER.warning("Invalid timezone '%s', defaulting to UTC.", user_time_zone)
+            _LOGGER.debug("Invalid timezone '%s', defaulting to UTC.", user_time_zone)
             tz = async_get_time_zone("UTC")
 
         records = list(reversed(logs.get("Records", [])))
@@ -353,7 +353,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
         for log_entry in records:
             if not isinstance(log_entry, dict):
-                _LOGGER.warning("Skipping invalid log entry: %s", log_entry)
+                _LOGGER.error("Skipping invalid log entry: %s", log_entry)
                 continue
 
             lock_name = log_entry.get("LockName")
@@ -363,7 +363,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             channel = log_entry.get("Channel", "")
 
             if not lock_name or not event_type or not timestamp:
-                _LOGGER.warning("Skipping incomplete log entry: %s", log_entry)
+                _LOGGER.debug("Skipping incomplete log entry: %s", log_entry)
                 continue
 
             try:
@@ -371,7 +371,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 local_time = utc_time.astimezone(tz)
                 timestamp = local_time.isoformat()
             except ValueError:
-                _LOGGER.warning("Invalid timestamp in log entry: %s", log_entry)
+                _LOGGER.error("Invalid timestamp in log entry: %s", log_entry)
                 continue
 
             serial_no = lock_names.get(lock_name)
@@ -397,7 +397,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         )
                         continue
                 except Exception as err:
-                    _LOGGER.warning(
+                    _LOGGER.error(
                         "Error comparing timestamps for event: %s. Skipping event.",
                         err,
                     )
