@@ -45,7 +45,6 @@ async def async_setup_entry(
     else:
         _LOGGER.debug("No lock entities to add.")
 
-
 class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
     """Representation of a Sector Alarm lock."""
 
@@ -81,6 +80,7 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
         if TYPE_CHECKING:
             assert code is not None
         _LOGGER.debug("Lock requested for lock %s. Code: %s", self._serial_no, code)
+
         success = await self.coordinator.api.lock_door(self._serial_no, code=code)
         if success:
             await self.coordinator.async_request_refresh()

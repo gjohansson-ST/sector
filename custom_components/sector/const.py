@@ -10,6 +10,7 @@ PLATFORMS = [
     Platform.LOCK,
     Platform.SENSOR,
     Platform.SWITCH,
+    Platform.EVENT,
 ]
 
 CATEGORY_MODEL_MAPPING = {

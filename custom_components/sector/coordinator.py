@@ -1,18 +1,25 @@
 """Sector Alarm coordinator."""
 
 import logging
-from datetime import timedelta
+import pytz
+from datetime import datetime, timedelta
 from typing import Any
 
+from aiozoneinfo import async_get_time_zone
+from homeassistant.components.recorder import get_instance, history
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
+from homeassistant.util import slugify
+from zoneinfo import ZoneInfoNotFoundError
 
 from .client import AuthenticationError, SectorAlarmAPI
 from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
 
 # Make sure the SectorAlarmConfigEntry type is present
 type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
@@ -40,6 +47,33 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=60),
         )
 
+    async def get_last_event_timestamp(self, device_name):
+        """Get last event timestamp for a device."""
+        entity_id = f"event.{device_name}_event_log"
+        end_time = datetime.now(dt_util.UTC)
+        start_time = end_time - timedelta(days=1)
+
+        history_data = await get_instance(self.hass).async_add_executor_job(
+            history.state_changes_during_period,
+            self.hass,
+            start_time,
+            end_time,
+            entity_id,
+        )
+
+        if entity_id in history_data and history_data[entity_id]:
+            latest_state = history_data[entity_id][-1]
+            _LOGGER.debug("SECTOR_EVENT: Latest known state: %s", latest_state)
+            return datetime.fromisoformat(latest_state.last_changed.isoformat())
+
+        return None
+
+    def get_device_info(self, serial):
+        """Fetch device information by serial number."""
+        return self.data["devices"].get(
+            serial, {"name": "Unknown Device", "model": "Unknown Model"}
+        )
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
         try:
@@ -52,7 +86,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Process logs for event handling
             logs_data = api_data.get("Logs", [])
-            self._event_logs = self._process_event_logs(logs_data, devices)
+            self._event_logs = await self._process_event_logs(logs_data, devices)
 
             return {
                 "devices": devices,
@@ -65,6 +99,73 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as error:
             _LOGGER.exception("Failed to update data")
             raise UpdateFailed(f"Failed to update data: {error}") from error
+
+    @staticmethod
+    def _get_event_id(log):
+        """Create a unique identifier for each log event."""
+        return f"{log['LockName']}_{log['EventType']}_{log['Time']}"
+
+    def get_latest_log(self, event_type: str, lock_name: str = None):
+        """Retrieve the latest log for a specific event type, optionally by LockName."""
+        if not lock_name:
+            _LOGGER.debug("Lock name not provided. Unable to fetch latest log.")
+            return None
+
+        # Normalize lock_name for consistent naming
+        normalized_name = slugify(lock_name)
+        entity_id = f"event.{normalized_name}_{normalized_name}_event_log"  # Adjusted format for entity IDs
+
+        # Log the generated entity ID
+        _LOGGER.debug("Generated entity ID for lock '%s': %s", lock_name, entity_id)
+
+        state = self.hass.states.get(entity_id)
+
+        if not state or not state.attributes:
+            _LOGGER.debug("No state or attributes found for entity '%s'.", entity_id)
+            return None
+
+        _LOGGER.debug("Fetched state for entity '%s': %s", entity_id, state)
+
+        # Extract the latest log matching the event type
+        latest_event_type = state.state
+        latest_time = state.attributes.get("timestamp")
+
+        # Log the latest event type and timestamp
+        _LOGGER.debug(
+            "Latest event for entity '%s': type=%s, time=%s, attributes=%s",
+            entity_id,
+            latest_event_type,
+            latest_time,
+            state.attributes,
+        )
+
+        if latest_event_type == event_type and latest_time:
+            try:
+                parsed_time = datetime.fromisoformat(latest_time)
+                _LOGGER.debug(
+                    "Parsed latest event time for entity '%s': %s",
+                    entity_id,
+                    parsed_time,
+                )
+                return {
+                    "event_type": latest_event_type,
+                    "time": datetime.fromisoformat(latest_time),
+                }
+            except ValueError as err:
+                _LOGGER.warning(
+                    "Invalid timestamp format in entity '%s': %s (%s)",
+                    entity_id,
+                    latest_time,
+                    err,
+                )
+                return None
+
+        _LOGGER.debug(
+            "No matching event found for type '%s' in entity '%s'.",
+            event_type,
+            entity_id,
+        )
+        return None
 
     def _process_devices(self, api_data) -> tuple[dict[str, Any], dict[str, Any]]:
         """Process device data from the API, including humidity, closed, and alarm sensors."""
@@ -205,7 +306,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 if transform:
                     try:
                         value = transform(value)
-                    except ValueError as e:
+                    except (ValueError, TypeError) as e:
                         _LOGGER.warning(
                             "Failed to transform value '%s' for key '%s': %s",
                             value,
@@ -230,10 +331,20 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             sensor_key,
         )
 
-    def _process_event_logs(self, logs, devices):
+    async def _process_event_logs(self, logs, devices):
         """Process event logs, associating them with the correct lock devices using LockName."""
         grouped_events = {}
-        _LOGGER.debug("Starting event log processing. Total logs: %d", len(logs))
+
+        # Get the user's configured timezone from Home Assistant
+        user_time_zone = self.hass.config.time_zone or "UTC"
+        try:
+            tz = pytz.timezone(self.hass.config.time_zone)
+        except ZoneInfoNotFoundError:
+            _LOGGER.debug("Invalid timezone '%s', defaulting to UTC.", user_time_zone)
+            tz = async_get_time_zone("UTC")
+
+        records = list(reversed(logs.get("Records", [])))
+        _LOGGER.debug("Processing %d log records", len(records))
 
         lock_names = {
             device["name"]: serial_no
@@ -241,7 +352,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if device.get("model") == "Smart Lock"
         }
 
-        for log_entry in logs:
+        for log_entry in records:
+            if not isinstance(log_entry, dict):
+                _LOGGER.error("Skipping invalid log entry: %s", log_entry)
+                continue
+
             lock_name = log_entry.get("LockName")
             event_type = log_entry.get("EventType")
             timestamp = log_entry.get("Time")
@@ -249,34 +364,60 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             channel = log_entry.get("Channel", "")
 
             if not lock_name or not event_type or not timestamp:
-                _LOGGER.warning("Skipping invalid log entry: %s", log_entry)
+                _LOGGER.debug("Skipping incomplete log entry: %s", log_entry)
+                continue
+
+            try:
+                utc_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                local_time = utc_time.astimezone(tz)
+                timestamp = local_time.isoformat()
+            except ValueError:
+                _LOGGER.error("Invalid timestamp in log entry: %s", log_entry)
                 continue
 
             serial_no = lock_names.get(lock_name)
             if not serial_no:
                 _LOGGER.debug(
-                    "Log entry for unknown lock name '%s', skipping: %s",
+                    "Unknown lock name '%s', skipping log entry: %s",
                     lock_name,
                     log_entry,
                 )
                 continue
 
-            if serial_no not in grouped_events:
-                grouped_events[serial_no] = {}
+            # Check against the latest event from Home Assistant
+            latest_log = self.get_latest_log(event_type, lock_name)
+            if latest_log:
+                try:
+                    latest_time = latest_log["time"]
+                    if datetime.fromisoformat(timestamp) <= latest_time:
+                        _LOGGER.debug(
+                            "Skipping event for lock '%s' (serial %s): event is not newer than %s.",
+                            lock_name,
+                            serial_no,
+                            latest_time,
+                        )
+                        continue
+                except Exception as err:
+                    _LOGGER.error(
+                        "Error comparing timestamps for event: %s. Skipping event.",
+                        err,
+                    )
+                    continue
 
-            if event_type not in grouped_events[serial_no]:
-                grouped_events[serial_no][event_type] = []
+            formatted_event = f"{lock_name} {event_type.replace('_', ' ')} by {user or 'unknown'} via {channel or 'unknown'}"
 
-            grouped_events[serial_no][event_type].append(
+            # Group valid events
+            grouped_events.setdefault(serial_no, {}).setdefault(event_type, []).append(
                 {
                     "time": timestamp,
                     "user": user,
                     "channel": channel,
+                    "formatted_event": formatted_event,
                 }
             )
 
             _LOGGER.debug(
-                "Processed log entry for lock '%s' (serial %s) with event type '%s' at %s by %s via %s",
+                "Processed event for lock '%s' (serial %s) with type '%s' at %s by %s via %s",
                 lock_name,
                 serial_no,
                 event_type,
@@ -288,6 +429,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Grouped events by lock: %s", grouped_events)
         return grouped_events
 
-    async def process_events(self):
+    @property
+    def process_events(self) -> dict:
         """Return processed event logs grouped by device."""
         return self._event_logs

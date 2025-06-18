@@ -123,7 +123,7 @@ class SectorAlarmAPI:
         if response:
             return response
         else:
-            _LOGGER.error("Failed to retrieve lock status")
+            _LOGGER.warning("Failed to retrieve lock status")
             return []
 
     async def _get(self, url):
