@@ -1,6 +1,7 @@
 """Sector Alarm coordinator."""
 
 import logging
+import pytz
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -305,7 +306,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 if transform:
                     try:
                         value = transform(value)
-                    except ValueError as e:
+                    except (ValueError, TypeError) as e:
                         _LOGGER.warning(
                             "Failed to transform value '%s' for key '%s': %s",
                             value,
@@ -337,7 +338,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         # Get the user's configured timezone from Home Assistant
         user_time_zone = self.hass.config.time_zone or "UTC"
         try:
-            tz = async_get_time_zone(user_time_zone)
+            tz = pytz.timezone(self.hass.config.time_zone)
         except ZoneInfoNotFoundError:
             _LOGGER.debug("Invalid timezone '%s', defaulting to UTC.", user_time_zone)
             tz = async_get_time_zone("UTC")
