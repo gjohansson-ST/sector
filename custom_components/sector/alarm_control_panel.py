@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
+)
+from homeassistant.components.alarm_control_panel.const import (
     AlarmControlPanelEntityFeature,
     AlarmControlPanelState,
     CodeFormat,

@@ -4,23 +4,31 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import logging
+import time
 from typing import Any
 
 import aiohttp
 import async_timeout
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from aiohttp import ClientResponseError, ClientSession
+from homeassistant.exceptions import HomeAssistantError
 
 from .api_model import PanelInfo
 from .endpoints import ACTION_ENDPOINTS, DataEndpointType, fetch_data_endpoints, fetch_action_endpoint, \
-    ActionEndpointType, DataEndpoint
+    ActionEndpointType, DataEndpoint, API_URL
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class AuthenticationError(Exception):
+class AuthenticationError(HomeAssistantError):
     """Exception raised for authentication errors."""
+
+class LoginError(HomeAssistantError):
+    """Raised when login fails."""
+
+class ApiError(HomeAssistantError):
+    """Raised when the API returns an unexpected result."""
 
 class APIResponse:
     def __init__(self, response_code: int, response: Any):
@@ -33,61 +41,102 @@ class APIResponse:
     def is_ok(self) -> bool:
         return self.response_code == 200
 
+class AsyncTokenProvider:
+    def __init__(self, client_session: ClientSession, email, password):
+        self._token = None
+        self._expires_at = 0
+        self._lock = asyncio.Lock()
+        self._session = client_session
+        self._email = email
+        self._password = password
+
+    async def _renew_token(self):
+        uri = fetch_action_endpoint(ActionEndpointType.LOGIN).uri()
+        message_headers = {
+            "Content-Type": "application/json"
+        }
+        json_data = {
+            "UserId": f"{self._email}",
+            "Password": f"{self._password}"
+        }
+
+        try:
+            async with async_timeout.timeout(15):
+                async with self._session.post(uri,
+                                              json=json_data,
+                                              headers=message_headers,
+                                              raise_for_status=True) as response:
+
+                    response_json = await response.json()
+                    access_token = response_json["AuthorizationToken"]
+                    jwt = self._parse_jwt_raw(token=access_token)
+                    self._expires_at = jwt["exp"] - 5
+                    self._token = access_token
+                    _LOGGER.info("Renewed token, expires_at=%s", self._expires_at)
+                    return access_token
+        except aiohttp.ClientError as error:
+            self._handle_exception(error)
+
+    async def get_token(self):
+        if self._token and time.time() < self._expires_at:
+            return self._token
+
+        # Slow path: acquire lock and refresh if needed
+        async with self._lock:
+            # Another coroutine may have refreshed while we waited
+            if self._token and time.time() < self._expires_at:
+                return self._token
+
+            return await self._renew_token()
+
+    def _handle_exception(self, error: aiohttp.ClientError) -> None:
+        if isinstance(error, ClientResponseError):
+            if error.status == 401:
+                self.invalidate_token()
+                raise LoginError("Unable to login user - (HTTP UNAUTHORIZED 401)")
+            if error.status == 400:
+                self.invalidate_token()
+                raise ApiError("Unable to authenticate user - broken API support (HTTP BAD_REQUEST 400)")
+
+            raise ApiError(
+                f"Unable to authenticate user - unexpected HTTP error occurred (HTTP {error.status} - {error.message})")
+
+        raise ApiError(f"Unable to authenticate user - unexpected network error occurred ({error})")
+
+    def _parse_jwt_raw(self, token: str) -> dict:
+        _, payload_b64, _ = token.split(".")
+
+        # Fix padding
+        payload_b64 += "=" * (-len(payload_b64) % 4)
+
+        payload_bytes = base64.urlsafe_b64decode(payload_b64)
+        return json.loads(payload_bytes)
+
+    def invalidate_token(self):
+        self._token = None
+        self._expires_at = 0
+        logging.info("Invalidating token, new token needs to be requested")
+
 class SectorAlarmAPI:
     """Class to interact with the Sector Alarm API."""
 
-    API_URL = "https://mypagesapi.sectoralarm.net"
-
-    def __init__(self, hass: HomeAssistant, email, password, panel_id):
+    def __init__(self, client_session: ClientSession, panel_id, token_provider: AsyncTokenProvider):
         """Initialize the API client."""
-        self.hass = hass
-        self.email = email
-        self.password = password
-        self.panel_id = panel_id
-        self.access_token = None
-        self.headers: dict[str, str] = {}
-        self.session = None
-        self.action_endpoints = ACTION_ENDPOINTS
+        self._panel_id = panel_id
+        self._session = client_session
+        self._token_provider = token_provider
+        self._action_endpoints = ACTION_ENDPOINTS
 
-    async def login(self):
-        """Authenticate with the API and obtain an access token."""
-        if self.session is None:
-            self.session = async_get_clientsession(self.hass)
-
-        login_url = fetch_action_endpoint(ActionEndpointType.LOGIN).uri()
-        payload = {
-            "userId": self.email,
-            "password": self.password,
+    def _build_headers(self, token):
+        return {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
         }
-        try:
-            async with async_timeout.timeout(10):
-                async with self.session.post(login_url, json=payload) as response:
-                    if response.status != 200:
-                        _LOGGER.error(
-                            "Login failed with status code %s", response.status
-                        )
-                        raise AuthenticationError("Invalid credentials")
-                    data = await response.json()
-                    self.access_token = data.get("AuthorizationToken")
-                    if not self.access_token:
-                        _LOGGER.error("Login failed: No access token received")
-                        raise AuthenticationError("Invalid credentials")
-                    self.headers = {
-                        "Authorization": f"Bearer {self.access_token}",
-                        "Accept": "application/json",
-                    }
-
-        except asyncio.TimeoutError as err:
-            _LOGGER.error("Timeout occurred during login")
-            raise AuthenticationError("Timeout during login") from err
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Client error during login: %s", str(err))
-            raise AuthenticationError("Client error during login") from err
 
     async def get_panel_list(self) -> dict[str, str]:
         """Retrieve available panels from the API."""
         data = {}
-        panellist_url = f"{self.API_URL}/api/account/GetPanelList"
+        panellist_url = f"{API_URL}/api/account/GetPanelList"
         response: APIResponse = await self._get(panellist_url)
         _LOGGER.debug(f"panel_payload: {response.response_data}")
 
@@ -104,12 +153,12 @@ class SectorAlarmAPI:
 
     async def get_panel_info(self) -> PanelInfo:
         """Retrieve available panels from the API."""
-        uri = f"{self.API_URL}/api/Panel/GetPanel?panelId={self.panel_id}"
+        uri = f"{self.API_URL}/api/Panel/GetPanel?panelId={self._panel_id}"
         response: APIResponse = await self._get(uri)
         _LOGGER.debug(f"panel_payload: {response}")
 
         if response is None or response.is_ok() == False:
-            _LOGGER.error("Failed to retrieve panel %s", self.panel_id)
+            _LOGGER.error("Failed to retrieve panel %s", self._panel_id)
 
         return response.response_data
 
@@ -125,12 +174,12 @@ class SectorAlarmAPI:
 
     async def _retrieve_data(self, endpoint: DataEndpoint, data: dict[DataEndpointType, APIResponse]):
         """Retrieve data from the target endpoint."""
-        url = endpoint.uri(self.panel_id)
+        url = endpoint.uri(self._panel_id)
         if endpoint.method() == "GET":
             response: APIResponse = await self._get(url)
         elif endpoint.method() == "POST":
             # For POST requests, we need to provide the panel ID in the payload
-            payload = {"PanelId": self.panel_id}
+            payload = {"PanelId": self._panel_id}
             response: APIResponse = await self._post(url, payload)
         else:
             _LOGGER.error("Unsupported HTTP method %s for endpoint %s", endpoint.method(), url)
@@ -142,8 +191,9 @@ class SectorAlarmAPI:
     async def _get(self, url) -> APIResponse | None:
         """Helper method to perform GET requests with timeout."""
         try:
+            headers = self._build_headers(await self._token_provider.get_token())
             async with async_timeout.timeout(15):
-                async with self.session.get(url, headers=self.headers) as response:
+                async with self._session.get(url, headers=headers) as response:
                     if response.status == 200:
                         content_type = response.headers.get("Content-Type", "")
                         if "application/json" in content_type:
@@ -167,16 +217,25 @@ class SectorAlarmAPI:
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout occurred during GET request to %s", url)
             return None
+        except aiohttp.ClientResponseError as err:
+            _LOGGER.warning(f"Client error during GET request to %s - (HTTP {err.status} - {err.message})", url)
+            if err.status == 401 or err.status == 403:
+                self._token_provider.invalidate_token()
+            return None
+        except ApiError as e:
+            _LOGGER.warning("Client error during GET request to %s: %s", url, str(e))
+            return None
         except aiohttp.ClientError as e:
-            _LOGGER.error("Client error during GET request to %s: %s", url, str(e))
+            _LOGGER.warning("Client error during GET request to %s: %s", url, str(e))
             return None
 
     async def _post(self, url, payload) -> APIResponse | None:
         """Helper method to perform POST requests with timeout."""
         try:
+            headers = self._build_headers(await self._token_provider.get_token())
             async with async_timeout.timeout(15):
-                async with self.session.post(
-                    url, json=payload, headers=self.headers
+                async with self._session.post(
+                    url, json=payload, headers=headers
                 ) as response:
                     if response.status == 200:
                         content_type = response.headers.get("Content-Type", "")
@@ -201,6 +260,14 @@ class SectorAlarmAPI:
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout occurred during POST request to %s", url)
             return None
+        except aiohttp.ClientResponseError as err:
+            _LOGGER.warning(f"Client error during POST request to %s - (HTTP {err.status} - {err.message})", url)
+            if err.status == 401 or err.status == 403:
+                self._token_provider.invalidate_token()
+            return None
+        except ApiError as e:
+            _LOGGER.warning("Client error during POST request to %s: %s", url, str(e))
+            return None
         except aiohttp.ClientError as err:
             _LOGGER.error("Client error during POST request to %s: %s", url, str(err))
             return None
@@ -218,7 +285,7 @@ class SectorAlarmAPI:
 
         payload = {
             "PanelCode": panel_code,
-            "PanelId": self.panel_id,
+            "PanelId": self._panel_id,
         }
         result: APIResponse = await self._post(endpoint.uri(), payload)
         if result and result.is_ok():
@@ -234,7 +301,7 @@ class SectorAlarmAPI:
         url = fetch_action_endpoint(ActionEndpointType.DISARM).uri()
         payload = {
             "PanelCode": panel_code,
-            "PanelId": self.panel_id,
+            "PanelId": self._panel_id,
         }
         result: APIResponse = await self._post(url, payload)
         if result and result.is_ok():
@@ -251,7 +318,7 @@ class SectorAlarmAPI:
         payload = {
             "LockSerial": serial_no,
             "PanelCode": panel_code,
-            "PanelId": self.panel_id,
+            "PanelId": self._panel_id,
             "SerialNo": serial_no,
         }
         result: APIResponse = await self._post(url, payload)
@@ -269,7 +336,7 @@ class SectorAlarmAPI:
         payload = {
             "LockSerial": serial_no,
             "PanelCode": panel_code,
-            "PanelId": self.panel_id,
+            "PanelId": self._panel_id,
             "SerialNo": serial_no,
         }
         result: APIResponse = await self._post(url, payload)
@@ -284,7 +351,7 @@ class SectorAlarmAPI:
         """Turn on a smart plug."""
         url = fetch_action_endpoint(ActionEndpointType.TURN_ON_SMART_PLUG).uri()
         payload = {
-            "PanelId": self.panel_id,
+            "PanelId": self._panel_id,
             "DeviceId": plug_id,
         }
         result: APIResponse = await self._post(url, payload)
@@ -299,7 +366,7 @@ class SectorAlarmAPI:
         """Turn off a smart plug."""
         url = fetch_action_endpoint(ActionEndpointType.TURN_OFF_SMART_PLUG).uri()
         payload = {
-            "PanelId": self.panel_id,
+            "PanelId": self._panel_id,
             "DeviceId": plug_id,
         }
         result: APIResponse = await self._post(url, payload)
@@ -314,7 +381,7 @@ class SectorAlarmAPI:
         """Retrieve the latest image from a camera."""
         url = f"{self.API_URL}/api/camera/GetCameraImage"
         payload = {
-            "PanelId": self.panel_id,
+            "PanelId": self._panel_id,
             "SerialNo": serial_no,
         }
         response: APIResponse = await self._post(url, payload)

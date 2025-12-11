@@ -1,8 +1,7 @@
 """Sector Alarm API endpoints."""
 from enum import Enum
 
-_API_URL = "https://mypagesapi.sectoralarm.net"
-
+API_URL = "https://mypagesapi.sectoralarm.net"
 
 class DataEndpointType(Enum):
     LOGS = "Logs"
@@ -68,57 +67,57 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
     DataEndpoint(
         type=DataEndpointType.LOGS,
         method="GET",
-        uri=f"{_API_URL}/api/v2/panel/logs?panelid={{panelId}}&pageNumber=1&pageSize=5"
+        uri=f"{API_URL}/api/v2/panel/logs?panelid={{panelId}}&pageNumber=1&pageSize=5"
     ),
     DataEndpoint(
         type=DataEndpointType.PANEL_STATUS,
         method="GET",
-        uri=f"{_API_URL}/api/panel/GetPanelStatus?panelId={{panelId}}"
+        uri=f"{API_URL}/api/panel/GetPanelStatus?panelId={{panelId}}"
     ),
     DataEndpoint(
         type=DataEndpointType.SMART_PLUG_STATUS,
         method="GET",
-        uri=f"{_API_URL}/api/panel/GetSmartplugStatus?panelId={{panelId}}"
+        uri=f"{API_URL}/api/panel/GetSmartplugStatus?panelId={{panelId}}"
     ),
     DataEndpoint(
         type=DataEndpointType.LOCK_STATUS,
         method="GET",
-        uri=f"{_API_URL}/api/panel/GetLockStatus?panelId={{panelId}}"
+        uri=f"{API_URL}/api/panel/GetLockStatus?panelId={{panelId}}"
     ),
     DataEndpoint(
         type=DataEndpointType.TEMPERATURES_LEGACY,
         method="GET",
-        uri=f"{_API_URL}/api/Panel/GetTemperatures?panelId={{panelId}}"
+        uri=f"{API_URL}/api/Panel/GetTemperatures?panelId={{panelId}}"
     ),
     DataEndpoint(
         type=DataEndpointType.TEMPERATURES,
         method="POST",
-        uri=f"{_API_URL}/api/v2/housecheck/temperatures"
+        uri=f"{API_URL}/api/v2/housecheck/temperatures"
     ),
     DataEndpoint(
         type=DataEndpointType.HUMIDITY,
         method="GET",
-        uri=f"{_API_URL}/api/housecheck/panels/{{panelId}}/humidity"
+        uri=f"{API_URL}/api/housecheck/panels/{{panelId}}/humidity"
     ),
     DataEndpoint(
         type=DataEndpointType.DOORS_AND_WINDOWS,
         method="POST",
-        uri=f"{_API_URL}/api/v2/housecheck/doorsandwindows"
+        uri=f"{API_URL}/api/v2/housecheck/doorsandwindows"
     ),
     DataEndpoint(
         type=DataEndpointType.LEAKAGE_DETECTORS,
         method="POST",
-        uri=f"{_API_URL}/api/v2/housecheck/leakagedetectors"
+        uri=f"{API_URL}/api/v2/housecheck/leakagedetectors"
     ),
     DataEndpoint(
         type=DataEndpointType.SMOKE_DETECTORS,
         method="POST",
-        uri=f"{_API_URL}/api/v2/housecheck/smokedetectors"
+        uri=f"{API_URL}/api/v2/housecheck/smokedetectors"
     ),
     DataEndpoint(
         type=DataEndpointType.CAMERAS,
         method="GET",
-        uri=f"{_API_URL}/api/v2/housecheck/cameras/{{panelId}}"
+        uri=f"{API_URL}/api/v2/housecheck/cameras/{{panelId}}"
     )
 }
 
@@ -126,47 +125,47 @@ ACTION_ENDPOINTS: set[ActionEndpoint] = {
     ActionEndpoint(
         type=ActionEndpointType.LOGIN,
         method="POST",
-        uri=f"{_API_URL}/api/Login/Login"
+        uri=f"{API_URL}/api/Login/Login"
     ),
     ActionEndpoint(
         type=ActionEndpointType.LOGOUT,
         method="POST",
-        uri=f"{_API_URL}/api/Login/Logout"
+        uri=f"{API_URL}/api/Login/Logout"
     ),
     ActionEndpoint(
         type=ActionEndpointType.UNLOCK,
         method="POST",
-        uri=f"{_API_URL}/api/Panel/Unlock"
+        uri=f"{API_URL}/api/Panel/Unlock"
     ),
     ActionEndpoint(
         type=ActionEndpointType.LOCK,
         method="POST",
-        uri=f"{_API_URL}/api/Panel/Lock"
+        uri=f"{API_URL}/api/Panel/Lock"
     ),
     ActionEndpoint(
         type=ActionEndpointType.ARM,
         method="POST",
-        uri=f"{_API_URL}/api/Panel/Arm"
+        uri=f"{API_URL}/api/Panel/Arm"
     ),
     ActionEndpoint(
         type=ActionEndpointType.PARTIAL_ARM,
         method="POST",
-        uri=f"{_API_URL}/api/Panel/PartialArm"
+        uri=f"{API_URL}/api/Panel/PartialArm"
     ),
     ActionEndpoint(
         type=ActionEndpointType.DISARM,
         method="POST",
-        uri=f"{_API_URL}/api/Panel/Disarm"
+        uri=f"{API_URL}/api/Panel/Disarm"
     ),
     ActionEndpoint(
         type=ActionEndpointType.TURN_OFF_SMART_PLUG,
         method="POST",
-        uri=f"{_API_URL}/api/Panel/TurnOffSmartplug"
+        uri=f"{API_URL}/api/Panel/TurnOffSmartplug"
     ),
     ActionEndpoint(
         type=ActionEndpointType.TURN_ON_SMART_PLUG,
         method="POST",
-        uri=f"{_API_URL}/api/Panel/TurnOnSmartplug"
+        uri=f"{API_URL}/api/Panel/TurnOnSmartplug"
     )
 }
 

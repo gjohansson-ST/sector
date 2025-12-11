@@ -7,17 +7,18 @@ from zoneinfo import ZoneInfoNotFoundError
 
 import pytz
 from aiozoneinfo import async_get_time_zone
-from homeassistant.components.recorder import get_instance, history
+from homeassistant.components.recorder import history
+from homeassistant.helpers.recorder import get_instance
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .api_model import SmartPlug, Temperature, Lock, HouseCheck, LogRecords
-from .client import AuthenticationError, SectorAlarmAPI, PanelInfo, APIResponse
-from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
+from .client import AuthenticationError, SectorAlarmAPI, PanelInfo, APIResponse, LoginError
+from .const import CATEGORY_MODEL_MAPPING, DOMAIN
 from .endpoints import DataEndpointType
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,15 +32,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     config_entry: SectorAlarmConfigEntry
 
-    def __init__(self, hass: HomeAssistant, entry: SectorAlarmConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: SectorAlarmConfigEntry, sector_api: SectorAlarmAPI) -> None:
         """Initialize the coordinator."""
         self.hass = hass
-        self.api = SectorAlarmAPI(
-            hass=hass,
-            email=entry.data[CONF_EMAIL],
-            password=entry.data[CONF_PASSWORD],
-            panel_id=entry.data[CONF_PANEL_ID],
-        )
+        self.api = sector_api
         self._use_legacy_api = True,
         self._legacy_temperature_last_update: Optional[datetime] = None
         self._data_endpoints: set[DataEndpointType] = set()
@@ -80,7 +76,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_setup(self):
         try:
-            await self.api.login()
             panel_info: PanelInfo = await self.api.get_panel_info()
 
             if panel_info is None:
@@ -108,6 +103,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Supported endpoint types: %s", supported_endpoint_types)
             self._data_endpoints = supported_endpoint_types
 
+        except LoginError as error:
+            raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
             raise UpdateFailed(f"Authentication failed: {error}") from error
         except Exception as error:
@@ -117,8 +114,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
         try:
-            await self.api.login()
-
             if self._use_legacy_api:
                 api_data = await self._legacy_retrieve_all_data()
             else:
@@ -139,6 +134,8 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 "logs": self._event_logs,
             }
 
+        except LoginError as error:
+            raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
             raise UpdateFailed(f"Authentication failed: {error}") from error
         except Exception as error:
@@ -239,7 +236,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             response_data = category_data.response_data
             if category_name == DataEndpointType.PANEL_STATUS:
                 panel_status = response_data
-            if category_name == DataEndpointType.SMART_PLUG_STATUS:
+            elif category_name == DataEndpointType.SMART_PLUG_STATUS:
                 self._process_smart_plugs(response_data, devices)
             elif category_name == DataEndpointType.LOCK_STATUS:
                 self._process_locks(response_data, devices)
