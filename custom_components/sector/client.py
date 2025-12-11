@@ -14,7 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api_model import PanelInfo
 from .endpoints import ACTION_ENDPOINTS, DataEndpointType, fetch_data_endpoints, fetch_action_endpoint, \
-    ActionEndpointType
+    ActionEndpointType, DataEndpoint
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -117,23 +117,27 @@ class SectorAlarmAPI:
         """Retrieve all relevant data from the API."""
         data = {}
         data_endpoints = fetch_data_endpoints(data_endpoint_types)
+        async with asyncio.TaskGroup() as tg:
+            for endpoint in data_endpoints:
+                tg.create_task(self._retrieve_data(endpoint, data))
 
-        # Iterate over data endpoints
-        for endpoint in data_endpoints:
-            url = endpoint.uri(self.panel_id)
-            if endpoint.method() == "GET":
-                response: APIResponse = await self._get(url)
-            elif endpoint.method() == "POST":
-                # For POST requests, we need to provide the panel ID in the payload
-                payload = {"PanelId": self.panel_id}
-                response: APIResponse = await self._post(url, payload)
-            else:
-                _LOGGER.error("Unsupported HTTP method %s for endpoint %s", endpoint.method(), url)
-                continue
-
-            if response:
-                data[endpoint.type()] = response
         return data
+
+    async def _retrieve_data(self, endpoint: DataEndpoint, data: dict[DataEndpointType, APIResponse]):
+        """Retrieve data from the target endpoint."""
+        url = endpoint.uri(self.panel_id)
+        if endpoint.method() == "GET":
+            response: APIResponse = await self._get(url)
+        elif endpoint.method() == "POST":
+            # For POST requests, we need to provide the panel ID in the payload
+            payload = {"PanelId": self.panel_id}
+            response: APIResponse = await self._post(url, payload)
+        else:
+            _LOGGER.error("Unsupported HTTP method %s for endpoint %s", endpoint.method(), url)
+            return
+
+        if response:
+            data[endpoint.type()] = response
 
     async def _get(self, url) -> APIResponse | None:
         """Helper method to perform GET requests with timeout."""
