@@ -25,11 +25,27 @@ async def async_setup_entry(
 ) -> None:
     """Set up Sector Alarm switches."""
     coordinator = entry.runtime_data
-    devices = coordinator.data.get("devices", {})
-    smartplugs = devices.get("smartplugs", [])
+    devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
+    entities = []
 
-    if smartplugs:
-        async_add_entities(SectorAlarmSwitch(coordinator, plug) for plug in smartplugs)
+    for serial_no, device_info in devices.items():
+        if device_info.get("model") == "Smart Plug":
+            device_name: str = device_info["name"]
+            plug_id = device_info["id"]
+            model = device_info["model"]
+            entities.append(
+                SectorAlarmSwitch(
+                    coordinator, plug_id, serial_no, device_name, model
+                )
+            )
+            _LOGGER.debug(
+                "Added lock entity with serial: %s and name: %s",
+                serial_no,
+                device_name,
+            )
+
+    if entities:
+        async_add_entities(entities)
     else:
         _LOGGER.debug("No switch entities to add.")
 
@@ -41,16 +57,15 @@ class SectorAlarmSwitch(SectorAlarmBaseEntity, SwitchEntity):
     _attr_name = None
 
     def __init__(
-        self, coordinator: SectorDataUpdateCoordinator, plug_data: dict[str, Any]
+        self, coordinator: SectorDataUpdateCoordinator, plug_id, serial_no, name, model
     ) -> None:
         """Initialize the switch."""
-        self._id = plug_data.get("Id")
-        serial_no = str(plug_data.get("SerialNo") or plug_data.get("Serial"))
+        self._id = plug_id
         super().__init__(
             coordinator,
             serial_no,
-            plug_data.get("Label", "Sector Smart Plug"),
-            "Smart Plug",
+            name,
+            model,
         )
 
         self._attr_unique_id = f"{self._serial_no}_switch"
@@ -58,10 +73,12 @@ class SectorAlarmSwitch(SectorAlarmBaseEntity, SwitchEntity):
     @property
     def is_on(self):
         """Return true if the switch is on."""
-        smartplugs = self.coordinator.data["devices"].get("smartplugs", [])
-        for plug in smartplugs:
-            if plug.get("Id") == self._id:
-                return plug.get("State") == "On"
+        device = self.coordinator.data["devices"].get(self._serial_no)
+        if device:
+            status = device["sensors"].get("plug_status")
+            _LOGGER.debug("Switch %s status is currently: %s", self._serial_no, status)
+            return status == "On"
+        _LOGGER.warning("No switch status found for plug %s", self._serial_no)
         return False
 
     async def async_turn_on(self, **kwargs) -> None:

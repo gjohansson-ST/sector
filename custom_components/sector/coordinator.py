@@ -1,10 +1,11 @@
 """Sector Alarm coordinator."""
 
 import logging
-import pytz
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Optional
+from zoneinfo import ZoneInfoNotFoundError
 
+import pytz
 from aiozoneinfo import async_get_time_zone
 from homeassistant.components.recorder import get_instance, history
 from homeassistant.config_entries import ConfigEntry
@@ -13,13 +14,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
-from zoneinfo import ZoneInfoNotFoundError
 
-from .client import AuthenticationError, SectorAlarmAPI
+from .api_model import SmartPlug, Temperature, Lock, HouseCheck, LogRecords
+from .client import AuthenticationError, SectorAlarmAPI, PanelInfo, APIResponse
 from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
+from .endpoints import DataEndpointType
 
 _LOGGER = logging.getLogger(__name__)
-
 
 # Make sure the SectorAlarmConfigEntry type is present
 type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
@@ -39,6 +40,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             password=entry.data[CONF_PASSWORD],
             panel_id=entry.data[CONF_PANEL_ID],
         )
+        self._use_legacy_api = True,
+        self._legacy_temperature_last_update: Optional[datetime] = None
+        self._data_endpoints: set[DataEndpointType] = set()
         super().__init__(
             hass,
             _LOGGER,
@@ -74,19 +78,60 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             serial, {"name": "Unknown Device", "model": "Unknown Model"}
         )
 
+    async def _async_setup(self):
+        try:
+            await self.api.login()
+            panel_info: PanelInfo = await self.api.get_panel_info()
+
+            if panel_info is None:
+                raise UpdateFailed("Unable to fetch information from Sector Alarm")
+
+            supported_endpoint_types = set(DataEndpointType)
+            temperatures: list[Temperature] = panel_info.get("Temperatures", {})
+            locks: list[Lock] = panel_info.get("Locks", {})
+            plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
+
+            if temperatures.__len__() == 0:
+                self._use_legacy_api = False
+                supported_endpoint_types.remove(DataEndpointType.TEMPERATURES_LEGACY)
+            if locks.__len__() == 0:
+                supported_endpoint_types.remove(DataEndpointType.LOCK_STATUS)
+            if plugs.__len__() == 0:
+                supported_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
+
+            # Scan and build supported endpoints
+            api_data: dict[DataEndpointType, APIResponse] = await self.api.retrieve_all_data(supported_endpoint_types)
+            for endpoint_type, response in api_data.items():
+                if response.response_code == 404:
+                    supported_endpoint_types.remove(endpoint_type)
+
+            _LOGGER.debug("Supported endpoint types: %s", supported_endpoint_types)
+            self._data_endpoints = supported_endpoint_types
+
+        except AuthenticationError as error:
+            raise UpdateFailed(f"Authentication failed: {error}") from error
+        except Exception as error:
+            _LOGGER.exception("Failed to update data")
+            raise UpdateFailed(f"Failed to update data: {error}") from error
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
         try:
             await self.api.login()
-            api_data = await self.api.retrieve_all_data()
+
+            if self._use_legacy_api:
+                api_data = await self._legacy_retrieve_all_data()
+            else:
+                api_data = await self.api.retrieve_all_data(self._data_endpoints)
             _LOGGER.debug("API ALL DATA: %s", api_data)
 
             # Process devices and panel status
             devices, panel_status = self._process_devices(api_data)
 
             # Process logs for event handling
-            logs_data = api_data.get("Logs", [])
-            self._event_logs = await self._process_event_logs(logs_data, devices)
+            if api_data[DataEndpointType.LOGS] and api_data[DataEndpointType.LOGS].is_ok():
+                log_data: LogRecords = api_data[DataEndpointType.LOGS].response_data
+                self._event_logs = await self._process_event_logs(log_data, devices)
 
             return {
                 "devices": devices,
@@ -99,6 +144,17 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as error:
             _LOGGER.exception("Failed to update data")
             raise UpdateFailed(f"Failed to update data: {error}") from error
+
+    async def _legacy_retrieve_all_data(self):
+        now = datetime.now(tz=dt_util.UTC)
+        # Only refresh legacy temperatures every 15 min as they are costly
+        if self._legacy_temperature_last_update and now - self._legacy_temperature_last_update < timedelta(minutes=15):
+            redacted_temperatures = {e for e in self._data_endpoints if e != DataEndpointType.TEMPERATURES_LEGACY}
+            return await self.api.retrieve_all_data(redacted_temperatures)
+
+        data = await self.api.retrieve_all_data(self._data_endpoints)
+        self._legacy_temperature_last_update = now
+        return data
 
     @staticmethod
     def _get_event_id(log):
@@ -167,29 +223,81 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         )
         return None
 
-    def _process_devices(self, api_data) -> tuple[dict[str, Any], dict[str, Any]]:
+    def _process_devices(self, api_data: dict[DataEndpointType, APIResponse]) -> tuple[dict[str, Any], dict[str, Any]]:
         """Process device data from the API, including humidity, closed, and alarm sensors."""
         devices: dict[str, Any] = {}
-        panel_status = api_data.get("Panel Status", {})
-
+        panel_status = {}
         for category_name, category_data in api_data.items():
-            if category_name in ["Logs", "Panel Status"]:
+            if category_name in [DataEndpointType.LOGS]:
                 continue
 
             _LOGGER.debug("Processing category: %s", category_name)
-            if category_name == "Lock Status" and isinstance(category_data, list):
-                self._process_locks(category_data, devices)
+            if category_data is None or category_data.response_data is None or category_data.is_ok() == False:
+                _LOGGER.warning("Unable to process data for category '%s': data=%s", category_name, category_data)
+                continue
+
+            response_data = category_data.response_data
+            if category_name == DataEndpointType.PANEL_STATUS:
+                panel_status = response_data
+            if category_name == DataEndpointType.SMART_PLUG_STATUS:
+                self._process_smart_plugs(response_data, devices)
+            elif category_name == DataEndpointType.LOCK_STATUS:
+                self._process_locks(response_data, devices)
+            elif category_name == DataEndpointType.TEMPERATURES_LEGACY:
+                self._process_legacy_temperatures(response_data, devices)
             else:
-                self._process_category_devices(category_name, category_data, devices)
+                self._process_housecheck_devices(category_name, response_data, devices)
 
         return devices, panel_status
 
-    def _process_locks(self, locks_data: list, devices: dict) -> None:
+    def _process_legacy_temperatures(self, temps_data: list[Temperature], devices: dict) -> None:
+        """Process legacy temperatures"""
+        for temp in temps_data:
+            serial_no = temp.get("SerialNo") or temp.get("Serial")
+            if not serial_no:
+                _LOGGER.warning("Temperature sensor is missing Serial: %s", temp)
+                continue
+
+            devices[serial_no] = {
+                "name": temp.get("Label"),
+                "serial_no": serial_no,
+                "sensors": {
+                    "temperature": temp.get("Temperature"),
+                },
+                "model": "Temperature Sensor",
+            }
+            _LOGGER.debug(
+                "Processed temperature sensor with serial_no %s: %s", serial_no, devices[serial_no]
+            )
+
+    def _process_smart_plugs(self, smart_plug_data: list[SmartPlug], devices: dict) -> None:
+        """Process lock data and add to devices dictionary."""
+        for smart_plug in smart_plug_data:
+            serial_no = smart_plug.get("SerialNo") or smart_plug.get("Serial")
+            plug_id = smart_plug.get("Id")
+            if not serial_no or not plug_id:
+                _LOGGER.warning("Smart Plug is missing SerialNo or ID: %s", smart_plug)
+                continue
+
+            devices[serial_no] = {
+                "name": smart_plug.get("Label"),
+                "id": plug_id,
+                "serial_no": serial_no,
+                "sensors": {
+                    "plug_status": smart_plug.get("Status")
+                },
+                "model": "Smart Plug",
+            }
+            _LOGGER.debug(
+                "Processed smart plug with Serial %s: %s", serial_no, devices[serial_no]
+            )
+
+    def _process_locks(self, locks_data: list[Lock], devices: dict) -> None:
         """Process lock data and add to devices dictionary."""
         for lock in locks_data:
-            serial_no = str(lock.get("Serial"))
+            serial_no = lock.get("SerialNo") or lock.get("Serial")
             if not serial_no:
-                _LOGGER.warning("Lock missing Serial: %s", lock)
+                _LOGGER.warning("Lock is missing Serial: %s", lock)
                 continue
 
             devices[serial_no] = {
@@ -197,7 +305,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 "serial_no": serial_no,
                 "sensors": {
                     "lock_status": lock.get("Status"),
-                    "low_battery": lock.get("BatteryLow"),
+                    "low_battery": lock.get("BatteryLow") or lock.get("LowBattery"),
                 },
                 "model": "Smart Lock",
             }
@@ -205,133 +313,77 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 "Processed lock with serial_no %s: %s", serial_no, devices[serial_no]
             )
 
-    def _process_category_devices(
-        self, category_name: str, category_data: dict, devices: dict
+    def _process_housecheck_devices(
+            self, category_name: DataEndpointType, category_data: HouseCheck, devices: dict
     ) -> None:
         """Process devices within a specific category and add them to devices dictionary."""
         default_model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
 
-        if isinstance(category_data, dict) and "Sections" in category_data:
+        if "Sections" in category_data:
             for section in category_data["Sections"]:
                 for place in section.get("Places", []):
                     for component in place.get("Components", []):
-                        serial_no = str(
-                            component.get("SerialNo") or component.get("Serial")
-                        )
-                        if serial_no:
-                            device_type = str(component.get("Type", "")).lower()
-                            model_name = CATEGORY_MODEL_MAPPING.get(
-                                device_type, default_model_name
-                            )
+                        serial_no = component.get("SerialNo") or component.get("Serial")
 
-                            # Initialize or update device entry with sensors
-                            device_info = devices.setdefault(
-                                serial_no,
-                                {
-                                    "name": component.get("Label")
-                                    or component.get("Name"),
-                                    "serial_no": serial_no,
-                                    "sensors": {},
-                                    "model": model_name,
-                                    "type": component.get("Type", ""),
-                                },
-                            )
-
-                            # Add or update each sensor in the device
-                            self._add_sensor_if_present(
-                                device_info["sensors"],
-                                component,
-                                "closed",
-                                "Closed",
-                                bool,
-                            )
-                            self._add_sensor_if_present(
-                                device_info["sensors"],
-                                component,
-                                "low_battery",
-                                ["LowBattery", "BatteryLow"],
-                                bool,
-                            )
-                            self._add_sensor_if_present(
-                                device_info["sensors"],
-                                component,
-                                "alarm",
-                                "Alarm",
-                                bool,
-                            )
-                            self._add_sensor_if_present(
-                                device_info["sensors"],
-                                component,
-                                "temperature",
-                                "Temperature",
-                                float,
-                            )
-                            self._add_sensor_if_present(
-                                device_info["sensors"],
-                                component,
-                                "humidity",
-                                "Humidity",
-                                float,
-                            )
-
-                            _LOGGER.debug(
-                                "Processed device %s with model: %s, category: %s, type: %s",
-                                serial_no,
-                                model_name,
-                                category_name,
-                                device_type,
-                            )
-                        else:
+                        if serial_no is None:
                             _LOGGER.warning(
                                 "Component missing SerialNo/Serial: %s", component
                             )
-        else:
-            _LOGGER.debug("Category %s does not contain Sections.", category_name)
+                            continue
 
-    def _add_sensor_if_present(
-        self,
-        sensors: dict,
-        component: dict,
-        sensor_key: str,
-        source_keys: Any,
-        transform: type | None = None,
-    ):
-        """Add a sensor to the sensors dictionary if it exists in component."""
-        if isinstance(source_keys, str):
-            source_keys = [source_keys]
-
-        for key in source_keys:
-            if key in component:
-                value = component[key]
-                if transform:
-                    try:
-                        value = transform(value)
-                    except (ValueError, TypeError) as e:
-                        _LOGGER.warning(
-                            "Failed to transform value '%s' for key '%s': %s",
-                            value,
-                            key,
-                            e,
+                        device_type = str(component.get("Type", "")).lower()
+                        model_name = CATEGORY_MODEL_MAPPING.get(
+                            device_type, default_model_name
                         )
-                        return  # Skip adding this sensor if transformation fails
 
-                # Add sensor to the dictionary if found and transformed successfully
-                sensors[sensor_key] = value
-                _LOGGER.debug(
-                    "Successfully added sensor '%s' with value '%s' to sensors",
-                    sensor_key,
-                    value,
-                )
-                return  # Exit after the first match to avoid overwriting
+                        sensors = {}
+                        if component["Closed"] is not None:
+                           sensors["closed"] = component["Closed"]
 
-        # Log a debug message if none of the source keys are found
-        _LOGGER.debug(
-            "Sensor keys %s were not found in component for sensor '%s'",
-            source_keys,
-            sensor_key,
-        )
+                        if component["LowBattery"] is not None:
+                            sensors["low_battery"] = component["LowBattery"]
 
-    async def _process_event_logs(self, logs, devices):
+                        if component["BatteryLow"] is not None:
+                            sensors["low_battery"] = component["BatteryLow"]
+
+                        if component["Alarm"] is not None:
+                            sensors["alarm"] = component["Alarm"]
+
+                        if component["Temperature"] is not None:
+                            sensors["temperature"] = component["Temperature"]
+
+                        if component["Humidity"] is not None:
+                            sensors["humidity"] = component["Humidity"]
+
+                        if sensors.__len__() == 0:
+                            _LOGGER.debug(
+                                "No sensors were found in component for category '%s'",
+                                category_name,
+                            )
+
+                        # Initialize or update device entry with sensors
+                        device_info = devices.setdefault(
+                            serial_no,
+                            {
+                                "name": component.get("Label")
+                                        or component.get("Name"),
+                                "serial_no": serial_no,
+                                "sensors": sensors,
+                                "model": model_name,
+                                "type": component.get("Type", ""),
+                            }
+                        )
+
+                        _LOGGER.debug(
+                            "Processed device: category: %s, device: %s",
+                            category_name,
+                            device_info,
+                        )
+
+        else:
+            _LOGGER.debug("Category %s does not contain Sections", category_name)
+
+    async def _process_event_logs(self, logs: LogRecords, devices):
         """Process event logs, associating them with the correct lock devices using LockName."""
         grouped_events = {}
 
@@ -429,7 +481,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Grouped events by lock: %s", grouped_events)
         return grouped_events
 
-    @property
     def process_events(self) -> dict:
         """Return processed event logs grouped by device."""
         return self._event_logs

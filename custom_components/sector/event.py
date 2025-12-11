@@ -22,7 +22,7 @@ async def async_setup_entry(
 ):
     """Set up a single event entity per device in Sector Alarm coordinator."""
     coordinator: SectorDataUpdateCoordinator = entry.runtime_data
-    grouped_events = await coordinator.process_events()
+    grouped_events = coordinator.process_events()
     entities = []
 
     for device_serial, event_categories in grouped_events.items():

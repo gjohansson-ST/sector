@@ -5,13 +5,16 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+from typing import Any
 
 import aiohttp
 import async_timeout
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .endpoints import get_action_endpoints, get_data_endpoints
+from .api_model import PanelInfo
+from .endpoints import ACTION_ENDPOINTS, DataEndpointType, fetch_data_endpoints, fetch_action_endpoint, \
+    ActionEndpointType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,6 +22,16 @@ _LOGGER = logging.getLogger(__name__)
 class AuthenticationError(Exception):
     """Exception raised for authentication errors."""
 
+class APIResponse:
+    def __init__(self, response_code: int, response: Any):
+        self.response_code = response_code
+        self.response_data = response
+
+    def __str__(self):
+        return f"ApiResponse(response_code={self.response_code}, response_data={self.response_data})"
+
+    def is_ok(self) -> bool:
+        return self.response_code == 200
 
 class SectorAlarmAPI:
     """Class to interact with the Sector Alarm API."""
@@ -34,15 +47,14 @@ class SectorAlarmAPI:
         self.access_token = None
         self.headers: dict[str, str] = {}
         self.session = None
-        self.data_endpoints = get_data_endpoints(self.panel_id)
-        self.action_endpoints = get_action_endpoints()
+        self.action_endpoints = ACTION_ENDPOINTS
 
     async def login(self):
         """Authenticate with the API and obtain an access token."""
         if self.session is None:
             self.session = async_get_clientsession(self.hass)
 
-        login_url = f"{self.API_URL}/api/Login/Login"
+        login_url = fetch_action_endpoint(ActionEndpointType.LOGIN).uri()
         payload = {
             "userId": self.email,
             "password": self.password,
@@ -76,13 +88,13 @@ class SectorAlarmAPI:
         """Retrieve available panels from the API."""
         data = {}
         panellist_url = f"{self.API_URL}/api/account/GetPanelList"
-        response = await self._get(panellist_url)
-        _LOGGER.debug(f"panel_payload: {response}")
+        response: APIResponse = await self._get(panellist_url)
+        _LOGGER.debug(f"panel_payload: {response.response_data}")
 
-        if response:
+        if response and response.is_ok():
             data = {
                 item["PanelId"]: item["DisplayName"]
-                for item in response
+                for item in response.response_data
                 if "PanelId" in item
             }
         else:
@@ -90,51 +102,49 @@ class SectorAlarmAPI:
 
         return data
 
-    async def retrieve_all_data(self):
+    async def get_panel_info(self) -> PanelInfo:
+        """Retrieve available panels from the API."""
+        uri = f"{self.API_URL}/api/Panel/GetPanel?panelId={self.panel_id}"
+        response: APIResponse = await self._get(uri)
+        _LOGGER.debug(f"panel_payload: {response}")
+
+        if response is None or response.is_ok() == False:
+            _LOGGER.error("Failed to retrieve panel %s", self.panel_id)
+
+        return response.response_data
+
+    async def retrieve_all_data(self, data_endpoint_types: set[DataEndpointType]) -> dict[DataEndpointType, APIResponse]:
         """Retrieve all relevant data from the API."""
         data = {}
+        data_endpoints = fetch_data_endpoints(data_endpoint_types)
 
         # Iterate over data endpoints
-        for key, (method, url) in self.data_endpoints.items():
-            if method == "GET":
-                response = await self._get(url)
-            elif method == "POST":
+        for endpoint in data_endpoints:
+            url = endpoint.uri(self.panel_id)
+            if endpoint.method() == "GET":
+                response: APIResponse = await self._get(url)
+            elif endpoint.method() == "POST":
                 # For POST requests, we need to provide the panel ID in the payload
                 payload = {"PanelId": self.panel_id}
-                response = await self._post(url, payload)
+                response: APIResponse = await self._post(url, payload)
             else:
-                _LOGGER.error("Unsupported HTTP method %s for endpoint %s", method, key)
+                _LOGGER.error("Unsupported HTTP method %s for endpoint %s", endpoint.method(), url)
                 continue
 
             if response:
-                data[key] = response
-            else:
-                _LOGGER.info("No data retrieved for %s", key)
-
-        locks_status = await self.get_lock_status()
-        data["Lock Status"] = locks_status
-
+                data[endpoint.type()] = response
         return data
 
-    async def get_lock_status(self):
-        """Retrieve the lock status."""
-        url = f"{self.API_URL}/api/panel/GetLockStatus?panelId={self.panel_id}"
-        response = await self._get(url)
-        if response:
-            return response
-        else:
-            _LOGGER.warning("Failed to retrieve lock status")
-            return []
-
-    async def _get(self, url):
+    async def _get(self, url) -> APIResponse | None:
         """Helper method to perform GET requests with timeout."""
         try:
-            async with async_timeout.timeout(10):
+            async with async_timeout.timeout(15):
                 async with self.session.get(url, headers=self.headers) as response:
                     if response.status == 200:
                         content_type = response.headers.get("Content-Type", "")
                         if "application/json" in content_type:
-                            return await response.json()
+                            json = await response.json()
+                            return APIResponse(response_code=response.status, response=json)
                         else:
                             text = await response.text()
                             _LOGGER.error(
@@ -143,13 +153,13 @@ class SectorAlarmAPI:
                             return None
                     else:
                         text = await response.text()
-                        _LOGGER.error(
+                        _LOGGER.warning(
                             "GET request to %s failed with status code %s, response: %s",
                             url,
                             response.status,
                             text,
                         )
-                        return None
+                        return APIResponse(response_code=response.status, response=text)
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout occurred during GET request to %s", url)
             return None
@@ -157,17 +167,18 @@ class SectorAlarmAPI:
             _LOGGER.error("Client error during GET request to %s: %s", url, str(e))
             return None
 
-    async def _post(self, url, payload):
+    async def _post(self, url, payload) -> APIResponse | None:
         """Helper method to perform POST requests with timeout."""
         try:
-            async with async_timeout.timeout(10):
+            async with async_timeout.timeout(15):
                 async with self.session.post(
                     url, json=payload, headers=self.headers
                 ) as response:
                     if response.status == 200:
                         content_type = response.headers.get("Content-Type", "")
                         if "application/json" in content_type:
-                            return await response.json()
+                            json = await response.json()
+                            return APIResponse(response_code=response.status, response=json)
                         else:
                             text = await response.text()
                             _LOGGER.error(
@@ -176,13 +187,13 @@ class SectorAlarmAPI:
                             return None
                     else:
                         text = await response.text()
-                        _LOGGER.error(
+                        _LOGGER.warning(
                             "POST request to %s failed with status code %s, response: %s",
                             url,
                             response.status,
                             text,
                         )
-                        return None
+                        return APIResponse(response_code=response.status, response=text)
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout occurred during POST request to %s", url)
             return None
@@ -194,16 +205,19 @@ class SectorAlarmAPI:
         """Arm the alarm system."""
         panel_code = code
         if mode == "total":
-            url = self.action_endpoints["Arm"][1]
+            endpoint = fetch_action_endpoint(ActionEndpointType.ARM)
         elif mode == "partial":
-            url = self.action_endpoints["PartialArm"][1]
+            endpoint = fetch_action_endpoint(ActionEndpointType.PARTIAL_ARM)
+        else:
+            _LOGGER.error("Unsupported mode %s", mode)
+            raise NotImplementedError("Unsupported mode %s", mode)
 
         payload = {
             "PanelCode": panel_code,
             "PanelId": self.panel_id,
         }
-        result = await self._post(url, payload)
-        if result is not None:
+        result: APIResponse = await self._post(endpoint.uri(), payload)
+        if result and result.is_ok():
             _LOGGER.debug("System armed successfully")
             return True
         else:
@@ -213,13 +227,13 @@ class SectorAlarmAPI:
     async def disarm_system(self, code: str):
         """Disarm the alarm system."""
         panel_code = code
-        url = self.action_endpoints["Disarm"][1]
+        url = fetch_action_endpoint(ActionEndpointType.DISARM).uri()
         payload = {
             "PanelCode": panel_code,
             "PanelId": self.panel_id,
         }
-        result = await self._post(url, payload)
-        if result is not None:
+        result: APIResponse = await self._post(url, payload)
+        if result and result.is_ok():
             _LOGGER.debug("System disarmed successfully")
             return True
         else:
@@ -229,15 +243,15 @@ class SectorAlarmAPI:
     async def lock_door(self, serial_no: str, code: str):
         """Lock a specific door."""
         panel_code = code
-        url = self.action_endpoints["Lock"][1]
+        url = fetch_action_endpoint(ActionEndpointType.LOCK).uri()
         payload = {
             "LockSerial": serial_no,
             "PanelCode": panel_code,
             "PanelId": self.panel_id,
             "SerialNo": serial_no,
         }
-        result = await self._post(url, payload)
-        if result is not None:
+        result: APIResponse = await self._post(url, payload)
+        if result and result.is_ok():
             _LOGGER.debug("Door %s locked successfully", serial_no)
             return True
         else:
@@ -247,15 +261,15 @@ class SectorAlarmAPI:
     async def unlock_door(self, serial_no: str, code: str):
         """Unlock a specific door."""
         panel_code = code
-        url = self.action_endpoints["Unlock"][1]
+        url = fetch_action_endpoint(ActionEndpointType.UNLOCK).uri()
         payload = {
             "LockSerial": serial_no,
             "PanelCode": panel_code,
             "PanelId": self.panel_id,
             "SerialNo": serial_no,
         }
-        result = await self._post(url, payload)
-        if result is not None:
+        result: APIResponse = await self._post(url, payload)
+        if result and result.is_ok():
             _LOGGER.debug("Door %s unlocked successfully", serial_no)
             return True
         else:
@@ -264,13 +278,13 @@ class SectorAlarmAPI:
 
     async def turn_on_smartplug(self, plug_id):
         """Turn on a smart plug."""
-        url = self.action_endpoints["TurnOnSmartplug"][1]
+        url = fetch_action_endpoint(ActionEndpointType.TURN_ON_SMART_PLUG).uri()
         payload = {
             "PanelId": self.panel_id,
             "DeviceId": plug_id,
         }
-        result = await self._post(url, payload)
-        if result is not None:
+        result: APIResponse = await self._post(url, payload)
+        if result and result.is_ok():
             _LOGGER.debug("Smart plug %s turned on successfully", plug_id)
             return True
         else:
@@ -279,13 +293,13 @@ class SectorAlarmAPI:
 
     async def turn_off_smartplug(self, plug_id):
         """Turn off a smart plug."""
-        url = self.action_endpoints["TurnOffSmartplug"][1]
+        url = fetch_action_endpoint(ActionEndpointType.TURN_OFF_SMART_PLUG).uri()
         payload = {
             "PanelId": self.panel_id,
             "DeviceId": plug_id,
         }
-        result = await self._post(url, payload)
-        if result is not None:
+        result: APIResponse = await self._post(url, payload)
+        if result and result.is_ok():
             _LOGGER.debug("Smart plug %s turned off successfully", plug_id)
             return True
         else:
@@ -299,8 +313,8 @@ class SectorAlarmAPI:
             "PanelId": self.panel_id,
             "SerialNo": serial_no,
         }
-        response = await self._post(url, payload)
-        if response and response.get("ImageData"):
+        response: APIResponse = await self._post(url, payload)
+        if response and response.response_data.get("ImageData"):
             image_data = base64.b64decode(response["ImageData"])
             return image_data
         _LOGGER.error("Failed to retrieve image for camera %s", serial_no)
@@ -308,5 +322,5 @@ class SectorAlarmAPI:
 
     async def logout(self):
         """Logout from the API."""
-        logout_url = f"{self.API_URL}/api/Login/Logout"
+        logout_url = fetch_action_endpoint(ActionEndpointType.LOGOUT).uri()
         await self._post(logout_url, {})

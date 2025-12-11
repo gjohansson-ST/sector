@@ -81,9 +81,18 @@ class SectorAlarmSensor(SectorAlarmBaseEntity, SensorEntity):
         super().__init__(coordinator, serial_no, device_name, device_model)
         self.entity_description = entity_description
         self._attr_unique_id = f"{serial_no}_{entity_description.key}"
+        self._previous_value = None
 
     @property
     def native_value(self) -> float | None:
         """Return the sensor value."""
+        # return previous value if none, so we do alter the sensor value in case sensor failed
         device = self.coordinator.data["devices"].get(self._serial_no)
-        return device["sensors"].get(self.entity_description.key) if device else None
+        if not device:
+            return self._previous_value
+
+        value = device["sensors"].get(self.entity_description.key)
+        if value:
+            self._previous_value = value
+
+        return value
