@@ -19,7 +19,7 @@ from homeassistant.util import slugify
 from .api_model import SmartPlug, Temperature, Lock, HouseCheck, LogRecords
 from .client import AuthenticationError, SectorAlarmAPI, PanelInfo, APIResponse, LoginError
 from .const import CATEGORY_MODEL_MAPPING, DOMAIN
-from .endpoints import DataEndpointType
+from .endpoints import MANDATORY_DATA_ENDPOINT_TYPES, OPTIONAL_DATA_ENDPOINT_TYPES, DataEndpointType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,25 +81,27 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             if panel_info is None:
                 raise UpdateFailed("Unable to fetch information from Sector Alarm")
 
-            supported_endpoint_types = set(DataEndpointType)
+            mandatory_endpoint_types = MANDATORY_DATA_ENDPOINT_TYPES.copy()
+            optional_endpoint_types = OPTIONAL_DATA_ENDPOINT_TYPES.copy()
             temperatures: list[Temperature] = panel_info.get("Temperatures", {})
             locks: list[Lock] = panel_info.get("Locks", {})
             plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
 
             if temperatures.__len__() == 0:
                 self._use_legacy_api = False
-                supported_endpoint_types.remove(DataEndpointType.TEMPERATURES_LEGACY)
+                optional_endpoint_types.remove(DataEndpointType.TEMPERATURES_LEGACY)
             if locks.__len__() == 0:
-                supported_endpoint_types.remove(DataEndpointType.LOCK_STATUS)
+                optional_endpoint_types.remove(DataEndpointType.LOCK_STATUS)
             if plugs.__len__() == 0:
-                supported_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
+                optional_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
 
             # Scan and build supported endpoints
-            api_data: dict[DataEndpointType, APIResponse] = await self.api.retrieve_all_data(supported_endpoint_types)
+            api_data: dict[DataEndpointType, APIResponse] = await self.api.retrieve_all_data(optional_endpoint_types)
             for endpoint_type, response in api_data.items():
                 if response.response_code == 404:
-                    supported_endpoint_types.remove(endpoint_type)
+                    optional_endpoint_types.remove(endpoint_type)
 
+            supported_endpoint_types = mandatory_endpoint_types | optional_endpoint_types
             _LOGGER.debug("Supported endpoint types: %s", supported_endpoint_types)
             self._data_endpoints = supported_endpoint_types
 
