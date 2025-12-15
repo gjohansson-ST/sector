@@ -6,8 +6,8 @@ API_URL = "https://mypagesapi.sectoralarm.net"
 class DataEndpointType(Enum):
     LOGS = "Logs"
     PANEL_STATUS = "Panel Status"
-    SMART_PLUG_STATUS = "Smart Plug Status",
-    LOCK_STATUS = "Lock Status",
+    SMART_PLUG_STATUS = "Smart Plug",
+    LOCK_STATUS = "Smart Lock",
     HUMIDITY = "Humidity",
     DOORS_AND_WINDOWS = "Doors and Windows",
     LEAKAGE_DETECTORS = "Leakage Detectors",

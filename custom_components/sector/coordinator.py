@@ -160,7 +160,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         """Create a unique identifier for each log event."""
         return f"{log['LockName']}_{log['EventType']}_{log['Time']}"
 
-    def get_latest_log(self, event_type: str, lock_name: str = None):
+    def get_latest_log(self, event_type: str, lock_name: str):
         """Retrieve the latest log for a specific event type, optionally by LockName."""
         if not lock_name:
             _LOGGER.debug("Lock name not provided. Unable to fetch latest log.")
@@ -316,7 +316,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             self, category_name: DataEndpointType, category_data: HouseCheck, devices: dict
     ) -> None:
         """Process devices within a specific category and add them to devices dictionary."""
-        default_model_name = CATEGORY_MODEL_MAPPING.get(category_name, category_name)
+        default_model_name = category_name.value
 
         if "Sections" in category_data:
             for section in category_data["Sections"]:
