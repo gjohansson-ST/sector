@@ -125,6 +125,10 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             )
             _LOGGER.debug("Supported endpoint types: %s", supported_endpoint_types)
             self._data_endpoints = supported_endpoint_types
+            self.data = {
+                "devices": {},
+                "logs": {}
+            }
 
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
@@ -154,8 +158,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 log_data: LogRecords = api_data[DataEndpointType.LOGS].response_data
                 self._event_logs = await self._process_event_logs(log_data, devices)
 
+            # Update device information
+            current_device_data: dict[str, Any] = (self.data["devices"]).copy()
+            current_device_data.update(devices)
+
             return {
-                "devices": devices,
+                "devices": current_device_data,
                 "logs": self._event_logs,
             }
 
