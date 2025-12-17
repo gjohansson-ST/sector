@@ -16,10 +16,20 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
-from .api_model import SmartPlug, Temperature, Lock, HouseCheck, LogRecords
-from .client import AuthenticationError, SectorAlarmAPI, PanelInfo, APIResponse, LoginError
-from .const import CATEGORY_MODEL_MAPPING, DOMAIN
-from .endpoints import MANDATORY_DATA_ENDPOINT_TYPES, OPTIONAL_DATA_ENDPOINT_TYPES, DataEndpointType
+from .api_model import PanelStatus, SmartPlug, Temperature, Lock, HouseCheck, LogRecords
+from .client import (
+    AuthenticationError,
+    SectorAlarmAPI,
+    PanelInfo,
+    APIResponse,
+    LoginError,
+)
+from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
+from .endpoints import (
+    MANDATORY_DATA_ENDPOINT_TYPES,
+    OPTIONAL_DATA_ENDPOINT_TYPES,
+    DataEndpointType,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,13 +42,20 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
     config_entry: SectorAlarmConfigEntry
 
-    def __init__(self, hass: HomeAssistant, entry: SectorAlarmConfigEntry, sector_api: SectorAlarmAPI) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: SectorAlarmConfigEntry,
+        sector_api: SectorAlarmAPI,
+    ) -> None:
         """Initialize the coordinator."""
         self.hass = hass
         self.api = sector_api
-        self._use_legacy_api = True,
+        self._panel_id = entry.data[CONF_PANEL_ID]
+        self._use_legacy_api = (True,)
         self._legacy_temperature_last_update: Optional[datetime] = None
         self._data_endpoints: set[DataEndpointType] = set()
+        self._event_logs: dict[str, Any] = {}
         super().__init__(
             hass,
             _LOGGER,
@@ -96,12 +113,16 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 optional_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
 
             # Scan and build supported endpoints
-            api_data: dict[DataEndpointType, APIResponse] = await self.api.retrieve_all_data(optional_endpoint_types)
+            api_data: dict[
+                DataEndpointType, APIResponse
+            ] = await self.api.retrieve_all_data(optional_endpoint_types)
             for endpoint_type, response in api_data.items():
                 if response.response_code == 404:
                     optional_endpoint_types.remove(endpoint_type)
 
-            supported_endpoint_types = mandatory_endpoint_types | optional_endpoint_types
+            supported_endpoint_types = (
+                mandatory_endpoint_types | optional_endpoint_types
+            )
             _LOGGER.debug("Supported endpoint types: %s", supported_endpoint_types)
             self._data_endpoints = supported_endpoint_types
 
@@ -122,17 +143,19 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 api_data = await self.api.retrieve_all_data(self._data_endpoints)
             _LOGGER.debug("API ALL DATA: %s", api_data)
 
-            # Process devices and panel status
-            devices, panel_status = self._process_devices(api_data)
+            # Process devices
+            devices = self._process_devices(api_data)
 
             # Process logs for event handling
-            if api_data[DataEndpointType.LOGS] and api_data[DataEndpointType.LOGS].is_ok():
+            if (
+                DataEndpointType.LOGS in api_data
+                and api_data[DataEndpointType.LOGS].is_ok()
+            ):
                 log_data: LogRecords = api_data[DataEndpointType.LOGS].response_data
                 self._event_logs = await self._process_event_logs(log_data, devices)
 
             return {
                 "devices": devices,
-                "panel_status": panel_status,
                 "logs": self._event_logs,
             }
 
@@ -147,8 +170,15 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
     async def _legacy_retrieve_all_data(self):
         now = datetime.now(tz=dt_util.UTC)
         # Only refresh legacy temperatures every 15 min as they are costly
-        if self._legacy_temperature_last_update and now - self._legacy_temperature_last_update < timedelta(minutes=15):
-            redacted_temperatures = {e for e in self._data_endpoints if e != DataEndpointType.TEMPERATURES_LEGACY}
+        if (
+            self._legacy_temperature_last_update
+            and now - self._legacy_temperature_last_update < timedelta(minutes=15)
+        ):
+            redacted_temperatures = {
+                e
+                for e in self._data_endpoints
+                if e != DataEndpointType.TEMPERATURES_LEGACY
+            }
             return await self.api.retrieve_all_data(redacted_temperatures)
 
         data = await self.api.retrieve_all_data(self._data_endpoints)
@@ -222,22 +252,31 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         )
         return None
 
-    def _process_devices(self, api_data: dict[DataEndpointType, APIResponse]) -> tuple[dict[str, Any], dict[str, Any]]:
+    def _process_devices(
+        self, api_data: dict[DataEndpointType, APIResponse]
+    ) -> dict[str, Any]:
         """Process device data from the API, including humidity, closed, and alarm sensors."""
         devices: dict[str, Any] = {}
-        panel_status = {}
         for category_name, category_data in api_data.items():
             if category_name in [DataEndpointType.LOGS]:
                 continue
 
             _LOGGER.debug("Processing category: %s", category_name)
-            if category_data is None or category_data.response_data is None or category_data.is_ok() == False:
-                _LOGGER.warning("Unable to process data for category '%s': data=%s", category_name, category_data)
+            if (
+                category_data is None
+                or category_data.response_data is None
+                or not category_data.is_ok()
+            ):
+                _LOGGER.warning(
+                    "Unable to process data for category '%s': data=%s",
+                    category_name,
+                    category_data,
+                )
                 continue
 
             response_data = category_data.response_data
             if category_name == DataEndpointType.PANEL_STATUS:
-                panel_status = response_data
+                self._process_alarm_panel(response_data, devices)
             elif category_name == DataEndpointType.SMART_PLUG_STATUS:
                 self._process_smart_plugs(response_data, devices)
             elif category_name == DataEndpointType.LOCK_STATUS:
@@ -247,9 +286,11 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 self._process_housecheck_devices(category_name, response_data, devices)
 
-        return devices, panel_status
+        return devices
 
-    def _process_legacy_temperatures(self, temps_data: list[Temperature], devices: dict) -> None:
+    def _process_legacy_temperatures(
+        self, temps_data: list[Temperature], devices: dict
+    ) -> None:
         """Process legacy temperatures"""
         for temp in temps_data:
             serial_no = temp.get("SerialNo") or temp.get("Serial")
@@ -266,11 +307,15 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 "model": "Temperature Sensor",
             }
             _LOGGER.debug(
-                "Processed temperature sensor with serial_no %s: %s", serial_no, devices[serial_no]
+                "Processed temperature sensor with serial_no %s: %s",
+                serial_no,
+                devices[serial_no],
             )
 
-    def _process_smart_plugs(self, smart_plug_data: list[SmartPlug], devices: dict) -> None:
-        """Process lock data and add to devices dictionary."""
+    def _process_smart_plugs(
+        self, smart_plug_data: list[SmartPlug], devices: dict
+    ) -> None:
+        """Process smart plugs data and add to devices dictionary."""
         for smart_plug in smart_plug_data:
             serial_no = smart_plug.get("SerialNo") or smart_plug.get("Serial")
             plug_id = smart_plug.get("Id")
@@ -282,14 +327,32 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 "name": smart_plug.get("Label"),
                 "id": plug_id,
                 "serial_no": serial_no,
-                "sensors": {
-                    "plug_status": smart_plug.get("Status")
-                },
+                "sensors": {"plug_status": smart_plug.get("Status")},
                 "model": "Smart Plug",
             }
             _LOGGER.debug(
                 "Processed smart plug with Serial %s: %s", serial_no, devices[serial_no]
             )
+
+    def _process_alarm_panel(
+        self, panel_status_data: PanelStatus, devices: dict
+    ) -> None:
+        """Process alarm panel status data and add to devices dictionary."""
+        serial_no = self._panel_id
+        devices["alarm_panel"] = {
+            "name": "Alarm Control Panel",
+            "serial_no": serial_no,
+            "sensors": {
+                "online": panel_status_data.get("IsOnline"),
+                "alarm_status": panel_status_data.get("Status"),
+            },
+            "model": "Sector Alarm Control Panel",
+        }
+        _LOGGER.debug(
+            "Processed alarm panel with Serial %s: %s",
+            serial_no,
+            devices["alarm_panel"],
+        )
 
     def _process_locks(self, locks_data: list[Lock], devices: dict) -> None:
         """Process lock data and add to devices dictionary."""
@@ -299,21 +362,28 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning("Lock is missing Serial: %s", lock)
                 continue
 
+            name = lock.get("Label")
+            lock_status = lock.get("Status")
+            low_battery = lock.get("BatteryLow")
+            if low_battery is None:
+                low_battery = lock.get("LowBattery")
+
             devices[serial_no] = {
-                "name": lock.get("Label"),
+                "name": name,
                 "serial_no": serial_no,
                 "sensors": {
-                    "lock_status": lock.get("Status"),
-                    "low_battery": lock.get("BatteryLow") or lock.get("LowBattery"),
+                    "lock_status": lock_status,
+                    **({"low_battery": low_battery} if low_battery is not None else {}),
                 },
                 "model": "Smart Lock",
             }
+
             _LOGGER.debug(
                 "Processed lock with serial_no %s: %s", serial_no, devices[serial_no]
             )
 
     def _process_housecheck_devices(
-            self, category_name: DataEndpointType, category_data: HouseCheck, devices: dict
+        self, category_name: DataEndpointType, category_data: HouseCheck, devices: dict
     ) -> None:
         """Process devices within a specific category and add them to devices dictionary."""
         default_model_name = category_name.value
@@ -337,7 +407,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
                         sensors = {}
                         if component["Closed"] is not None:
-                           sensors["closed"] = component["Closed"]
+                            sensors["closed"] = component["Closed"]
 
                         if component["LowBattery"] is not None:
                             sensors["low_battery"] = component["LowBattery"]
@@ -364,13 +434,12 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                         device_info = devices.setdefault(
                             serial_no,
                             {
-                                "name": component.get("Label")
-                                        or component.get("Name"),
+                                "name": component.get("Label") or component.get("Name"),
                                 "serial_no": serial_no,
                                 "sensors": sensors,
                                 "model": model_name,
                                 "type": component.get("Type", ""),
-                            }
+                            },
                         )
 
                         _LOGGER.debug(
@@ -480,6 +549,6 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Grouped events by lock: %s", grouped_events)
         return grouped_events
 
-    def process_events(self) -> dict:
+    def get_processed_events(self) -> dict:
         """Return processed event logs grouped by device."""
         return self._event_logs

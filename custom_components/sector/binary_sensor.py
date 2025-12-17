@@ -13,7 +13,6 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_PANEL_ID
 from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
 from .entity import SectorAlarmBaseEntity
 
@@ -62,10 +61,6 @@ async def async_setup_entry(
         | SectorAlarmPanelOnlineBinarySensor
         | SectorAlarmClosedSensor
     ] = []
-
-    panel_status = coordinator.data.get("panel_status", {})
-    panel_id = entry.data[CONF_PANEL_ID]
-    serial_no = panel_status.get("SerialNo") or panel_id
 
     for device in devices.values():
         serial_no = device["serial_no"]
@@ -160,5 +155,5 @@ class SectorAlarmPanelOnlineBinarySensor(SectorAlarmBinarySensor, BinarySensorEn
     @property
     def is_on(self):
         """Return True if the panel is online."""
-        panel_status = self.coordinator.data.get("panel_status", {})
-        return panel_status.get("IsOnline", False)
+        device = self.coordinator.data["devices"].get("alarm_panel")
+        return not device["sensors"].get("online", False) if device else False

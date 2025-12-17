@@ -153,7 +153,7 @@ class SectorAlarmAPI:
 
     async def get_panel_info(self) -> PanelInfo:
         """Retrieve available panels from the API."""
-        uri = f"{self.API_URL}/api/Panel/GetPanel?panelId={self._panel_id}"
+        uri = f"{API_URL}/api/Panel/GetPanel?panelId={self._panel_id}"
         response: APIResponse = await self._get(uri)
         _LOGGER.debug(f"panel_payload: {response}")
 
@@ -379,7 +379,7 @@ class SectorAlarmAPI:
 
     async def get_camera_image(self, serial_no):
         """Retrieve the latest image from a camera."""
-        url = f"{self.API_URL}/api/camera/GetCameraImage"
+        url = f"{API_URL}/api/camera/GetCameraImage"
         payload = {
             "PanelId": self._panel_id,
             "SerialNo": serial_no,

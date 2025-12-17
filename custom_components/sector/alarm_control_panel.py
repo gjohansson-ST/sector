@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
@@ -69,12 +69,17 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
     @property
     def alarm_state(self) -> AlarmControlPanelState | None:
         """Return the state of the device."""
-        status = self.coordinator.data.get("panel_status", {})
-        if not status.get("IsOnline", True):
+        devices: dict[str, Any] = self.coordinator.data.get("devices", {})
+        alarm_panel: dict[str, Any] = devices.get("alarm_panel", {})
+        sensors: dict[str, Any] = alarm_panel.get("sensors", {})
+
+        status_code = sensors.get("alarm_status", 0)
+        online_status = sensors.get("online", False)
+
+        if not online_status:
             return None
 
         # Map status code to the appropriate Home Assistant state
-        status_code = status.get("Status", 0)
         mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code)
         _LOGGER.debug(
             "Alarm status_code: %s, Mapped state: %s", status_code, mapped_state

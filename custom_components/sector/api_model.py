@@ -1,5 +1,4 @@
-from typing import TypedDict
-
+from typing import Optional, TypedDict
 
 class PanelStatus(TypedDict):
     IsOnline: bool
@@ -17,8 +16,8 @@ class Lock(TypedDict):
     Serial: str
     SerialNo: str
     Status: str
-    BatteryLow: bool # unsure if valid
-    LowBattery: bool # unsure if valid
+    BatteryLow: Optional[bool] # unsure if valid
+    LowBattery: Optional[bool] # unsure if valid
 
 class SmartPlug(TypedDict):
     Id: str
@@ -36,7 +35,6 @@ class Temperature(TypedDict):
 class LogRecord(TypedDict):
     User: str
     Channel: str
-    UserTranslationKey: str
     Time: str
     EventType: str
     LockName: str
@@ -56,12 +54,12 @@ class Component(TypedDict):
     Label: str
     Name: str
     Type: str
-    Closed: bool
-    LowBattery: bool
-    BatteryLow: bool
-    Alarm: bool
-    Temperature: float
-    Humidity: float
+    Closed: Optional[bool]
+    LowBattery: Optional[bool]
+    BatteryLow: Optional[bool]
+    Alarm: Optional[bool]
+    Temperature: Optional[float]
+    Humidity: Optional[float]
 
 class Place(TypedDict):
     Components: list[Component]
