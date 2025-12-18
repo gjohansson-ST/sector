@@ -10,7 +10,13 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .client import AsyncTokenProvider, SectorAlarmAPI
 from .const import PLATFORMS, CONF_PANEL_ID
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .coordinator import (
+    SectorActionDataUpdateCoordinator,
+    SectorAlarmConfigEntry,
+    SectorCoordinatorType,
+    SectorPanelInfoDataUpdateCoordinator,
+    SectorSensorDataUpdateCoordinator,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,13 +30,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         token_provider=AsyncTokenProvider(
             client_session=client_session,
             email=entry.data[CONF_EMAIL],
-            password=entry.data[CONF_PASSWORD]
-        )
+            password=entry.data[CONF_PASSWORD],
+        ),
     )
 
-    coordinator = SectorDataUpdateCoordinator(hass, entry, sector_api)
-    await coordinator.async_config_entry_first_refresh()
-    entry.runtime_data = coordinator
+    panel_info_coordinator = SectorPanelInfoDataUpdateCoordinator(
+        hass, entry, sector_api
+    )
+    action_coordinator = SectorActionDataUpdateCoordinator(
+        hass, entry, sector_api, panel_info_coordinator
+    )
+    sensor_coordinator = SectorSensorDataUpdateCoordinator(
+        hass, entry, sector_api, panel_info_coordinator
+    )
+
+    await panel_info_coordinator.async_config_entry_first_refresh()
+    await action_coordinator.async_config_entry_first_refresh()
+    await sensor_coordinator.async_config_entry_first_refresh()
+
+    entry.runtime_data = {
+        SectorCoordinatorType.PANEL_INFO: panel_info_coordinator,
+        SectorCoordinatorType.ACTION_DEVICES: action_coordinator,
+        SectorCoordinatorType.SENSOR_DEVICES: sensor_coordinator,
+    }
 
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
@@ -40,21 +62,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
 
 
 async def async_update_listener(
-        hass: HomeAssistant, entry: SectorAlarmConfigEntry
+    hass: HomeAssistant, entry: SectorAlarmConfigEntry
 ) -> None:
     """Handle options update."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(
-        hass: HomeAssistant, entry: SectorAlarmConfigEntry
+    hass: HomeAssistant, entry: SectorAlarmConfigEntry
 ) -> bool:
     """Unload a Sector Alarm config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_migrate_entry(
-        hass: HomeAssistant, entry: SectorAlarmConfigEntry
+    hass: HomeAssistant, entry: SectorAlarmConfigEntry
 ) -> bool:
     """Migrate old entry."""
     _LOGGER.debug("Migrating from version %s", entry.version)

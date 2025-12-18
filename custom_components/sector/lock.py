@@ -1,7 +1,7 @@
 """Locks for Sector Alarm."""
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.const import ATTR_CODE
@@ -9,7 +9,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import CONF_CODE_FORMAT
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .coordinator import (
+    SectorActionDataUpdateCoordinator,
+    SectorAlarmConfigEntry,
+    SectorCoordinatorType,
+)
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,7 +25,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Sector Alarm locks."""
-    coordinator = entry.runtime_data
+    coordinator = cast(
+        SectorActionDataUpdateCoordinator,
+        entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
+    )
     code_format = entry.options[CONF_CODE_FORMAT]
     devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
     entities = []
@@ -45,14 +52,17 @@ async def async_setup_entry(
     else:
         _LOGGER.debug("No lock entities to add.")
 
-class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
+
+class SectorAlarmLock(
+    SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], LockEntity
+):
     """Representation of a Sector Alarm lock."""
 
     _attr_name = None
 
     def __init__(
         self,
-        coordinator: SectorDataUpdateCoordinator,
+        coordinator: SectorActionDataUpdateCoordinator,
         code_format: int,
         serial_no: str,
         device_name: str,

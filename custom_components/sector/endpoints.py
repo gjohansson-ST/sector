@@ -27,25 +27,6 @@ class ActionEndpointType(Enum):
     TURN_OFF_SMART_PLUG = "Turn off Smart Plug",
     TURN_ON_SMART_PLUG = "Turn on Smart Plug"
 
-OPTIONAL_DATA_ENDPOINT_TYPES = {
-    # via HouseCheck API
-    DataEndpointType.TEMPERATURES,
-    DataEndpointType.HUMIDITY,
-    DataEndpointType.LEAKAGE_DETECTORS,
-    DataEndpointType.SMOKE_DETECTORS,
-    DataEndpointType.DOORS_AND_WINDOWS,
-    DataEndpointType.CAMERAS,
-    # via legacy
-    DataEndpointType.TEMPERATURES_LEGACY,
-    DataEndpointType.LOCK_STATUS,
-    DataEndpointType.SMART_PLUG_STATUS,
-}
-
-MANDATORY_DATA_ENDPOINT_TYPES = {
-    DataEndpointType.PANEL_STATUS,
-    DataEndpointType.LOGS
-}
-
 class DataEndpoint:
     def __init__(self, type: DataEndpointType, method: str, uri: str) -> None:
         self._endpoint_type = type

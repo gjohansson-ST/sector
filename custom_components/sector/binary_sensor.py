@@ -12,8 +12,9 @@ from homeassistant.components.binary_sensor import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .coordinator import SectorAlarmConfigEntry, SectorCoordinatorType
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,7 +55,20 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Sector Alarm binary sensors."""
-    coordinator = entry.runtime_data
+    coordinator_action: DataUpdateCoordinator = entry.runtime_data[
+        SectorCoordinatorType.ACTION_DEVICES
+    ]
+    coordinator_sensor: DataUpdateCoordinator = entry.runtime_data[
+        SectorCoordinatorType.SENSOR_DEVICES
+    ]
+
+    _proccess_coordinator(coordinator_action, async_add_entities)
+    _proccess_coordinator(coordinator_sensor, async_add_entities)
+
+
+def _proccess_coordinator(
+    coordinator: DataUpdateCoordinator, async_add_entities: AddEntitiesCallback
+):
     devices: dict[str, Any] = coordinator.data.get("devices", {})
     entities: list[
         SectorAlarmBinarySensor
@@ -69,7 +83,6 @@ async def async_setup_entry(
         device_model = device.get("model", "")
 
         for description in BINARY_SENSOR_TYPES:
-
             if description.key not in sensors:
                 continue
 
@@ -119,7 +132,7 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
 
     def __init__(
         self,
-        coordinator: SectorDataUpdateCoordinator,
+        coordinator: DataUpdateCoordinator,
         serial_no: str,
         entity_description: BinarySensorEntityDescription,
         device_name: str,
@@ -138,6 +151,7 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
         sensors = device.get("sensors", {})
         return sensors.get(self._sensor_type, None)
 
+
 class SectorAlarmClosedSensor(SectorAlarmBinarySensor):
     """Binary sensor for detecting closed status of doors/windows."""
 
@@ -147,6 +161,7 @@ class SectorAlarmClosedSensor(SectorAlarmBinarySensor):
         device: dict = self.coordinator.data["devices"].get(self._serial_no, {})
         sensors = device.get("sensors", {})
         return sensors.get("closed", None)
+
 
 class SectorAlarmPanelOnlineBinarySensor(SectorAlarmBinarySensor, BinarySensorEntity):
     """Binary sensor for the Sector Alarm panel online status."""

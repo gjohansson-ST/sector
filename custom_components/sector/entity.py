@@ -3,25 +3,28 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, TypeVar
 
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+)
 
 from .const import DOMAIN
-from .coordinator import SectorDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+_DataT = TypeVar("_DataT", bound=DataUpdateCoordinator)
 
-class SectorAlarmBaseEntity(CoordinatorEntity[SectorDataUpdateCoordinator]):
+class SectorAlarmBaseEntity(CoordinatorEntity[_DataT]):
     """Representation of a Sector Alarm base entity."""
 
     _attr_has_entity_name = True
 
     def __init__(
         self,
-        coordinator: SectorDataUpdateCoordinator,
+        coordinator: _DataT,
         serial_no: str,
         device_name: str,
         device_model: str | None,

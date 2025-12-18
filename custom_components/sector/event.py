@@ -2,14 +2,18 @@
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .coordinator import (
+    SectorActionDataUpdateCoordinator,
+    SectorAlarmConfigEntry,
+    SectorCoordinatorType,
+)
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,7 +25,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up a single event entity per device in Sector Alarm coordinator."""
-    coordinator: SectorDataUpdateCoordinator = entry.runtime_data
+    coordinator = cast(
+        SectorActionDataUpdateCoordinator,
+        entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
+    )
     grouped_events = coordinator.get_processed_events()
     entities = []
 
@@ -61,7 +68,9 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
+class SectorAlarmEvent(
+    SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], EventEntity
+):
     """Representation of a single event entity for a Sector Alarm device."""
 
     def __init__(self, coordinator, serial_no, device_info):

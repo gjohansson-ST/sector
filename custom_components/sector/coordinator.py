@@ -1,5 +1,6 @@
 """Sector Alarm coordinator."""
 
+from enum import Enum
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Optional
@@ -26,42 +27,178 @@ from .client import (
 )
 from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
 from .endpoints import (
-    MANDATORY_DATA_ENDPOINT_TYPES,
-    OPTIONAL_DATA_ENDPOINT_TYPES,
     DataEndpointType,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
+
+class SectorCoordinatorType(Enum):
+    PANEL_INFO = ("Panel Info Coordinator",)
+    ACTION_DEVICES = ("Action Devices Coordinator",)
+    SENSOR_DEVICES = "Sensor Devices Coordinator"
+
+
 # Make sure the SectorAlarmConfigEntry type is present
-type SectorAlarmConfigEntry = ConfigEntry[SectorDataUpdateCoordinator]
+type SectorAlarmConfigEntry = ConfigEntry[
+    dict[
+        SectorCoordinatorType,
+        DataUpdateCoordinator,
+    ]
+]
 
 
-class SectorDataUpdateCoordinator(DataUpdateCoordinator):
-    """Coordinator to manage data fetching from Sector Alarm."""
-
-    config_entry: SectorAlarmConfigEntry
-
+class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(
         self,
         hass: HomeAssistant,
         entry: SectorAlarmConfigEntry,
         sector_api: SectorAlarmAPI,
     ) -> None:
-        """Initialize the coordinator."""
-        self.hass = hass
+        self._hass = hass
         self.api = sector_api
-        self._panel_id = entry.data[CONF_PANEL_ID]
-        self._use_legacy_api = (True,)
-        self._legacy_temperature_last_update: Optional[datetime] = None
+        super().__init__(
+            hass,
+            _LOGGER,
+            config_entry=entry,
+            name=DOMAIN,
+            update_interval=timedelta(seconds=120),
+        )
+
+    async def _async_setup(self):
+        try:
+            panel_info: PanelInfo = await self.api.get_panel_info()
+            if panel_info is None:
+                raise UpdateFailed("Unable to fetch information from Sector Alarm")
+
+            self.data = {"panel_info": panel_info}
+
+        except LoginError as error:
+            raise ConfigEntryAuthFailed from error
+        except AuthenticationError as error:
+            raise UpdateFailed(f"Authentication failed: {error}") from error
+        except Exception as error:
+            _LOGGER.exception("Failed to update data")
+            raise UpdateFailed(f"Failed to update data: {error}") from error
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        try:
+            panel_info: PanelInfo = await self.api.get_panel_info()
+            return {"panel_info": panel_info}
+        except LoginError as error:
+            raise ConfigEntryAuthFailed from error
+        except AuthenticationError as error:
+            raise UpdateFailed(f"Authentication failed: {error}") from error
+        except Exception as error:
+            _LOGGER.exception("Failed to update data")
+            raise UpdateFailed(f"Failed to update data: {error}") from error
+
+
+class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
+    _MANDATORY_ENDPOINT_TYPES = {DataEndpointType.PANEL_STATUS, DataEndpointType.LOGS}
+
+    _OPTIONAL_DATA_ENDPOINT_TYPES = {
+        DataEndpointType.LOCK_STATUS,
+        DataEndpointType.SMART_PLUG_STATUS,
+    }
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: SectorAlarmConfigEntry,
+        sector_api: SectorAlarmAPI,
+        panel_info_coordinator: SectorPanelInfoDataUpdateCoordinator,
+    ) -> None:
+        self._hass = hass
+        self.api = sector_api
+        self.panel_id = entry.data[CONF_PANEL_ID]
+        self.sector_config_entry = entry
+        self._panel_info_coordinator = panel_info_coordinator
         self._data_endpoints: set[DataEndpointType] = set()
         self._event_logs: dict[str, Any] = {}
+        self._device_proccessor = _DeviceProcessor(self._hass, self.panel_id)
         super().__init__(
             hass,
             _LOGGER,
             config_entry=entry,
             name=DOMAIN,
             update_interval=timedelta(seconds=60),
+        )
+
+    async def _async_setup(self):
+        try:
+            panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
+
+            if panel_info is None:
+                raise UpdateFailed("Unable to fetch information from Sector Alarm")
+
+            mandatory_endpoint_types = (
+                SectorActionDataUpdateCoordinator._MANDATORY_ENDPOINT_TYPES.copy()
+            )
+            optional_endpoint_types = (
+                SectorActionDataUpdateCoordinator._OPTIONAL_DATA_ENDPOINT_TYPES.copy()
+            )
+
+            locks: list[Lock] = panel_info.get("Locks", {})
+            plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
+
+            if locks.__len__() == 0:
+                optional_endpoint_types.remove(DataEndpointType.LOCK_STATUS)
+            if plugs.__len__() == 0:
+                optional_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
+
+            supported_endpoint_types = (
+                mandatory_endpoint_types | optional_endpoint_types
+            )
+            _LOGGER.debug(
+                "Supported ACTION endpoint types: %s", supported_endpoint_types
+            )
+            self._data_endpoints = supported_endpoint_types
+            self.data = {"devices": {}, "logs": {}}
+
+        except LoginError as error:
+            raise ConfigEntryAuthFailed from error
+        except AuthenticationError as error:
+            raise UpdateFailed(f"Authentication failed: {error}") from error
+        except Exception as error:
+            _LOGGER.exception("Failed to update data")
+            raise UpdateFailed(f"Failed to update data: {error}") from error
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        try:
+            api_data = await self.api.retrieve_all_data(self._data_endpoints)
+            _LOGGER.debug("API ALL DATA: %s", api_data)
+
+            # Process devices
+            devices = self._device_proccessor.process_devices(api_data)
+
+            # Process logs for event handling
+            if (
+                DataEndpointType.LOGS in api_data
+                and api_data[DataEndpointType.LOGS].is_ok()
+            ):
+                log_data: LogRecords = api_data[DataEndpointType.LOGS].response_data
+                self._event_logs = await self._device_proccessor.process_event_logs(
+                    log_data, devices
+                )
+
+            return {
+                "devices": devices,
+                "logs": self._event_logs,
+            }
+
+        except LoginError as error:
+            raise ConfigEntryAuthFailed from error
+        except AuthenticationError as error:
+            raise UpdateFailed(f"Authentication failed: {error}") from error
+        except Exception as error:
+            _LOGGER.exception("Failed to update data")
+            raise UpdateFailed(f"Failed to update data: {error}") from error
+
+    def get_device_info(self, serial):
+        """Fetch device information by serial number."""
+        return self.data["devices"].get(
+            serial, {"name": "Unknown Device", "model": "Unknown Model"}
         )
 
     async def get_last_event_timestamp(self, device_name):
@@ -85,34 +222,67 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
 
         return None
 
-    def get_device_info(self, serial):
-        """Fetch device information by serial number."""
-        return self.data["devices"].get(
-            serial, {"name": "Unknown Device", "model": "Unknown Model"}
+    def get_processed_events(self) -> dict:
+        """Return processed event logs grouped by device."""
+        return self._event_logs
+
+
+class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
+    _OPTIONAL_DATA_ENDPOINT_TYPES = {
+        # via HouseCheck API
+        DataEndpointType.TEMPERATURES,
+        DataEndpointType.HUMIDITY,
+        DataEndpointType.LEAKAGE_DETECTORS,
+        DataEndpointType.SMOKE_DETECTORS,
+        DataEndpointType.DOORS_AND_WINDOWS,
+        DataEndpointType.CAMERAS,
+        # via legacy
+        DataEndpointType.TEMPERATURES_LEGACY,
+    }
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: SectorAlarmConfigEntry,
+        sector_api: SectorAlarmAPI,
+        panel_info_coordinator: SectorPanelInfoDataUpdateCoordinator,
+    ) -> None:
+        self._hass = hass
+        self.api = sector_api
+        self.panel_id = entry.data[CONF_PANEL_ID]
+        self.sector_config_entry = entry
+        self._panel_info_coordinator = panel_info_coordinator
+        self._use_legacy_api = True
+        self._legacy_temperature_last_update: Optional[datetime] = None
+        self._legacy_temperature_last_response: Optional[APIResponse] = None
+        self._data_endpoints: set[DataEndpointType] = set()
+        self._device_proccessor = _DeviceProcessor(self._hass, self.panel_id)
+
+        super().__init__(
+            hass,
+            _LOGGER,
+            config_entry=entry,
+            name=DOMAIN,
+            update_interval=timedelta(seconds=60),
         )
 
     async def _async_setup(self):
         try:
-            panel_info: PanelInfo = await self.api.get_panel_info()
+            panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
 
             if panel_info is None:
                 raise UpdateFailed("Unable to fetch information from Sector Alarm")
 
-            mandatory_endpoint_types = MANDATORY_DATA_ENDPOINT_TYPES.copy()
-            optional_endpoint_types = OPTIONAL_DATA_ENDPOINT_TYPES.copy()
-            temperatures: list[Temperature] = panel_info.get("Temperatures", {})
-            locks: list[Lock] = panel_info.get("Locks", {})
-            plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
+            optional_endpoint_types = (
+                SectorSensorDataUpdateCoordinator._OPTIONAL_DATA_ENDPOINT_TYPES.copy()
+            )
 
+            temperatures: list[Temperature] = panel_info.get("Temperatures", {})
             if temperatures.__len__() == 0:
                 self._use_legacy_api = False
                 optional_endpoint_types.remove(DataEndpointType.TEMPERATURES_LEGACY)
-            if locks.__len__() == 0:
-                optional_endpoint_types.remove(DataEndpointType.LOCK_STATUS)
-            if plugs.__len__() == 0:
-                optional_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
 
-            # Scan and build supported endpoints
+            # Scan and build supported endpoints from non-panel-info endpoints
             api_data: dict[
                 DataEndpointType, APIResponse
             ] = await self.api.retrieve_all_data(optional_endpoint_types)
@@ -120,15 +290,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 if response.response_code == 404:
                     optional_endpoint_types.remove(endpoint_type)
 
-            supported_endpoint_types = (
-                mandatory_endpoint_types | optional_endpoint_types
-            )
-            _LOGGER.debug("Supported endpoint types: %s", supported_endpoint_types)
-            self._data_endpoints = supported_endpoint_types
-            self.data = {
-                "devices": {},
-                "logs": {}
-            }
+            _LOGGER.debug("Supported endpoint types: %s", optional_endpoint_types)
+            self._data_endpoints = optional_endpoint_types
+            self.data = {"devices": {}, "logs": {}}
 
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
@@ -148,24 +312,9 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("API ALL DATA: %s", api_data)
 
             # Process devices
-            devices = self._process_devices(api_data)
+            devices = self._device_proccessor.process_devices(api_data)
 
-            # Process logs for event handling
-            if (
-                DataEndpointType.LOGS in api_data
-                and api_data[DataEndpointType.LOGS].is_ok()
-            ):
-                log_data: LogRecords = api_data[DataEndpointType.LOGS].response_data
-                self._event_logs = await self._process_event_logs(log_data, devices)
-
-            # Update device information
-            current_device_data: dict[str, Any] = (self.data["devices"]).copy()
-            current_device_data.update(devices)
-
-            return {
-                "devices": current_device_data,
-                "logs": self._event_logs,
-            }
+            return {"devices": devices}
 
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
@@ -182,119 +331,24 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             self._legacy_temperature_last_update
             and now - self._legacy_temperature_last_update < timedelta(minutes=15)
         ):
-            redacted_temperatures = {
-                e
-                for e in self._data_endpoints
-                if e != DataEndpointType.TEMPERATURES_LEGACY
-            }
-            return await self.api.retrieve_all_data(redacted_temperatures)
+            # Do not call TEMPERATURES_LEGACY
+            endpoints_redacted_temperatures = self._data_endpoints.copy()
+            endpoints_redacted_temperatures.remove(DataEndpointType.TEMPERATURES_LEGACY)
+            data = await self.api.retrieve_all_data(endpoints_redacted_temperatures)
+
+            # Add previous cached response, if present
+            if (self._legacy_temperature_last_response):
+                data.setdefault(DataEndpointType.TEMPERATURES_LEGACY, self._legacy_temperature_last_response)
+            return data
 
         data = await self.api.retrieve_all_data(self._data_endpoints)
-        self._legacy_temperature_last_update = now
+        response = data.get(DataEndpointType.TEMPERATURES_LEGACY)
+
+        # We only update legacy temperature variables if last check succeeded
+        if (response and response.is_ok()):
+            self._legacy_temperature_last_update = now
+            self._legacy_temperature_last_response = response
         return data
-
-    @staticmethod
-    def _get_event_id(log):
-        """Create a unique identifier for each log event."""
-        return f"{log['LockName']}_{log['EventType']}_{log['Time']}"
-
-    def get_latest_log(self, event_type: str, lock_name: str):
-        """Retrieve the latest log for a specific event type, optionally by LockName."""
-        if not lock_name:
-            _LOGGER.debug("Lock name not provided. Unable to fetch latest log.")
-            return None
-
-        # Normalize lock_name for consistent naming
-        normalized_name = slugify(lock_name)
-        entity_id = f"event.{normalized_name}_{normalized_name}_event_log"  # Adjusted format for entity IDs
-
-        # Log the generated entity ID
-        _LOGGER.debug("Generated entity ID for lock '%s': %s", lock_name, entity_id)
-
-        state = self.hass.states.get(entity_id)
-
-        if not state or not state.attributes:
-            _LOGGER.debug("No state or attributes found for entity '%s'.", entity_id)
-            return None
-
-        _LOGGER.debug("Fetched state for entity '%s': %s", entity_id, state)
-
-        # Extract the latest log matching the event type
-        latest_event_type = state.state
-        latest_time = state.attributes.get("timestamp")
-
-        # Log the latest event type and timestamp
-        _LOGGER.debug(
-            "Latest event for entity '%s': type=%s, time=%s, attributes=%s",
-            entity_id,
-            latest_event_type,
-            latest_time,
-            state.attributes,
-        )
-
-        if latest_event_type == event_type and latest_time:
-            try:
-                parsed_time = datetime.fromisoformat(latest_time)
-                _LOGGER.debug(
-                    "Parsed latest event time for entity '%s': %s",
-                    entity_id,
-                    parsed_time,
-                )
-                return {
-                    "event_type": latest_event_type,
-                    "time": datetime.fromisoformat(latest_time),
-                }
-            except ValueError as err:
-                _LOGGER.warning(
-                    "Invalid timestamp format in entity '%s': %s (%s)",
-                    entity_id,
-                    latest_time,
-                    err,
-                )
-                return None
-
-        _LOGGER.debug(
-            "No matching event found for type '%s' in entity '%s'.",
-            event_type,
-            entity_id,
-        )
-        return None
-
-    def _process_devices(
-        self, api_data: dict[DataEndpointType, APIResponse]
-    ) -> dict[str, Any]:
-        """Process device data from the API, including humidity, closed, and alarm sensors."""
-        devices: dict[str, Any] = {}
-        for category_name, category_data in api_data.items():
-            if category_name in [DataEndpointType.LOGS]:
-                continue
-
-            _LOGGER.debug("Processing category: %s", category_name)
-            if (
-                category_data is None
-                or category_data.response_data is None
-                or not category_data.is_ok()
-            ):
-                _LOGGER.warning(
-                    "Unable to process data for category '%s': data=%s",
-                    category_name,
-                    category_data,
-                )
-                continue
-
-            response_data = category_data.response_data
-            if category_name == DataEndpointType.PANEL_STATUS:
-                self._process_alarm_panel(response_data, devices)
-            elif category_name == DataEndpointType.SMART_PLUG_STATUS:
-                self._process_smart_plugs(response_data, devices)
-            elif category_name == DataEndpointType.LOCK_STATUS:
-                self._process_locks(response_data, devices)
-            elif category_name == DataEndpointType.TEMPERATURES_LEGACY:
-                self._process_legacy_temperatures(response_data, devices)
-            else:
-                self._process_housecheck_devices(category_name, response_data, devices)
-
-        return devices
 
     def _process_legacy_temperatures(
         self, temps_data: list[Temperature], devices: dict
@@ -320,7 +374,73 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 devices[serial_no],
             )
 
-    def _process_smart_plugs(
+
+class _DeviceProcessor:
+    def __init__(self, hass: HomeAssistant, panel_id: str) -> None:
+        self._hass = hass
+        self._panel_id = panel_id
+
+    def process_devices(
+        self, api_data: dict[DataEndpointType, APIResponse]
+    ) -> dict[str, Any]:
+        """Process device data from the API, including humidity, closed, and alarm sensors."""
+        devices: dict[str, Any] = {}
+        for category_name, category_data in api_data.items():
+            if category_name in [DataEndpointType.LOGS]:
+                continue
+
+            _LOGGER.debug("Processing category: %s", category_name)
+            if (
+                category_data is None
+                or category_data.response_data is None
+                or not category_data.is_ok()
+            ):
+                _LOGGER.warning(
+                    "Unable to process data for category '%s': data=%s",
+                    category_name,
+                    category_data,
+                )
+                continue
+
+            response_data = category_data.response_data
+            if category_name == DataEndpointType.PANEL_STATUS:
+                self.process_alarm_panel(response_data, devices)
+            elif category_name == DataEndpointType.SMART_PLUG_STATUS:
+                self.process_smart_plugs(response_data, devices)
+            elif category_name == DataEndpointType.LOCK_STATUS:
+                self.process_locks(response_data, devices)
+            elif category_name == DataEndpointType.TEMPERATURES_LEGACY:
+                self.process_legacy_temperatures(response_data, devices)
+            else:
+                self.process_housecheck_devices(category_name, response_data, devices)
+
+        return devices
+
+    def process_legacy_temperatures(
+        self, temps_data: list[Temperature], devices: dict
+    ) -> None:
+        """Process legacy temperatures"""
+        for temp in temps_data:
+            serial_no = temp.get("SerialNo") or temp.get("Serial")
+            if not serial_no:
+                _LOGGER.warning("Temperature sensor is missing Serial: %s", temp)
+                continue
+
+            devices[serial_no] = {
+                "name": temp.get("Label"),
+                "serial_no": serial_no,
+                "sensors": {
+                    "temperature": temp.get("Temperature"),
+                },
+                "model": "Temperature Sensor",
+            }
+            _LOGGER.debug(
+                "Processed temperature sensor with serial_no %s: %s",
+                serial_no,
+                devices[serial_no],
+            )
+
+    def process_smart_plugs(
         self, smart_plug_data: list[SmartPlug], devices: dict
     ) -> None:
         """Process smart plugs data and add to devices dictionary."""
@@ -342,7 +462,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 "Processed smart plug with Serial %s: %s", serial_no, devices[serial_no]
             )
 
-    def _process_alarm_panel(
+    def process_alarm_panel(
         self, panel_status_data: PanelStatus, devices: dict
     ) -> None:
         """Process alarm panel status data and add to devices dictionary."""
@@ -362,7 +482,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
             devices["alarm_panel"],
         )
 
-    def _process_locks(self, locks_data: list[Lock], devices: dict) -> None:
+    def process_locks(self, locks_data: list[Lock], devices: dict) -> None:
         """Process lock data and add to devices dictionary."""
         for lock in locks_data:
             serial_no = lock.get("SerialNo") or lock.get("Serial")
@@ -390,7 +510,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 "Processed lock with serial_no %s: %s", serial_no, devices[serial_no]
             )
 
-    def _process_housecheck_devices(
+    def process_housecheck_devices(
         self, category_name: DataEndpointType, category_data: HouseCheck, devices: dict
     ) -> None:
         """Process devices within a specific category and add them to devices dictionary."""
@@ -459,14 +579,14 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             _LOGGER.debug("Category %s does not contain Sections", category_name)
 
-    async def _process_event_logs(self, logs: LogRecords, devices):
+    async def process_event_logs(self, logs: LogRecords, devices):
         """Process event logs, associating them with the correct lock devices using LockName."""
         grouped_events = {}
 
         # Get the user's configured timezone from Home Assistant
-        user_time_zone = self.hass.config.time_zone or "UTC"
+        user_time_zone = self._hass.config.time_zone or "UTC"
         try:
-            tz = pytz.timezone(self.hass.config.time_zone)
+            tz = pytz.timezone(self._hass.config.time_zone)
         except ZoneInfoNotFoundError:
             _LOGGER.debug("Invalid timezone '%s', defaulting to UTC.", user_time_zone)
             tz = async_get_time_zone("UTC")
@@ -513,7 +633,7 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
                 continue
 
             # Check against the latest event from Home Assistant
-            latest_log = self.get_latest_log(event_type, lock_name)
+            latest_log = self._get_latest_log(event_type, lock_name)
             if latest_log:
                 try:
                     latest_time = latest_log["time"]
@@ -557,6 +677,64 @@ class SectorDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Grouped events by lock: %s", grouped_events)
         return grouped_events
 
-    def get_processed_events(self) -> dict:
-        """Return processed event logs grouped by device."""
-        return self._event_logs
+    def _get_latest_log(self, event_type: str, lock_name: str):
+        """Retrieve the latest log for a specific event type, optionally by LockName."""
+        if not lock_name:
+            _LOGGER.debug("Lock name not provided. Unable to fetch latest log.")
+            return None
+
+        # Normalize lock_name for consistent naming
+        normalized_name = slugify(lock_name)
+        entity_id = f"event.{normalized_name}_{normalized_name}_event_log"  # Adjusted format for entity IDs
+
+        # Log the generated entity ID
+        _LOGGER.debug("Generated entity ID for lock '%s': %s", lock_name, entity_id)
+
+        state = self._hass.states.get(entity_id)
+
+        if not state or not state.attributes:
+            _LOGGER.debug("No state or attributes found for entity '%s'.", entity_id)
+            return None
+
+        _LOGGER.debug("Fetched state for entity '%s': %s", entity_id, state)
+
+        # Extract the latest log matching the event type
+        latest_event_type = state.state
+        latest_time = state.attributes.get("timestamp")
+
+        # Log the latest event type and timestamp
+        _LOGGER.debug(
+            "Latest event for entity '%s': type=%s, time=%s, attributes=%s",
+            entity_id,
+            latest_event_type,
+            latest_time,
+            state.attributes,
+        )
+
+        if latest_event_type == event_type and latest_time:
+            try:
+                parsed_time = datetime.fromisoformat(latest_time)
+                _LOGGER.debug(
+                    "Parsed latest event time for entity '%s': %s",
+                    entity_id,
+                    parsed_time,
+                )
+                return {
+                    "event_type": latest_event_type,
+                    "time": datetime.fromisoformat(latest_time),
+                }
+            except ValueError as err:
+                _LOGGER.warning(
+                    "Invalid timestamp format in entity '%s': %s (%s)",
+                    entity_id,
+                    latest_time,
+                    err,
+                )
+                return None
+
+        _LOGGER.debug(
+            "No matching event found for type '%s' in entity '%s'.",
+            event_type,
+            entity_id,
+        )
+        return None
