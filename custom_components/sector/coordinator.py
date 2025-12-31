@@ -4,10 +4,8 @@ from enum import Enum
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Optional
-from zoneinfo import ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
-import pytz
-from aiozoneinfo import async_get_time_zone
 from homeassistant.components.recorder import history
 from homeassistant.helpers.recorder import get_instance
 from homeassistant.config_entries import ConfigEntry
@@ -586,10 +584,10 @@ class _DeviceProcessor:
         # Get the user's configured timezone from Home Assistant
         user_time_zone = self._hass.config.time_zone or "UTC"
         try:
-            tz = pytz.timezone(self._hass.config.time_zone)
-        except ZoneInfoNotFoundError:
+            tz: ZoneInfo = ZoneInfo(self._hass.config.time_zone)
+        except Exception:
             _LOGGER.debug("Invalid timezone '%s', defaulting to UTC.", user_time_zone)
-            tz = async_get_time_zone("UTC")
+            tz: ZoneInfo = ZoneInfo("UTC")
 
         records = list(reversed(logs.get("Records", [])))
         _LOGGER.debug("Processing %d log records", len(records))
