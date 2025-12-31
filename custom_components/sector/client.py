@@ -350,6 +350,7 @@ class SectorAlarmAPI:
     async def turn_on_smartplug(self, plug_id):
         """Turn on a smart plug."""
         url = fetch_action_endpoint(ActionEndpointType.TURN_ON_SMART_PLUG).uri()
+        url = url + f"?switchId={plug_id}&panelId={self._panel_id}"
         payload = {
             "PanelId": self._panel_id,
             "DeviceId": plug_id,
@@ -365,6 +366,7 @@ class SectorAlarmAPI:
     async def turn_off_smartplug(self, plug_id):
         """Turn off a smart plug."""
         url = fetch_action_endpoint(ActionEndpointType.TURN_OFF_SMART_PLUG).uri()
+        url = url + f"?switchId={plug_id}&panelId={self._panel_id}"
         payload = {
             "PanelId": self._panel_id,
             "DeviceId": plug_id,
