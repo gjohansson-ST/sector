@@ -1,17 +1,15 @@
-[![Sector Alarm](https://github.com/gjohansson-ST/sector/blob/master/logos/logo.png)](https://www.sectoralarm.se/)
+[![Sector Alarm](https://github.com/OathMeadow/sector-maintained/blob/master/logos/logo.png)](https://www.sectoralarm.se/)
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge&cacheSeconds=3600)](https://github.com/hacs/integration)
-[![size_badge](https://img.shields.io/github/repo-size/gjohansson-ST/sector?style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector)
-[![version_badge](https://img.shields.io/github/v/release/gjohansson-ST/sector?label=Latest%20release&style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector/releases/latest)
-[![download_badge](https://img.shields.io/github/downloads/gjohansson-ST/sector/total?style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector/releases/latest)
-![GitHub Repo stars](https://img.shields.io/github/stars/gjohansson-ST/attribute_as_sensor?style=for-the-badge&cacheSeconds=3600)
-![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/gjohansson-ST/attribute_as_sensor?style=for-the-badge&cacheSeconds=3600)
-![GitHub License](https://img.shields.io/github/license/gjohansson-ST/attribute_as_sensor?style=for-the-badge&cacheSeconds=3600)
+[![size_badge](https://img.shields.io/github/repo-size/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained)
+[![version_badge](https://img.shields.io/github/v/release/OathMeadow/sector-maintained?label=Latest%20release&style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained/releases/latest)
+[![download_badge](https://img.shields.io/github/downloads/OathMeadow/sector-maintained/total?style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained/releases/latest)
+![GitHub Repo stars](https://img.shields.io/github/stars/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)
+![GitHub License](https://img.shields.io/github/license/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)
 
 [![Made for Home Assistant](https://img.shields.io/badge/Made_for-Home%20Assistant-blue?style=for-the-badge&logo=homeassistant)](https://github.com/home-assistant)
 
-[![Sponsor me](https://img.shields.io/badge/Sponsor-Me-blue?style=for-the-badge&logo=github)](https://github.com/sponsors/gjohansson-ST)
-[![Discord](https://img.shields.io/discord/872446427664625664?style=for-the-badge&label=Discord&cacheSeconds=3600)](https://discord.gg/EG7cWFQMGW)
 
 # Integratation to Sector Alarm
 ---
