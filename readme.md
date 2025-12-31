@@ -6,7 +6,7 @@
 [![download_badge](https://img.shields.io/github/downloads/OathMeadow/sector-maintained/total?style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained/releases/latest)
 ![GitHub Repo stars](https://img.shields.io/github/stars/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)
-![GitHub License](https://img.shields.io/github/license/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)
+![GitHub License](https://img.shields.io/github/license/OathMeadow/sector-maintained?label=license&style=for-the-badge&cacheSeconds=3600)
 
 [![Made for Home Assistant](https://img.shields.io/badge/Made_for-Home%20Assistant-blue?style=for-the-badge&logo=homeassistant)](https://github.com/home-assistant)
 
