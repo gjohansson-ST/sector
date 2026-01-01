@@ -7,6 +7,11 @@ from homeassistant.components.lock import LockEntity
 from homeassistant.const import ATTR_CODE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    ConfigEntryAuthFailed,
+)
+from custom_components.sector.client import ApiError, AuthenticationError, LoginError
 
 from .const import CONF_CODE_FORMAT
 from .coordinator import (
@@ -89,18 +94,37 @@ class SectorAlarmLock(
         code: str | None = kwargs.get(ATTR_CODE)
         if TYPE_CHECKING:
             assert code is not None
-        _LOGGER.debug("Lock requested for lock %s. Code: %s", self._serial_no, code)
 
-        success = await self.coordinator.api.lock_door(self._serial_no, code=code)
-        if success:
+        try:
+            await self.coordinator.api.lock_door(self._serial_no, code=code)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to lock door - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError("Failed to lock door - API related error") from err
+        except Exception as err:
+            raise HomeAssistantError("Failed to lock door - unexpected error") from err
 
     async def async_unlock(self, **kwargs) -> None:
         """Unlock the device."""
         code: str | None = kwargs.get(ATTR_CODE)
         if TYPE_CHECKING:
             assert code is not None
-        _LOGGER.debug("Unlock requested for lock %s. Code: %s", self._serial_no, code)
-        success = await self.coordinator.api.unlock_door(self._serial_no, code=code)
-        if success:
+        
+        try:
+            await self.coordinator.api.unlock_door(self._serial_no, code=code)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to unlock door - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError("Failed to unlock door - API related error") from err
+        except Exception as err:
+            raise HomeAssistantError("Failed to unlock door - unexpected error") from err

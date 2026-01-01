@@ -26,7 +26,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .client import AuthenticationError, SectorAlarmAPI, AsyncTokenProvider, LoginError
+from .client import ApiError, AuthenticationError, SectorAlarmAPI, AsyncTokenProvider, LoginError
 from .const import CONF_CODE_FORMAT, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,15 +64,11 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         self._panel_ids: dict[str, str]
         self._errors = {}
 
-    async def async_step_reauth(
-        self, entry_data: Mapping[str, Any]
-    ):
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]):
         """Handle re-authentication with Sensibo."""
         return await self.async_step_reauth_confirm()
 
-    async def async_step_reauth_confirm(
-        self, user_input: dict[str, Any] | None = None
-    ):
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None):
         """Confirm re-authentication with Sensibo."""
         if user_input:
             reauth_entry = self._get_reauth_entry()
@@ -101,9 +97,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=self._errors,
         )
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ):
+    async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle the initial step."""
         if user_input is not None:
             self._email = user_input[CONF_EMAIL]
@@ -112,11 +106,23 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("Setting CONF_CODE_FORMAT: %s", self._code_format)
 
             client_session = async_get_clientsession(self.hass)
-            token_provider = AsyncTokenProvider(client_session, self._email, self._password)
+            token_provider = AsyncTokenProvider(
+                client_session, self._email, self._password
+            )
             api = SectorAlarmAPI(client_session, None, token_provider)
             try:
-                panel_list = await api.get_panel_list()
+                # dict[str, str]
+                response = await api.get_panel_list()
+                if not response.is_ok():
+                    raise ApiError(
+                        f"Failed to retrieve panel information' (HTTP {response.response_code} - {response.response_data})"
+                    )
+                if not response.is_json():
+                    raise ApiError(
+                        f"Failed to retrieve panel information' (response data is not JSON '{response.response_data}')"
+                    )
 
+                panel_list: dict[str, str] = response.response_data
                 self._panel_ids = panel_list
                 _LOGGER.debug(f"panel_ids: {self._panel_ids}")
                 if not self._panel_ids:
@@ -154,9 +160,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=self._errors,
         )
 
-    async def async_step_select_panel(
-        self, user_input: dict[str, Any] | None = None
-    ):
+    async def async_step_select_panel(self, user_input: dict[str, Any] | None = None):
         """Handle the panel selection step."""
         if user_input is not None:
             # User selected a panel_id; complete the setup
@@ -193,9 +197,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
 class SectorAlarmOptionsFlow(OptionsFlowWithConfigEntry):
     """Handle Sector options."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ):
+    async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Manage Sector options."""
 
         if user_input is not None:

@@ -11,7 +11,12 @@ from homeassistant.components.switch import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    ConfigEntryAuthFailed,
+)
 
+from custom_components.sector.client import ApiError, AuthenticationError, LoginError
 from .coordinator import (
     SectorActionDataUpdateCoordinator,
     SectorAlarmConfigEntry,
@@ -95,12 +100,40 @@ class SectorAlarmSwitch(
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn the switch on."""
-        success = await self.coordinator.api.turn_on_smartplug(self._id)
-        if success:
+        try:
+            await self.coordinator.api.turn_on_smartplug(self._id)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to turn on switch - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError(
+                "Failed to turn on switch - API related error"
+            ) from err
+        except Exception as err:
+            raise HomeAssistantError(
+                "Failed to turn on switch - unexpected error"
+            ) from err
 
     async def async_turn_off(self, **kwargs) -> None:
         """Turn the switch off."""
-        success = await self.coordinator.api.turn_off_smartplug(self._id)
-        if success:
+        try:
+            await self.coordinator.api.turn_off_smartplug(self._id)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to turn off switch - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError(
+                "Failed to turn off switch - API related error"
+            ) from err
+        except Exception as err:
+            raise HomeAssistantError(
+                "Failed to turn off switch - unexpected error"
+            ) from err

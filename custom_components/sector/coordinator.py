@@ -15,16 +15,15 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
-from .api_model import PanelStatus, SmartPlug, Temperature, Lock, HouseCheck, LogRecords
+from .api_model import PanelInfo, PanelStatus, SmartPlug, Temperature, Lock, HouseCheck, LogRecords
 from .client import (
     ApiError,
     AuthenticationError,
     SectorAlarmAPI,
-    PanelInfo,
     APIResponse,
     LoginError,
 )
-from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID, DOMAIN
+from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID
 from .endpoints import (
     DataEndpointType,
 )
@@ -55,12 +54,13 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
         sector_api: SectorAlarmAPI,
     ) -> None:
         self._hass = hass
-        self.api = sector_api
+        self._api = sector_api
+        self._panel_id = entry.data[CONF_PANEL_ID]
         super().__init__(
             hass,
             _LOGGER,
             config_entry=entry,
-            name=DOMAIN,
+            name="SectorPanelInfoDataUpdateCoordinator",
             update_interval=timedelta(seconds=120),
         )
 
@@ -72,10 +72,19 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _fetch_data(self) -> dict[str, Any]:
         try:
-            panel_info: PanelInfo = await self.api.get_panel_info()
+            response = await self._api.get_panel_info()
+            if not response.is_ok():
+                raise UpdateFailed(
+                    f"Failed to retrieve panel information for panel '{self._panel_id}' (HTTP {response.response_code} - {response.response_data})"
+                )
+            if not response.is_json():
+                raise UpdateFailed(
+                    f"Failed to retrieve panel information for panel '{self._panel_id}' (response data is not JSON '{response.response_data}')"
+                )
+            panel_info: PanelInfo = response.response_data
             if panel_info is None:
                 raise UpdateFailed(
-                    "Unable to fetch panel information from Sector Alarm"
+                    f"Failed to retrieve panel information for panel '{self._panel_id}' (no data returned from API)"
                 )
 
             return {"panel_info": panel_info}
@@ -83,13 +92,9 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+            raise UpdateFailed(str(error)) from error
         except ApiError as error:
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
-        except Exception as error:
-            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
-
+            raise UpdateFailed(str(error)) from error
 
 class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
     _MANDATORY_ENDPOINT_TYPES = {DataEndpointType.PANEL_STATUS, DataEndpointType.LOGS}
@@ -118,17 +123,16 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             config_entry=entry,
-            name=DOMAIN,
+            name="SectorActionDataUpdateCoordinator",
             update_interval=timedelta(seconds=60),
         )
 
     async def _async_setup(self):
         try:
             panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
-
             if panel_info is None:
                 raise UpdateFailed(
-                    "Unable to obtain panel information from Sector Alarm"
+                    f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
                 )
 
             mandatory_endpoint_types = (
@@ -158,10 +162,9 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
-        except Exception as error:
-            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+            raise UpdateFailed(str(error)) from error
+        except ApiError as error:
+            raise UpdateFailed(str(error)) from error
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -192,12 +195,9 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+            raise UpdateFailed(str(error)) from error
         except ApiError as error:
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
-        except Exception as error:
-            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+            raise UpdateFailed(str(error)) from error
 
     def get_device_info(self, serial):
         """Fetch device information by serial number."""
@@ -266,16 +266,17 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             config_entry=entry,
-            name=DOMAIN,
+            name="SectorSensorDataUpdateCoordinator",
             update_interval=timedelta(seconds=60),
         )
 
     async def _async_setup(self):
         try:
             panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
-
             if panel_info is None:
-                raise UpdateFailed("Unable to obtain information from Sector Alarm")
+                raise UpdateFailed(
+                    f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
+                )
 
             optional_endpoint_types = (
                 SectorSensorDataUpdateCoordinator._OPTIONAL_DATA_ENDPOINT_TYPES.copy()
@@ -301,10 +302,9 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
-        except Exception as error:
-            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+            raise UpdateFailed(str(error)) from error
+        except ApiError as error:
+            raise UpdateFailed(str(error)) from error
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
@@ -313,7 +313,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
                 api_data = await self._legacy_retrieve_all_data()
             else:
                 api_data = await self.api.retrieve_all_data(self._data_endpoints)
-                
+
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
@@ -324,12 +324,9 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+            raise UpdateFailed(str(error)) from error
         except ApiError as error:
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
-        except Exception as error:
-            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
-            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+            raise UpdateFailed(str(error)) from error
 
     async def _legacy_retrieve_all_data(self):
         now = datetime.now(tz=dt_util.UTC)
@@ -359,31 +356,6 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             self._legacy_temperature_last_update = now
             self._legacy_temperature_last_response = response
         return data
-
-    def _process_legacy_temperatures(
-        self, temps_data: list[Temperature], devices: dict
-    ) -> None:
-        """Process legacy temperatures"""
-        for temp in temps_data:
-            serial_no = temp.get("SerialNo") or temp.get("Serial")
-            if not serial_no:
-                _LOGGER.warning("Temperature sensor is missing Serial: %s", temp)
-                continue
-
-            devices[serial_no] = {
-                "name": temp.get("Label"),
-                "serial_no": serial_no,
-                "sensors": {
-                    "temperature": temp.get("Temperature"),
-                },
-                "model": "Temperature Sensor",
-            }
-            _LOGGER.debug(
-                "Processed temperature sensor with serial_no %s: %s",
-                serial_no,
-                devices[serial_no],
-            )
-
 
 class _DeviceProcessor:
     def __init__(self, hass: HomeAssistant, panel_id: str) -> None:

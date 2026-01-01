@@ -14,7 +14,6 @@ import async_timeout
 from aiohttp import ClientResponseError, ClientSession
 from homeassistant.exceptions import HomeAssistantError
 
-from .api_model import PanelInfo
 from .endpoints import (
     ACTION_ENDPOINTS,
     DataEndpointType,
@@ -41,9 +40,9 @@ class ApiError(HomeAssistantError):
 
 
 class APIResponse:
-    def __init__(self, response_code: int, response: Any, response_json: bool):
+    def __init__(self, response_code: int, response_data: Any, response_json: bool):
         self.response_code = response_code
-        self.response_data = response
+        self.response_data = response_data
         self.response_json: bool = response_json
 
     def __str__(self):
@@ -154,53 +153,50 @@ class SectorAlarmAPI:
 
     def _handle_exception(self, err: Exception, method: str, url: str) -> Exception:
         if isinstance(err, TimeoutError):
-            _LOGGER.warning(f"Timeout occurred during {method} request to {url}")
-        elif isinstance(err, ApiError):
-            _LOGGER.warning(
-                f"Client error during {method} request to {url}: {str(err)}"
-            )
-        elif isinstance(err, LoginError):
-            _LOGGER.warning(
-                f"Client error during {method} request to {url}: {str(err)}"
+            raise ApiError(
+                f"Timeout occurred during {method} request to '{url}': {str(err)}",
+                err,
             )
         elif isinstance(err, aiohttp.ClientError):
-            _LOGGER.warning(
-                f"Client error during {method} request to {url}: {str(err)}"
+            raise ApiError(
+                f"Network connection error during {method} request to '{url}': {str(err)}",
+                err,
             )
         elif isinstance(err, Exception):
             _LOGGER.error(
-                f"Unexpected error during {method} request to {url}: {str(err)}"
+                f"Unexpected error during {method} request to '{url}': {str(err)}"
             )
+
+        # fall through LoginError, APIError, AuthenticationError
         return err
 
-    async def get_panel_list(self) -> dict[str, str]:
+    async def get_panel_list(self) -> APIResponse:
         """Retrieve available panels from the API."""
         data = {}
         panellist_url = f"{API_URL}/api/account/GetPanelList"
         response: APIResponse = await self._get(panellist_url)
         _LOGGER.debug(f"panel_payload: {response.response_data}")
 
-        if response.is_ok():
+        if response.is_ok() and response.is_json():
             data = {
                 item["PanelId"]: item["DisplayName"]
                 for item in response.response_data
                 if "PanelId" in item
             }
+            return APIResponse(
+                response_code=response.response_code,
+                response_json=response.response_json,
+                response_data=data,
+            )
         else:
-            _LOGGER.warning("Failed to retrieve any panels")
+            return response
 
-        return data
-
-    async def get_panel_info(self) -> PanelInfo:
+    async def get_panel_info(self) -> APIResponse:
         """Retrieve available panels from the API."""
         uri = f"{API_URL}/api/Panel/GetPanel?panelId={self._panel_id}"
         response: APIResponse = await self._get(uri)
         _LOGGER.debug(f"panel_payload: {response}")
-
-        if not response.is_ok():
-            _LOGGER.warning("Failed to retrieve panel %s", self._panel_id)
-
-        return response.response_data
+        return response
 
     async def retrieve_all_data(
         self, data_endpoint_types: set[DataEndpointType]
@@ -246,35 +242,31 @@ class SectorAlarmAPI:
                             json = await response.json()
                             return APIResponse(
                                 response_code=response.status,
-                                response=json,
+                                response_data=json,
                                 response_json=True,
                             )
                         else:
                             text = await response.text()
                             return APIResponse(
                                 response_code=response.status,
-                                response=text,
+                                response_data=text,
                                 response_json=False,
                             )
                     elif response.status == 401 or response.status == 403:
                         self._token_provider.invalidate_token()
-                        _LOGGER.warning(
-                            f"Authentication failure during GET request to {url} - (HTTP {response.status})"
-                        )
                         raise AuthenticationError(
-                            "Authentication failure, token expired?"
+                            f"Authentication failure during GET request to '{url}' - (HTTP {response.status})"
+                        )
+                    elif response.status == 400:
+                        self._token_provider.invalidate_token()
+                        raise ApiError(
+                            f"Bad request failure during GET request to '{url}', this may indicate broken Sector API support - (HTTP {response.status})"
                         )
                     else:
                         text = await response.text()
-                        _LOGGER.warning(
-                            "GET request to %s failed with status code %s, response: %s",
-                            url,
-                            response.status,
-                            text,
-                        )
                         return APIResponse(
                             response_code=response.status,
-                            response=text,
+                            response_data=text,
                             response_json=False,
                         )
         except Exception as err:
@@ -294,44 +286,40 @@ class SectorAlarmAPI:
                             json = await response.json()
                             return APIResponse(
                                 response_code=response.status,
-                                response=json,
+                                response_data=json,
                                 response_json=True,
                             )
                         else:
                             text = await response.text()
                             return APIResponse(
                                 response_code=response.status,
-                                response=text,
+                                response_data=text,
                                 response_json=False,
                             )
                     elif response.status == 401 or response.status == 403:
                         self._token_provider.invalidate_token()
-                        _LOGGER.warning(
-                            f"Authentication failure during POST request to {url} - (HTTP {response.status})"
-                        )
                         raise AuthenticationError(
-                            "Authentication failure, token expired?"
+                            f"Authentication failure during POST request to '{url}' - (HTTP {response.status})"
+                        )
+                    elif response.status == 400:
+                        self._token_provider.invalidate_token()
+                        raise ApiError(
+                            f"Bad request failure during POST request to '{url}', this may indicate broken Sector API support - (HTTP {response.status})"
                         )
                     else:
                         text = await response.text()
-                        _LOGGER.warning(
-                            "POST request to %s failed with status code %s, response: %s",
-                            url,
-                            response.status,
-                            text,
-                        )
                         return APIResponse(
                             response_code=response.status,
-                            response=text,
+                            response_data=text,
                             response_json=False,
                         )
         except Exception as err:
             raise self._handle_exception(err=err, method="POST", url=url)
 
-    async def arm_system(self, mode: str, code: str):
+    async def arm_system(self, mode: str, code: str) -> None:
         """Arm the alarm system."""
         panel_code = code
-        if mode == "total":
+        if mode == "full":
             endpoint = fetch_action_endpoint(ActionEndpointType.ARM)
         elif mode == "partial":
             endpoint = fetch_action_endpoint(ActionEndpointType.PARTIAL_ARM)
@@ -343,15 +331,13 @@ class SectorAlarmAPI:
             "PanelCode": panel_code,
             "PanelId": self._panel_id,
         }
-        result: APIResponse = await self._post(endpoint.uri(), payload)
-        if result.is_ok():
-            _LOGGER.debug("System armed successfully")
-            return True
-        else:
-            _LOGGER.warning("Failed to arm system")
-            return False
+        response: APIResponse = await self._post(endpoint.uri(), payload)
+        if not response.is_ok():
+            raise ApiError(
+                f"Request failure during ARM request to '{endpoint}' (PanelId {self._panel_id}, HTTP {response.response_code} - {response.response_data})"
+            )
 
-    async def disarm_system(self, code: str):
+    async def disarm_system(self, code: str) -> None:
         """Disarm the alarm system."""
         panel_code = code
         url = fetch_action_endpoint(ActionEndpointType.DISARM).uri()
@@ -359,15 +345,13 @@ class SectorAlarmAPI:
             "PanelCode": panel_code,
             "PanelId": self._panel_id,
         }
-        result: APIResponse = await self._post(url, payload)
-        if result.is_ok():
-            _LOGGER.debug("System disarmed successfully")
-            return True
-        else:
-            _LOGGER.warning("Failed to disarm system")
-            return False
+        response: APIResponse = await self._post(url, payload)
+        if not response.is_ok():
+            raise ApiError(
+                f"Request failure during DISARM request to '{url}' (PanelId {self._panel_id}, HTTP {response.response_code} - {response.response_data})"
+            )
 
-    async def lock_door(self, serial_no: str, code: str):
+    async def lock_door(self, serial_no: str, code: str) -> None:
         """Lock a specific door."""
         panel_code = code
         url = fetch_action_endpoint(ActionEndpointType.LOCK).uri()
@@ -377,15 +361,13 @@ class SectorAlarmAPI:
             "PanelId": self._panel_id,
             "SerialNo": serial_no,
         }
-        result: APIResponse = await self._post(url, payload)
-        if result.is_ok():
-            _LOGGER.debug("Door %s locked successfully", serial_no)
-            return True
-        else:
-            _LOGGER.warning("Failed to lock door %s", serial_no)
-            return False
+        response: APIResponse = await self._post(url, payload)
+        if not response.is_ok():
+            raise ApiError(
+                f"Request failure during LOCK request to '{url}' (LockSerial {serial_no}, HTTP {response.response_code} - {response.response_data})"
+            )
 
-    async def unlock_door(self, serial_no: str, code: str):
+    async def unlock_door(self, serial_no: str, code: str) -> None:
         """Unlock a specific door."""
         panel_code = code
         url = fetch_action_endpoint(ActionEndpointType.UNLOCK).uri()
@@ -395,13 +377,11 @@ class SectorAlarmAPI:
             "PanelId": self._panel_id,
             "SerialNo": serial_no,
         }
-        result: APIResponse = await self._post(url, payload)
-        if result.is_ok():
-            _LOGGER.debug("Door %s unlocked successfully", serial_no)
-            return True
-        else:
-            _LOGGER.warning("Failed to unlock door %s", serial_no)
-            return False
+        response: APIResponse = await self._post(url, payload)
+        if not response.is_ok():
+            raise ApiError(
+                f"Request failure during UNLOCK request to '{url}' (LockSerial {serial_no}, HTTP {response.response_code} - {response.response_data})"
+            )
 
     async def turn_on_smartplug(self, plug_id):
         """Turn on a smart plug."""
@@ -411,13 +391,11 @@ class SectorAlarmAPI:
             "PanelId": self._panel_id,
             "DeviceId": plug_id,
         }
-        result: APIResponse = await self._post(url, payload)
-        if result.is_ok():
-            _LOGGER.debug("Smart plug %s turned on successfully", plug_id)
-            return True
-        else:
-            _LOGGER.warning("Failed to turn on smart plug %s", plug_id)
-            return False
+        response: APIResponse = await self._post(url, payload)
+        if not response.is_ok():
+            raise ApiError(
+                f"Request failure during TURN_ON_SMART_PLUG request to '{url}' (SwitchId {plug_id}, HTTP {response.response_code} - {response.response_data})"
+            )
 
     async def turn_off_smartplug(self, plug_id):
         """Turn off a smart plug."""
@@ -427,13 +405,11 @@ class SectorAlarmAPI:
             "PanelId": self._panel_id,
             "DeviceId": plug_id,
         }
-        result: APIResponse = await self._post(url, payload)
-        if result.is_ok():
-            _LOGGER.debug("Smart plug %s turned off successfully", plug_id)
-            return True
-        else:
-            _LOGGER.warning("Failed to turn off smart plug %s", plug_id)
-            return False
+        response: APIResponse = await self._post(url, payload)
+        if not response.is_ok():
+            raise ApiError(
+                f"Request failure during TURN_OFF_SMART_PLUG request to '{url}' (SwitchId {plug_id}, HTTP {response.response_code} - {response.response_data})"
+            )
 
     async def get_camera_image(self, serial_no):
         """Retrieve the latest image from a camera."""
