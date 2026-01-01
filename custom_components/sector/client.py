@@ -45,8 +45,23 @@ class APIResponse:
         self.response_data = response_data
         self.response_json: bool = response_json
 
-    def __str__(self):
-        return f"ApiResponse(response_code={self.response_code}, response_data={self.response_data})"
+    def __str__(self) -> str:
+        return (
+            f"APIResponse("
+            f"response_code={self.response_code}, "
+            f"response_json={self.response_json}, "
+            f"response_data={self.response_data}"
+            f")"
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"APIResponse("
+            f"response_code={self.response_code!r}, "
+            f"response_json={self.response_json!r}, "
+            f"response_data={self.response_data!r}"
+            f")"
+        )
 
     def is_ok(self) -> bool:
         return self.response_code == 200
