@@ -101,7 +101,6 @@ class SectorAlarmControlPanel(
             assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
-        _LOGGER.debug("Arming away with code: %s", code)
         if await self.coordinator.api.arm_system("total", code=code):
             await self.coordinator.async_request_refresh()
 
@@ -111,7 +110,6 @@ class SectorAlarmControlPanel(
             assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
-        _LOGGER.debug("Arming home with code: %s", code)
         if await self.coordinator.api.arm_system("partial", code=code):
             await self.coordinator.async_request_refresh()
 
@@ -121,7 +119,6 @@ class SectorAlarmControlPanel(
             assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
-        _LOGGER.debug("Disarming with code: %s", code)
         if await self.coordinator.api.disarm_system(code=code):
             await self.coordinator.async_request_refresh()
 

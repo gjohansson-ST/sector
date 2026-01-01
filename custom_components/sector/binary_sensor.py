@@ -122,7 +122,7 @@ def _proccess_coordinator(
     if entities:
         async_add_entities(entities)
     else:
-        _LOGGER.debug("No binary sensor entities to add.")
+        _LOGGER.debug(f"No binary sensor entities to add for '{coordinator.__class__.__name__}'")
 
 
 class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):

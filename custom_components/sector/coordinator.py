@@ -17,6 +17,7 @@ from homeassistant.util import slugify
 
 from .api_model import PanelStatus, SmartPlug, Temperature, Lock, HouseCheck, LogRecords
 from .client import (
+    ApiError,
     AuthenticationError,
     SectorAlarmAPI,
     PanelInfo,
@@ -64,32 +65,30 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_setup(self):
+        return await self._fetch_data()
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        return await self._fetch_data()
+
+    async def _fetch_data(self) -> dict[str, Any]:
         try:
             panel_info: PanelInfo = await self.api.get_panel_info()
             if panel_info is None:
-                raise UpdateFailed("Unable to fetch information from Sector Alarm")
+                raise UpdateFailed(
+                    "Unable to fetch panel information from Sector Alarm"
+                )
 
-            self.data = {"panel_info": panel_info}
-
-        except LoginError as error:
-            raise ConfigEntryAuthFailed from error
-        except AuthenticationError as error:
-            raise UpdateFailed(f"Authentication failed: {error}") from error
-        except Exception as error:
-            _LOGGER.exception("Failed to update data")
-            raise UpdateFailed(f"Failed to update data: {error}") from error
-
-    async def _async_update_data(self) -> dict[str, Any]:
-        try:
-            panel_info: PanelInfo = await self.api.get_panel_info()
             return {"panel_info": panel_info}
+
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Authentication failed: {error}") from error
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+        except ApiError as error:
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
         except Exception as error:
-            _LOGGER.exception("Failed to update data")
-            raise UpdateFailed(f"Failed to update data: {error}") from error
+            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
 
 
 class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
@@ -128,7 +127,9 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
             panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
 
             if panel_info is None:
-                raise UpdateFailed("Unable to fetch information from Sector Alarm")
+                raise UpdateFailed(
+                    "Unable to obtain panel information from Sector Alarm"
+                )
 
             mandatory_endpoint_types = (
                 SectorActionDataUpdateCoordinator._MANDATORY_ENDPOINT_TYPES.copy()
@@ -157,15 +158,17 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Authentication failed: {error}") from error
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
         except Exception as error:
-            _LOGGER.exception("Failed to update data")
-            raise UpdateFailed(f"Failed to update data: {error}") from error
+            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            api_data = await self.api.retrieve_all_data(self._data_endpoints)
-            _LOGGER.debug("API ALL DATA: %s", api_data)
+            api_data: dict[
+                DataEndpointType, APIResponse
+            ] = await self.api.retrieve_all_data(self._data_endpoints)
+            _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
             devices = self._device_proccessor.process_devices(api_data)
@@ -174,6 +177,7 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
             if (
                 DataEndpointType.LOGS in api_data
                 and api_data[DataEndpointType.LOGS].is_ok()
+                and api_data[DataEndpointType.LOGS].is_json()
             ):
                 log_data: LogRecords = api_data[DataEndpointType.LOGS].response_data
                 self._event_logs = await self._device_proccessor.process_event_logs(
@@ -188,10 +192,12 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Authentication failed: {error}") from error
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+        except ApiError as error:
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
         except Exception as error:
-            _LOGGER.exception("Failed to update data")
-            raise UpdateFailed(f"Failed to update data: {error}") from error
+            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
 
     def get_device_info(self, serial):
         """Fetch device information by serial number."""
@@ -269,7 +275,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
 
             if panel_info is None:
-                raise UpdateFailed("Unable to fetch information from Sector Alarm")
+                raise UpdateFailed("Unable to obtain information from Sector Alarm")
 
             optional_endpoint_types = (
                 SectorSensorDataUpdateCoordinator._OPTIONAL_DATA_ENDPOINT_TYPES.copy()
@@ -295,10 +301,10 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Authentication failed: {error}") from error
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
         except Exception as error:
-            _LOGGER.exception("Failed to update data")
-            raise UpdateFailed(f"Failed to update data: {error}") from error
+            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
@@ -307,7 +313,8 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
                 api_data = await self._legacy_retrieve_all_data()
             else:
                 api_data = await self.api.retrieve_all_data(self._data_endpoints)
-            _LOGGER.debug("API ALL DATA: %s", api_data)
+                
+            _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
             devices = self._device_proccessor.process_devices(api_data)
@@ -317,10 +324,12 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
-            raise UpdateFailed(f"Authentication failed: {error}") from error
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
+        except ApiError as error:
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
         except Exception as error:
-            _LOGGER.exception("Failed to update data")
-            raise UpdateFailed(f"Failed to update data: {error}") from error
+            _LOGGER.error(f"Unexpected faiure when updating data: {str(error)}")
+            raise UpdateFailed(f"Failed to update data: {str(error)}") from error
 
     async def _legacy_retrieve_all_data(self):
         now = datetime.now(tz=dt_util.UTC)
@@ -335,15 +344,18 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             data = await self.api.retrieve_all_data(endpoints_redacted_temperatures)
 
             # Add previous cached response, if present
-            if (self._legacy_temperature_last_response):
-                data.setdefault(DataEndpointType.TEMPERATURES_LEGACY, self._legacy_temperature_last_response)
+            if self._legacy_temperature_last_response:
+                data.setdefault(
+                    DataEndpointType.TEMPERATURES_LEGACY,
+                    self._legacy_temperature_last_response,
+                )
             return data
 
         data = await self.api.retrieve_all_data(self._data_endpoints)
         response = data.get(DataEndpointType.TEMPERATURES_LEGACY)
 
         # We only update legacy temperature variables if last check succeeded
-        if (response and response.is_ok()):
+        if response and response.is_ok():
             self._legacy_temperature_last_update = now
             self._legacy_temperature_last_response = response
         return data
@@ -388,15 +400,16 @@ class _DeviceProcessor:
                 continue
 
             _LOGGER.debug("Processing category: %s", category_name)
-            if (
-                category_data is None
-                or category_data.response_data is None
-                or not category_data.is_ok()
-            ):
+
+            if not category_data.is_ok:
                 _LOGGER.warning(
-                    "Unable to process data for category '%s': data=%s",
-                    category_name,
-                    category_data,
+                    f"Unable to process data for category '{category_name}' due to API error: data={str(category_data)}"
+                )
+                continue
+
+            if not category_data.is_json:
+                _LOGGER.warning(
+                    f"Unable to process data for category '{category_name}' due to unexpected response type: data={str(category_data)}"
                 )
                 continue
 
