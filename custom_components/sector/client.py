@@ -10,7 +10,6 @@ import time
 from typing import Any
 
 import aiohttp
-import async_timeout
 from aiohttp import ClientResponseError, ClientSession
 from homeassistant.exceptions import HomeAssistantError
 
@@ -85,7 +84,7 @@ class AsyncTokenProvider:
         json_data = {"UserId": f"{self._email}", "Password": f"{self._password}"}
 
         try:
-            async with async_timeout.timeout(15):
+            async with asyncio.timeout(15):
                 async with self._session.post(
                     uri, json=json_data, headers=message_headers, raise_for_status=True
                 ) as response:
@@ -168,12 +167,12 @@ class SectorAlarmAPI:
 
     def _handle_exception(self, err: Exception, method: str, url: str) -> Exception:
         if isinstance(err, TimeoutError):
-            raise ApiError(
+            return ApiError(
                 f"Timeout occurred during {method} request to '{url}': {str(err)}",
                 err,
             )
         elif isinstance(err, aiohttp.ClientError):
-            raise ApiError(
+            return ApiError(
                 f"Network connection error during {method} request to '{url}': {str(err)}",
                 err,
             )
@@ -222,7 +221,6 @@ class SectorAlarmAPI:
         async with asyncio.TaskGroup() as tg:
             for endpoint in data_endpoints:
                 tg.create_task(self._retrieve_data(endpoint, data))
-
         return data
 
     async def _retrieve_data(
@@ -249,7 +247,7 @@ class SectorAlarmAPI:
         """Helper method to perform GET requests with timeout."""
         try:
             headers = self._build_headers(await self._token_provider.get_token())
-            async with async_timeout.timeout(15):
+            async with asyncio.timeout(15):
                 async with self._session.get(url, headers=headers) as response:
                     if response.status == 200:
                         content_type = response.headers.get("Content-Type", "")
@@ -291,7 +289,7 @@ class SectorAlarmAPI:
         """Helper method to perform POST requests with timeout."""
         try:
             headers = self._build_headers(await self._token_provider.get_token())
-            async with async_timeout.timeout(15):
+            async with asyncio.timeout(15):
                 async with self._session.post(
                     url, json=payload, headers=headers
                 ) as response:
