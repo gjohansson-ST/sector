@@ -19,9 +19,9 @@
 
 **Date created:** 2020-04-29
 
-**Last update:** 2023-11-04
+**Last update:** 2026-01-05
 
-**Required HA version:** 2024.11.0
+**Required HA version:** 2025.12.0
 
 ---
 

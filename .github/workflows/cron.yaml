@@ -1,4 +1,4 @@
-name: Cron actions
+name: Cron Actions
 
 on:
   schedule:
