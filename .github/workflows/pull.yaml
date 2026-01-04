@@ -1,0 +1,19 @@
+name: Pull Actions
+
+on:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: "ubuntu-latest"
+    name: Validate HA integration
+    steps:
+        - uses: "actions/checkout@v6"
+
+        - name: HACS validation
+          uses: "hacs/action@main"
+          with:
+            category: "integration"
+
+        - name: Hassfest validation
+          uses: "home-assistant/actions/hassfest@master"
