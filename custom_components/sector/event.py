@@ -2,14 +2,18 @@
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .coordinator import (
+    SectorActionDataUpdateCoordinator,
+    SectorAlarmConfigEntry,
+    SectorCoordinatorType,
+)
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,8 +25,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up a single event entity per device in Sector Alarm coordinator."""
-    coordinator: SectorDataUpdateCoordinator = entry.runtime_data
-    grouped_events = await coordinator.process_events()
+    coordinator = cast(
+        SectorActionDataUpdateCoordinator,
+        entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
+    )
+    grouped_events = coordinator.get_processed_events()
     entities = []
 
     for device_serial, event_categories in grouped_events.items():
@@ -61,7 +68,9 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
+class SectorAlarmEvent(
+    SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], EventEntity
+):
     """Representation of a single event entity for a Sector Alarm device."""
 
     def __init__(self, coordinator, serial_no, device_info):
@@ -93,7 +102,7 @@ class SectorAlarmEvent(SectorAlarmBaseEntity, EventEntity):
     @callback
     def _async_handle_event(self):
         """Update entity based on the most recent event."""
-        grouped_events = self.coordinator.process_events
+        grouped_events = self.coordinator.get_processed_events()
         _LOGGER.debug("SECTOR_EVENT: Processing events for device %s", self._serial_no)
 
         if self._serial_no not in grouped_events:

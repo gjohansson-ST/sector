@@ -3,20 +3,32 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
+)
+from homeassistant.components.alarm_control_panel.const import (
     AlarmControlPanelEntityFeature,
     AlarmControlPanelState,
     CodeFormat,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import (
+    ServiceValidationError,
+    HomeAssistantError,
+    ConfigEntryAuthFailed,
+)
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CONF_CODE_FORMAT, CONF_PANEL_ID
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from custom_components.sector.client import ApiError, AuthenticationError, LoginError
+
+from .const import CONF_CODE_FORMAT
+from .coordinator import (
+    SectorActionDataUpdateCoordinator,
+    SectorAlarmConfigEntry,
+    SectorCoordinatorType,
+)
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,11 +47,16 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Sector Alarm control panel."""
-    coordinator = entry.runtime_data
+    coordinator = cast(
+        SectorActionDataUpdateCoordinator,
+        entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
+    )
     async_add_entities([SectorAlarmControlPanel(coordinator)])
 
 
-class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
+class SectorAlarmControlPanel(
+    SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], AlarmControlPanelEntity
+):
     """Representation of the Sector Alarm control panel."""
 
     _attr_name = None
@@ -50,11 +67,11 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
     _attr_code_arm_required = True
     _attr_code_format = CodeFormat.NUMBER
 
-    def __init__(self, coordinator: SectorDataUpdateCoordinator) -> None:
+    def __init__(self, coordinator: SectorActionDataUpdateCoordinator) -> None:
         """Initialize the control panel."""
         super().__init__(
             coordinator,
-            coordinator.config_entry.data[CONF_PANEL_ID],
+            coordinator.panel_id,
             "Sector Alarm Panel",
             "Alarm panel",
         )
@@ -67,12 +84,17 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
     @property
     def alarm_state(self) -> AlarmControlPanelState | None:
         """Return the state of the device."""
-        status = self.coordinator.data.get("panel_status", {})
-        if not status.get("IsOnline", True):
+        devices: dict[str, Any] = self.coordinator.data.get("devices", {})
+        alarm_panel: dict[str, Any] = devices.get("alarm_panel", {})
+        sensors: dict[str, Any] = alarm_panel.get("sensors", {})
+
+        status_code = sensors.get("alarm_status", 0)
+        online_status = sensors.get("online", False)
+
+        if not online_status:
             return None
 
         # Map status code to the appropriate Home Assistant state
-        status_code = status.get("Status", 0)
         mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code)
         _LOGGER.debug(
             "Alarm status_code: %s, Mapped state: %s", status_code, mapped_state
@@ -85,9 +107,24 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
             assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
-        _LOGGER.debug("Arming away with code: %s", code)
-        if await self.coordinator.api.arm_system("total", code=code):
+
+        try:
+            await self.coordinator.api.arm_system("full", code=code)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to arm (full) alarm - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError(
+                "Failed to arm (full) alarm - API related error"
+            ) from err
+        except Exception as err:
+            raise HomeAssistantError(
+                "Failed to arm (full) alarm - unexpected error"
+            ) from err
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send arm home command."""
@@ -95,9 +132,24 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
             assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
-        _LOGGER.debug("Arming home with code: %s", code)
-        if await self.coordinator.api.arm_system("partial", code=code):
+
+        try:
+            await self.coordinator.api.arm_system("partial", code=code)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to arm (partial) alarm - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError(
+                "Failed to arm (partial) alarm - API related error"
+            ) from err
+        except Exception as err:
+            raise HomeAssistantError(
+                "Failed to arm (partial) alarm - unexpected error"
+            ) from err
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Send disarm command."""
@@ -105,10 +157,25 @@ class SectorAlarmControlPanel(SectorAlarmBaseEntity, AlarmControlPanelEntity):
             assert code is not None
         if not self._is_valid_code(code):
             raise ServiceValidationError("Invalid code length")
-        _LOGGER.debug("Disarming with code: %s", code)
-        if await self.coordinator.api.disarm_system(code=code):
+
+        try:
+            await self.coordinator.api.disarm_system(code=code)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to disarm alarm - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError(
+                "Failed to disarm alarm - API related error"
+            ) from err
+        except Exception as err:
+            raise HomeAssistantError(
+                "Failed to disarm alarm - unexpected error"
+            ) from err
 
     def _is_valid_code(self, code: str) -> bool:
-        code_format = self.coordinator.config_entry.options[CONF_CODE_FORMAT]
+        code_format = self.coordinator.sector_config_entry.options[CONF_CODE_FORMAT]
         return bool(code and len(code) == code_format)

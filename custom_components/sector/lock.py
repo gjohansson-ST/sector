@@ -1,15 +1,24 @@
 """Locks for Sector Alarm."""
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.const import ATTR_CODE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import (
+    HomeAssistantError,
+    ConfigEntryAuthFailed,
+)
+from custom_components.sector.client import ApiError, AuthenticationError, LoginError
 
 from .const import CONF_CODE_FORMAT
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .coordinator import (
+    SectorActionDataUpdateCoordinator,
+    SectorAlarmConfigEntry,
+    SectorCoordinatorType,
+)
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,7 +30,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Sector Alarm locks."""
-    coordinator = entry.runtime_data
+    coordinator = cast(
+        SectorActionDataUpdateCoordinator,
+        entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
+    )
     code_format = entry.options[CONF_CODE_FORMAT]
     devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
     entities = []
@@ -45,14 +57,17 @@ async def async_setup_entry(
     else:
         _LOGGER.debug("No lock entities to add.")
 
-class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
+
+class SectorAlarmLock(
+    SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], LockEntity
+):
     """Representation of a Sector Alarm lock."""
 
     _attr_name = None
 
     def __init__(
         self,
-        coordinator: SectorDataUpdateCoordinator,
+        coordinator: SectorActionDataUpdateCoordinator,
         code_format: int,
         serial_no: str,
         device_name: str,
@@ -79,18 +94,37 @@ class SectorAlarmLock(SectorAlarmBaseEntity, LockEntity):
         code: str | None = kwargs.get(ATTR_CODE)
         if TYPE_CHECKING:
             assert code is not None
-        _LOGGER.debug("Lock requested for lock %s. Code: %s", self._serial_no, code)
 
-        success = await self.coordinator.api.lock_door(self._serial_no, code=code)
-        if success:
+        try:
+            await self.coordinator.api.lock_door(self._serial_no, code=code)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to lock door - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError("Failed to lock door - API related error") from err
+        except Exception as err:
+            raise HomeAssistantError("Failed to lock door - unexpected error") from err
 
     async def async_unlock(self, **kwargs) -> None:
         """Unlock the device."""
         code: str | None = kwargs.get(ATTR_CODE)
         if TYPE_CHECKING:
             assert code is not None
-        _LOGGER.debug("Unlock requested for lock %s. Code: %s", self._serial_no, code)
-        success = await self.coordinator.api.unlock_door(self._serial_no, code=code)
-        if success:
+        
+        try:
+            await self.coordinator.api.unlock_door(self._serial_no, code=code)
             await self.coordinator.async_request_refresh()
+        except LoginError as err:
+            raise ConfigEntryAuthFailed from err
+        except AuthenticationError as err:
+            raise HomeAssistantError(
+                "Failed to unlock door - authentication failed"
+            ) from err
+        except ApiError as err:
+            raise HomeAssistantError("Failed to unlock door - API related error") from err
+        except Exception as err:
+            raise HomeAssistantError("Failed to unlock door - unexpected error") from err

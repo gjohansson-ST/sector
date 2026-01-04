@@ -7,9 +7,9 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.config_entries import (
     ConfigFlow,
-    ConfigFlowResult,
     OptionsFlowWithConfigEntry,
 )
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -26,7 +26,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .client import AuthenticationError, SectorAlarmAPI
+from .client import ApiError, AuthenticationError, SectorAlarmAPI, AsyncTokenProvider, LoginError
 from .const import CONF_CODE_FORMAT, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,34 +58,33 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 4
 
     def __init__(self):
-        self.email: str | None
-        self.password: str | None
-        self.code_format: int | None
-        self.panel_ids: dict[str, str]
+        self._email: str | None
+        self._password: str | None
+        self._code_format: int | None
+        self._panel_ids: dict[str, str]
+        self._errors = {}
 
-    async def async_step_reauth(
-        self, entry_data: Mapping[str, Any]
-    ) -> ConfigFlowResult:
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]):
         """Handle re-authentication with Sensibo."""
         return await self.async_step_reauth_confirm()
 
-    async def async_step_reauth_confirm(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None):
         """Confirm re-authentication with Sensibo."""
-        errors: dict[str, str] = {}
-
         if user_input:
             reauth_entry = self._get_reauth_entry()
             email = user_input[CONF_EMAIL]
             password = user_input[CONF_PASSWORD]
-            api = SectorAlarmAPI(self.hass, email, password, None)
+
+            client_session = async_get_clientsession(self.hass)
+            token_provider = AsyncTokenProvider(client_session, email, password)
             try:
-                await api.login()
+                await token_provider.get_token()
+            except LoginError:
+                self._errors["base"] = "authentication_failed"
             except AuthenticationError:
-                errors["base"] = "authentication_failed"
+                self._errors["base"] = "authentication_failed"
             except Exception as e:
-                errors["base"] = "unknown_error"
+                self._errors["base"] = "unknown_error"
                 _LOGGER.exception("Unexpected exception during authentication: %s", e)
             else:
                 self.async_update_reload_and_abort(
@@ -95,51 +94,62 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=DATA_SCHEMA,
-            errors=errors,
+            errors=self._errors,
         )
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle the initial step."""
-        errors: dict[str, str] = {}
-
         if user_input is not None:
-            self.email = user_input[CONF_EMAIL]
-            self.password = user_input[CONF_PASSWORD]
-            self.code_format = int(user_input[CONF_CODE_FORMAT])
-            _LOGGER.debug("Setting CONF_CODE_FORMAT: %s", self.code_format)
+            self._email = user_input[CONF_EMAIL]
+            self._password = user_input[CONF_PASSWORD]
+            self._code_format = int(user_input[CONF_CODE_FORMAT])
+            _LOGGER.debug("Setting CONF_CODE_FORMAT: %s", self._code_format)
 
-            api = SectorAlarmAPI(self.hass, self.email, self.password, None)
+            client_session = async_get_clientsession(self.hass)
+            token_provider = AsyncTokenProvider(
+                client_session, self._email, self._password
+            )
+            api = SectorAlarmAPI(client_session, None, token_provider)
             try:
-                await api.login()
-                panel_list = await api.get_panel_list()
+                # dict[str, str]
+                response = await api.get_panel_list()
+                if not response.is_ok():
+                    raise ApiError(
+                        f"Failed to retrieve panel information' (HTTP {response.response_code} - {response.response_data})"
+                    )
+                if not response.is_json():
+                    raise ApiError(
+                        f"Failed to retrieve panel information' (response data is not JSON '{response.response_data}')"
+                    )
 
-                self.panel_ids = panel_list
-                _LOGGER.debug(f"panel_ids: {self.panel_ids}")
-                if not self.panel_ids:
-                    errors["base"] = "no_panels_found"
-                elif len(self.panel_ids) == 1:
+                panel_list: dict[str, str] = response.response_data
+                self._panel_ids = panel_list
+                _LOGGER.debug(f"panel_ids: {self._panel_ids}")
+                if not self._panel_ids:
+                    self._errors["base"] = "no_panels_found"
+                elif len(self._panel_ids) == 1:
                     # Only one panel_id found, directly save it
                     return self.async_create_entry(
-                        title=f"Sector Alarm {list(self.panel_ids.keys())[0]}",
+                        title=f"Sector Alarm {list(self._panel_ids.keys())[0]}",
                         data={
-                            CONF_EMAIL: self.email,
-                            CONF_PASSWORD: self.password,
-                            CONF_PANEL_ID: list(self.panel_ids.keys())[0],
+                            CONF_EMAIL: self._email,
+                            CONF_PASSWORD: self._password,
+                            CONF_PANEL_ID: list(self._panel_ids.keys())[0],
                         },
                         options={
-                            CONF_CODE_FORMAT: self.code_format,
+                            CONF_CODE_FORMAT: self._code_format,
                         },
                     )
                 else:
                     # More than one panel_id, prompt user to select one
                     return await self.async_step_select_panel()
 
+            except LoginError:
+                self._errors["base"] = "authentication_failed"
             except AuthenticationError:
-                errors["base"] = "authentication_failed"
+                self._errors["base"] = "authentication_failed"
             except Exception as e:
-                errors["base"] = "unknown_error"
+                self._errors["base"] = "unknown_error"
                 _LOGGER.exception("Unexpected exception during authentication: %s", e)
 
         return self.async_show_form(
@@ -147,31 +157,29 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=self.add_suggested_values_to_schema(
                 DATA_SCHEMA.extend(DATA_SCHEMA_OPTIONS.schema), user_input or {}
             ),
-            errors=errors,
+            errors=self._errors,
         )
 
-    async def async_step_select_panel(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_select_panel(self, user_input: dict[str, Any] | None = None):
         """Handle the panel selection step."""
         if user_input is not None:
             # User selected a panel_id; complete the setup
             return self.async_create_entry(
                 title=f"Sector Alarm {user_input[CONF_PANEL_ID]}",
                 data={
-                    CONF_EMAIL: self.email,
-                    CONF_PASSWORD: self.password,
+                    CONF_EMAIL: self._email,
+                    CONF_PASSWORD: self._password,
                     CONF_PANEL_ID: user_input[CONF_PANEL_ID],
                 },
                 options={
-                    CONF_CODE_FORMAT: self.code_format,
+                    CONF_CODE_FORMAT: self._code_format,
                 },
             )
 
         # Generate dropdown options based on retrieved panel IDs
         panel_options = [
             SelectOptionDict(value=pid, label=f"Panel {name}")
-            for pid, name in self.panel_ids.items()
+            for pid, name in self._panel_ids.items()
         ]
         data_schema = vol.Schema(
             {
@@ -189,9 +197,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
 class SectorAlarmOptionsFlow(OptionsFlowWithConfigEntry):
     """Handle Sector options."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Manage Sector options."""
 
         if user_input is not None:
