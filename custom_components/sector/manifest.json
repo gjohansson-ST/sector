@@ -8,5 +8,5 @@
   "integration_type": "hub",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/OathMeadow/sector-maintained/issues",
-  "version": "1.0.0"
+  "version": "0.5.1"
 }
