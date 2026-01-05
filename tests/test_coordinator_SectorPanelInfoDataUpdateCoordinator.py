@@ -74,7 +74,7 @@ async def test_async_update_data_should_fetch_PanelInfo(
     assert data["panel_info"] == panel_info
 
 
-async def test_async_update_data_should_throw_UpdateFailed_exception_on_http_failure(
+async def test_async_update_data_should_raise_UpdateFailed_exception_on_http_failure(
     hass: HomeAssistant,
 ):
     # Prepare
@@ -96,7 +96,7 @@ async def test_async_update_data_should_throw_UpdateFailed_exception_on_http_fai
         await coordinator._async_update_data()
 
 
-async def test_async_update_data_should_throw_UpdateFailed_exception_on_non_json_response(
+async def test_async_update_data_should_raise_UpdateFailed_exception_on_non_json_response(
     hass: HomeAssistant,
 ):
     # Prepare
@@ -118,7 +118,7 @@ async def test_async_update_data_should_throw_UpdateFailed_exception_on_non_json
         await coordinator._async_update_data()
 
 
-async def test_async_update_data_should_throw_UpdateFailed_exception_on_empty_response(
+async def test_async_update_data_should_raise_UpdateFailed_exception_on_empty_response(
     hass: HomeAssistant,
 ):
     # Prepare
@@ -140,7 +140,7 @@ async def test_async_update_data_should_throw_UpdateFailed_exception_on_empty_re
         await coordinator._async_update_data()
 
 
-async def test_async_update_data_should_throw_ConfigEntryAuthFailed_exception_on_LoginError(
+async def test_async_update_data_should_raise_ConfigEntryAuthFailed_exception_on_LoginError(
     hass: HomeAssistant,
 ):
     # Prepare

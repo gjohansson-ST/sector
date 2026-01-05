@@ -128,43 +128,35 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_setup(self):
-        try:
-            panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
-            if panel_info is None:
-                raise UpdateFailed(
-                    f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
-                )
-
-            mandatory_endpoint_types = (
-                SectorActionDataUpdateCoordinator._MANDATORY_ENDPOINT_TYPES.copy()
-            )
-            optional_endpoint_types = (
-                SectorActionDataUpdateCoordinator._OPTIONAL_DATA_ENDPOINT_TYPES.copy()
+        panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
+        if panel_info is None:
+            raise UpdateFailed(
+                f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
             )
 
-            locks: list[Lock] = panel_info.get("Locks", {})
-            plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
+        mandatory_endpoint_types = (
+            SectorActionDataUpdateCoordinator._MANDATORY_ENDPOINT_TYPES.copy()
+        )
+        optional_endpoint_types = (
+            SectorActionDataUpdateCoordinator._OPTIONAL_DATA_ENDPOINT_TYPES.copy()
+        )
 
-            if locks.__len__() == 0:
-                optional_endpoint_types.remove(DataEndpointType.LOCK_STATUS)
-            if plugs.__len__() == 0:
-                optional_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
+        locks: list[Lock] = panel_info.get("Locks", {})
+        plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
 
-            supported_endpoint_types = (
-                mandatory_endpoint_types | optional_endpoint_types
-            )
-            _LOGGER.debug(
-                "Supported ACTION endpoint types: %s", supported_endpoint_types
-            )
-            self._data_endpoints = supported_endpoint_types
-            self.data = {"devices": {}, "logs": {}}
+        if locks.__len__() == 0:
+            optional_endpoint_types.remove(DataEndpointType.LOCK_STATUS)
+        if plugs.__len__() == 0:
+            optional_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
 
-        except LoginError as error:
-            raise ConfigEntryAuthFailed from error
-        except AuthenticationError as error:
-            raise UpdateFailed(str(error)) from error
-        except ApiError as error:
-            raise UpdateFailed(str(error)) from error
+        supported_endpoint_types = (
+            mandatory_endpoint_types | optional_endpoint_types
+        )
+        _LOGGER.debug(
+            "Supported ACTION endpoint types: %s", supported_endpoint_types
+        )
+        self._data_endpoints = supported_endpoint_types
+        self.data = {"devices": {}, "logs": {}}
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -373,13 +365,13 @@ class _DeviceProcessor:
 
             _LOGGER.debug("Processing category: %s", category_name)
 
-            if not category_data.is_ok:
+            if not category_data.is_ok():
                 _LOGGER.warning(
                     f"Unable to process data for category '{category_name}' due to API error: data={str(category_data)}"
                 )
                 continue
 
-            if not category_data.is_json:
+            if not category_data.is_json():
                 _LOGGER.warning(
                     f"Unable to process data for category '{category_name}' due to unexpected response type: data={str(category_data)}"
                 )
