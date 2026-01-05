@@ -8,6 +8,7 @@ import json
 import logging
 import time
 from typing import Any
+from builtins import ExceptionGroup
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientSession
@@ -218,10 +219,27 @@ class SectorAlarmAPI:
         """Retrieve all relevant data from the API."""
         data = {}
         data_endpoints = fetch_data_endpoints(data_endpoint_types)
-        async with asyncio.TaskGroup() as tg:
-            for endpoint in data_endpoints:
-                tg.create_task(self._retrieve_data(endpoint, data))
-        return data
+        try:
+            async with asyncio.TaskGroup() as tg:
+                for endpoint in data_endpoints:
+                    tg.create_task(self._retrieve_data(endpoint, data))
+            return data
+        except ExceptionGroup as eg:
+            relevant_errors = [
+                e
+                for e in self._flatten_exception_group(eg)
+                if not isinstance(e, asyncio.CancelledError)
+            ]
+            if relevant_errors:
+                raise relevant_errors[0] from None
+            raise
+
+    def _flatten_exception_group(self, eg: ExceptionGroup):
+        for exc in eg.exceptions:
+            if isinstance(exc, ExceptionGroup):
+                yield from self._flatten_exception_group(exc)
+            else:
+                yield exc
 
     async def _retrieve_data(
         self, endpoint: DataEndpoint, data: dict[DataEndpointType, APIResponse]
