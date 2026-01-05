@@ -64,7 +64,7 @@ Restart before proceeding
 
 ## Activate integration in HA
 
-[![Add integrations](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start?domain=sector)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=OathMeadow&repository=sector-maintained&category=integration)
 
 After installation go to "Integrations" page in HA, press + and search for Sector Alarm
 Follow onscreen information to type username, password, code etc.
