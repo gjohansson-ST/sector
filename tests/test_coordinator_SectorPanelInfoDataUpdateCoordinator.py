@@ -8,7 +8,6 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
 )
 
-
 from custom_components.sector.api_model import Lock, PanelInfo, SmartPlug, Temperature
 from custom_components.sector.client import APIResponse, LoginError
 from custom_components.sector.coordinator import SectorPanelInfoDataUpdateCoordinator
