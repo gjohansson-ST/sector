@@ -10,6 +10,19 @@ jobs:
     steps:
         - uses: "actions/checkout@v6"
 
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: "3.12"
+
+        - name: Install dependencies
+          run: |
+            ./scripts/setup.sh
+
+        - name: Run unit tests
+          run: |
+            pytest -vv
+
         - name: HACS validation
           uses: "hacs/action@main"
           with:

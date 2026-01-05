@@ -65,7 +65,7 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_setup(self):
-        return await self._fetch_data()
+        await self._fetch_data()
 
     async def _async_update_data(self) -> dict[str, Any]:
         return await self._fetch_data()

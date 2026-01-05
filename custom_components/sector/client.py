@@ -40,10 +40,10 @@ class ApiError(HomeAssistantError):
 
 
 class APIResponse:
-    def __init__(self, response_code: int, response_data: Any, response_json: bool):
+    def __init__(self, response_code: int, response_data: Any, response_is_json: bool):
         self.response_code = response_code
         self.response_data = response_data
-        self.response_json: bool = response_json
+        self.response_json: bool = response_is_json
 
     def __str__(self) -> str:
         return (
@@ -200,7 +200,7 @@ class SectorAlarmAPI:
             }
             return APIResponse(
                 response_code=response.response_code,
-                response_json=response.response_json,
+                response_is_json=response.response_json,
                 response_data=data,
             )
         else:
@@ -274,14 +274,14 @@ class SectorAlarmAPI:
                             return APIResponse(
                                 response_code=response.status,
                                 response_data=json,
-                                response_json=True,
+                                response_is_json=True,
                             )
                         else:
                             text = await response.text()
                             return APIResponse(
                                 response_code=response.status,
                                 response_data=text,
-                                response_json=False,
+                                response_is_json=False,
                             )
                     elif response.status == 401 or response.status == 403:
                         self._token_provider.invalidate_token()
@@ -298,7 +298,7 @@ class SectorAlarmAPI:
                         return APIResponse(
                             response_code=response.status,
                             response_data=text,
-                            response_json=False,
+                            response_is_json=False,
                         )
         except Exception as err:
             raise self._handle_exception(err=err, method="GET", url=url)
@@ -318,14 +318,14 @@ class SectorAlarmAPI:
                             return APIResponse(
                                 response_code=response.status,
                                 response_data=json,
-                                response_json=True,
+                                response_is_json=True,
                             )
                         else:
                             text = await response.text()
                             return APIResponse(
                                 response_code=response.status,
                                 response_data=text,
-                                response_json=False,
+                                response_is_json=False,
                             )
                     elif response.status == 401 or response.status == 403:
                         self._token_provider.invalidate_token()
@@ -342,7 +342,7 @@ class SectorAlarmAPI:
                         return APIResponse(
                             response_code=response.status,
                             response_data=text,
-                            response_json=False,
+                            response_is_json=False,
                         )
         except Exception as err:
             raise self._handle_exception(err=err, method="POST", url=url)
