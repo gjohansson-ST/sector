@@ -8,9 +8,7 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
 )
 
-from custom_components.sector import coordinator
 from custom_components.sector.api_model import (
-    Component,
     Lock,
     LogRecords,
     PanelInfo,
@@ -21,7 +19,6 @@ from custom_components.sector.api_model import (
 from custom_components.sector.client import APIResponse, LoginError
 from custom_components.sector.coordinator import (
     SectorActionDataUpdateCoordinator,
-    SectorSensorDataUpdateCoordinator,
 )
 from custom_components.sector.endpoints import DataEndpointType
 
