@@ -10,6 +10,9 @@
 
 [![Made for Home Assistant](https://img.shields.io/badge/Made_for-Home%20Assistant-blue?style=for-the-badge&logo=homeassistant)](https://github.com/home-assistant)
 
+> ⚠️ Work in progress: no official release yet.
+Bug fixes and updates are applied continuously on the `master` branch.
+Please open an issue if you encounter any problems. 🙇
 
 # Sector Alarm integration for Home Assistant
 
