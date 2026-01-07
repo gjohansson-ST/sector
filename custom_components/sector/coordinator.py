@@ -15,7 +15,15 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
-from .api_model import PanelInfo, PanelStatus, SmartPlug, Temperature, Lock, HouseCheck, LogRecords
+from .api_model import (
+    PanelInfo,
+    PanelStatus,
+    SmartPlug,
+    Temperature,
+    Lock,
+    HouseCheck,
+    LogRecords,
+)
 from .client import (
     ApiError,
     AuthenticationError,
@@ -96,6 +104,7 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
         except ApiError as error:
             raise UpdateFailed(str(error)) from error
 
+
 class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
     _MANDATORY_ENDPOINT_TYPES = {DataEndpointType.PANEL_STATUS, DataEndpointType.LOGS}
 
@@ -149,12 +158,8 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         if plugs.__len__() == 0:
             optional_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
 
-        supported_endpoint_types = (
-            mandatory_endpoint_types | optional_endpoint_types
-        )
-        _LOGGER.debug(
-            "Supported ACTION endpoint types: %s", supported_endpoint_types
-        )
+        supported_endpoint_types = mandatory_endpoint_types | optional_endpoint_types
+        _LOGGER.debug("Supported ACTION endpoint types: %s", supported_endpoint_types)
         self._data_endpoints = supported_endpoint_types
         self.data = {"devices": {}, "logs": {}}
 
@@ -349,6 +354,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             self._legacy_temperature_last_response = response
         return data
 
+
 class _DeviceProcessor:
     def __init__(self, hass: HomeAssistant, panel_id: str) -> None:
         self._hass = hass
@@ -491,8 +497,11 @@ class _DeviceProcessor:
         """Process devices within a specific category and add them to devices dictionary."""
         default_model_name = category_name.value
 
+        # Note that some values might not exist as the Component model
+        # is shared between different devices.
+        # Hence we need to use "get"
         if "Sections" in category_data:
-            for section in category_data["Sections"]:
+            for section in category_data.get("Sections", []):
                 for place in section.get("Places", []):
                     for component in place.get("Components", []):
                         serial_no = component.get("SerialNo") or component.get("Serial")
@@ -509,23 +518,29 @@ class _DeviceProcessor:
                         )
 
                         sensors = {}
-                        if component["Closed"] is not None:
-                            sensors["closed"] = component["Closed"]
+                        closed = component.get("Closed")
+                        if closed is not None:
+                            sensors["closed"] = closed
 
-                        if component["LowBattery"] is not None:
-                            sensors["low_battery"] = component["LowBattery"]
+                        low_battery = component.get("LowBattery")
+                        if low_battery is not None:
+                            sensors["low_battery"] = low_battery
 
-                        if component["BatteryLow"] is not None:
-                            sensors["low_battery"] = component["BatteryLow"]
+                        battery_low = component.get("BatteryLow")
+                        if battery_low is not None:
+                            sensors["low_battery"] = battery_low
 
-                        if component["Alarm"] is not None:
-                            sensors["alarm"] = component["Alarm"]
+                        alarm = component.get("Alarm")
+                        if alarm is not None:
+                            sensors["alarm"] = alarm
 
-                        if component["Temperature"] is not None:
-                            sensors["temperature"] = component["Temperature"]
+                        temperature = component.get("Temperature")
+                        if temperature is not None:
+                            sensors["temperature"] = temperature
 
-                        if component["Humidity"] is not None:
-                            sensors["humidity"] = component["Humidity"]
+                        humidity = component.get("Humidity")
+                        if humidity is not None:
+                            sensors["humidity"] = humidity
 
                         if sensors.__len__() == 0:
                             _LOGGER.debug(
