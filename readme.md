@@ -49,7 +49,7 @@ On alarm installation which are not wired make sure you take the binary sensor `
 
 ## Installation ##
 
-**Required Home Assistant version:** 2025.12.0
+**Minimum Required Home Assistant version:** 2025.12.0
 
 > ⚠️ You must uninstall and remove existing integration from [`gjohansson-ST/sector`](https://github.com/gjohansson-ST/sector) before installation can begin.
 
