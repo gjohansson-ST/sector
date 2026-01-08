@@ -71,7 +71,6 @@ class SectorAlarmSwitch(
     periodic polling using a DataUpdateCoordinator.
 
     For this reason, the entity uses an assumed (optimistic) state model:
-    - `_attr_assumed_state = True`
     - State is updated optimistically on turn_on / turn_off
     - The coordinator later reconciles the actual device state
 
@@ -79,7 +78,6 @@ class SectorAlarmSwitch(
     In other words, Sector Alarm smart plug switch is asynchronous
     """
 
-    _attr_assumed_state = True
     _attr_device_class = SwitchDeviceClass.OUTLET
     _attr_name = None
 
