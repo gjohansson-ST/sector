@@ -8,10 +8,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.config_entries import (
-    ConfigFlow,
-    OptionsFlowWithConfigEntry,
-)
+from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.helpers.selector import (
     NumberSelector,
@@ -26,7 +23,13 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .client import ApiError, AuthenticationError, SectorAlarmAPI, AsyncTokenProvider, LoginError
+from .client import (
+    ApiError,
+    AuthenticationError,
+    SectorAlarmAPI,
+    AsyncTokenProvider,
+    LoginError,
+)
 from .const import CONF_CODE_FORMAT, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,6 +59,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Sector Alarm."""
 
     VERSION = 4
+    SUPPORTS_OPTIONS = True
 
     def __init__(self):
         self._email: str | None
@@ -63,6 +67,10 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         self._code_format: int | None
         self._panel_ids: dict[str, str]
         self._errors = {}
+
+    @staticmethod
+    def async_get_options_flow(config_entry: ConfigEntry):
+        return SectorAlarmOptionsFlow()
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]):
         """Handle re-authentication with Sensibo."""
@@ -194,7 +202,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="select_panel", data_schema=data_schema)
 
 
-class SectorAlarmOptionsFlow(OptionsFlowWithConfigEntry):
+class SectorAlarmOptionsFlow(OptionsFlow):
     """Handle Sector options."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
