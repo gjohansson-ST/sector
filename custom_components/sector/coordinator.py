@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from homeassistant.components.recorder import history
 from homeassistant.helpers.recorder import get_instance
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -69,7 +69,7 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             config_entry=entry,
             name="SectorPanelInfoDataUpdateCoordinator",
-            update_interval=timedelta(seconds=120),
+            update_interval=timedelta(seconds=60),
         )
 
     async def _async_setup(self):
@@ -125,9 +125,11 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         self.panel_id = entry.data[CONF_PANEL_ID]
         self.sector_config_entry = entry
         self._panel_info_coordinator = panel_info_coordinator
+        self._panel_info_coordinator.async_add_listener(self._handle_parent_update)
         self._data_endpoints: set[DataEndpointType] = set()
         self._event_logs: dict[str, Any] = {}
         self._device_proccessor = _DeviceProcessor(self._hass, self.panel_id)
+
         super().__init__(
             hass,
             _LOGGER,
@@ -135,6 +137,11 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
             name="SectorActionDataUpdateCoordinator",
             update_interval=timedelta(seconds=60),
         )
+
+    @callback
+    def _handle_parent_update(self):
+        # currently does nothing
+        pass
 
     async def _async_setup(self):
         panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
@@ -165,13 +172,19 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
+            panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
+            if panel_info is None:
+                raise UpdateFailed(
+                    f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
+                )
+
             api_data: dict[
                 DataEndpointType, APIResponse
             ] = await self.api.retrieve_all_data(self._data_endpoints)
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
-            devices = self._device_proccessor.process_devices(api_data)
+            devices = self._device_proccessor.process_devices(panel_info, api_data)
 
             # Process logs for event handling
             if (
@@ -253,6 +266,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         self.panel_id = entry.data[CONF_PANEL_ID]
         self.sector_config_entry = entry
         self._panel_info_coordinator = panel_info_coordinator
+        self._panel_info_coordinator.async_add_listener(self._handle_parent_update)
         self._use_legacy_api = True
         self._legacy_temperature_last_update: Optional[datetime] = None
         self._legacy_temperature_last_response: Optional[APIResponse] = None
@@ -266,6 +280,11 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             name="SectorSensorDataUpdateCoordinator",
             update_interval=timedelta(seconds=60),
         )
+
+    @callback
+    def _handle_parent_update(self):
+        # Currently does nothing
+        pass
 
     async def _async_setup(self):
         try:
@@ -306,6 +325,12 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
         try:
+            panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
+            if panel_info is None:
+                raise UpdateFailed(
+                    f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
+                )
+
             if self._use_legacy_api:
                 api_data = await self._legacy_retrieve_all_data()
             else:
@@ -314,7 +339,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
-            devices = self._device_proccessor.process_devices(api_data)
+            devices = self._device_proccessor.process_devices(panel_info, api_data)
 
             return {"devices": devices}
 
@@ -361,7 +386,7 @@ class _DeviceProcessor:
         self._panel_id = panel_id
 
     def process_devices(
-        self, api_data: dict[DataEndpointType, APIResponse]
+        self, panel_info: PanelInfo, api_data: dict[DataEndpointType, APIResponse]
     ) -> dict[str, Any]:
         """Process device data from the API, including humidity, closed, and alarm sensors."""
         devices: dict[str, Any] = {}
@@ -385,7 +410,7 @@ class _DeviceProcessor:
 
             response_data = category_data.response_data
             if category_name == DataEndpointType.PANEL_STATUS:
-                self.process_alarm_panel(response_data, devices)
+                self.process_alarm_panel(panel_info, response_data, devices)
             elif category_name == DataEndpointType.SMART_PLUG_STATUS:
                 self.process_smart_plugs(response_data, devices)
             elif category_name == DataEndpointType.LOCK_STATUS:
@@ -444,7 +469,7 @@ class _DeviceProcessor:
             )
 
     def process_alarm_panel(
-        self, panel_status_data: PanelStatus, devices: dict
+        self, panel_info: PanelInfo, panel_status_data: PanelStatus, devices: dict
     ) -> None:
         """Process alarm panel status data and add to devices dictionary."""
         serial_no = self._panel_id
@@ -456,6 +481,9 @@ class _DeviceProcessor:
                 "alarm_status": panel_status_data.get("Status"),
             },
             "model": "Sector Alarm Control Panel",
+            "panel_code_length": panel_info.get("PanelCodeLength", 0),
+            "panel_quick_arm": panel_info.get("QuickArmEnabled", False),
+            "panel_partial_arm": panel_info.get("CanPartialArm", False),
         }
         _LOGGER.debug(
             "Processed alarm panel with Serial %s: %s",

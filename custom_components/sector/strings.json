@@ -13,7 +13,8 @@
                 "data": {
                     "email": "E-mail address",
                     "password": "Password",
-                    "code_format": "Code length"
+                    "code_format": "Door lock: PIN-length",
+                    "ignore_quick_arm": "Alarm panel: Always require PIN-code (ignores Quick Arming setting)"
                 }
             },
             "select_panel": {
@@ -33,7 +34,8 @@
         "step": {
             "init": {
                 "data": {
-                    "code_format": "Code length"
+                    "code_format": "Door lock: PIN-length",
+                    "ignore_quick_arm": "Alarm panel: Always require PIN-code (ignores Quick Arming setting)"
                 }
             }
         }

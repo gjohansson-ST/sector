@@ -13,7 +13,8 @@
                 "data": {
                     "email": "Epost adress",
                     "password": "Lösenord",
-                    "code_format": "Kodlängd"
+                    "code_format": "Dörrlås: PIN-längd",
+                    "ignore_quick_arm": "Larmpanel: Kräv alltid PIN-kod"
                 }
             },
             "select_panel": {
@@ -33,7 +34,8 @@
         "step": {
             "init": {
                 "data": {
-                    "code_format": "Kodlängd"
+                    "code_format": "Dörrlås: PIN-längd",
+                    "ignore_quick_arm": "Larmpanel: Kräv alltid PIN-kod"
                 }
             }
         }
