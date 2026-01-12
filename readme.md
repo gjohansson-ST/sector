@@ -1,6 +1,6 @@
 [![Sector Alarm](https://github.com/OathMeadow/sector-maintained/blob/master/logos/logo.png)](https://www.sectoralarm.se/)
 
-[![HACS](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge&cacheSeconds=3600)](https://github.com/hacs/integration)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge&cacheSeconds=3600)](https://github.com/hacs/integration)
 [![Repo size](https://img.shields.io/github/repo-size/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained)
 [![Latest release](https://img.shields.io/github/v/release/OathMeadow/sector-maintained?label=Latest%20release&style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/OathMeadow/sector-maintained/total?style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained/releases/latest)
