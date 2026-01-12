@@ -10,11 +10,12 @@
         },
         "step": {
             "user": {
+                "title": "Sector Alarm konfiguration",
                 "data": {
                     "email": "Epost adress",
                     "password": "Lösenord",
-                    "code_format": "Dörrlås: PIN-längd",
-                    "ignore_quick_arm": "Larmpanel: Kräv alltid PIN-kod"
+                    "code_format": "Dörrlås PIN-längd",
+                    "ignore_quick_arm": "Ignorera inställningen ”Snabbarmering”"
                 }
             },
             "select_panel": {
@@ -33,9 +34,10 @@
     "options": {
         "step": {
             "init": {
+                "title": "Sector Alarm alternativ",
                 "data": {
-                    "code_format": "Dörrlås: PIN-längd",
-                    "ignore_quick_arm": "Larmpanel: Kräv alltid PIN-kod"
+                    "code_format": "Dörrlås PIN-längd",
+                    "ignore_quick_arm": "Ignorera inställningen ”Snabbarmering”"
                 }
             }
         }

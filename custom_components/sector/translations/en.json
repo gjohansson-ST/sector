@@ -10,11 +10,12 @@
         },
         "step": {
             "user": {
+                "title": "Sector Alarm configuration",
                 "data": {
                     "email": "E-mail address",
                     "password": "Password",
-                    "code_format": "Door lock: PIN-length",
-                    "ignore_quick_arm": "Alarm panel: Always require PIN-code (ignores Quick Arming setting)"
+                    "code_format": "Door lock PIN-length",
+                    "ignore_quick_arm": "Ignore ”Quick Arming”"
                 }
             },
             "select_panel": {
@@ -33,9 +34,10 @@
     "options": {
         "step": {
             "init": {
+                "title": "Sector Alarm options",
                 "data": {
-                    "code_format": "Door lock: PIN-length",
-                    "ignore_quick_arm": "Alarm panel: Always require PIN-code (ignores Quick Arming setting)"
+                    "code_format": "Door lock PIN-length",
+                    "ignore_quick_arm": "Ignore ”Quick Arming”"
                 }
             }
         }

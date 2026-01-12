@@ -53,9 +53,7 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
         vol.Optional(CONF_CODE_FORMAT, default=6): NumberSelector(
             NumberSelectorConfig(min=0, max=6, step=1, mode=NumberSelectorMode.BOX)
         ),
-        vol.Optional(CONF_IGNORE_QUICK_ARM, default=False): BooleanSelector(
-            BooleanSelectorConfig()
-        ),
+        vol.Optional(CONF_IGNORE_QUICK_ARM, default=False): bool,
     }
 )
 
