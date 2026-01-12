@@ -87,4 +87,4 @@ After installation:
 
 This integration is actively maintained, and help and ideas is always welcome.
 
-If you encounter any issues, bugs, or unexpected behavior, please don’t hesitate to open an issue on GitHub, or post at the [discord](https://discord.gg/dFQ7UP5Y9g) channel.
+If you encounter any issues, bugs, or unexpected behavior, please don’t hesitate to open an issue on GitHub, or make a post in the [discord](https://discord.gg/dFQ7UP5Y9g) channel.
