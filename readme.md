@@ -10,6 +10,7 @@
 
 [![Made for Home Assistant](https://img.shields.io/badge/Made_for-Home%20Assistant-blue?style=for-the-badge&logo=homeassistant)](https://github.com/home-assistant)
 
+[![Discord](https://img.shields.io/discord/1451099352490840106?style=for-the-badge&label=Discord&cacheSeconds=3600)](https://discord.gg/dFQ7UP5Y9g)
 
 # Sector Alarm integration for Home Assistant
 
@@ -81,3 +82,9 @@ After installation:
 | Password             | **Yes**  | Sets the password for your Sector alarm account.|
 | Door lock PIN-length | **Conditional**  | Required **only if you have a door lock**. <br> Sets the expected PIN length for door locks.|
 | Ignore ”Quick Arming”| No       | *Default: false* <br> Ignore the "Quick Arming" Sector alarm setting and always require PIN-code when arming.|
+
+## Contributing & Support ##
+
+This integration is actively maintained, and help and ideas is always welcome.
+
+If you encounter any issues, bugs, or unexpected behavior, please don’t hesitate to open an issue on GitHub, or post at the [discord](https://discord.gg/dFQ7UP5Y9g) channel.
