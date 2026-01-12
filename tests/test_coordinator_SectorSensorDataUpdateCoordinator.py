@@ -28,6 +28,16 @@ temperature: Temperature = {
     "Temperature": "22.5",
 }
 
+panel_info: PanelInfo = {
+    "PanelId": "1234",
+    "PanelCodeLength": 6,
+    "QuickArmEnabled": True,
+    "CanPartialArm": True,
+    "Locks": [],
+    "Smartplugs": [],
+    "Temperatures": [temperature],
+}
+
 # HouseCheck
 # Note that these test parameters are made up (logically based on the names)
 # as the HouseCheck API is not fully understood
@@ -117,13 +127,6 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
     hass: HomeAssistant,
 ):
     # Prepare
-    panel_info: PanelInfo = {
-        "PanelId": "1234",
-        "Locks": [],
-        "Smartplugs": [],
-        "Temperatures": [temperature],
-    }
-
     mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
@@ -197,6 +200,9 @@ async def test_async_setup_should_not_use_legacy_api_temperatures_if_not_defined
     # Prepare
     panel_info: PanelInfo = {
         "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": True,
         "Locks": [],
         "Smartplugs": [],
         "Temperatures": [],
@@ -246,7 +252,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     hass: HomeAssistant,
 ):
     # Prepare
-    mock_panel_info_coordinator = _create_mock_sector_panel_info(None)
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
 
@@ -372,7 +378,7 @@ async def test_async_update_data_should_not_proccess_empty_or_failed_devices(
         ),
     }
 
-    mock_panel_info_coordinator = _create_mock_sector_panel_info(None)
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
 
@@ -395,7 +401,7 @@ async def test_async_update_data_should_raise_ConfigEntryAuthFailed_exception_on
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.side_effect = LoginError("Failed To Login User")
 
-    mock_panel_info_coordinator = _create_mock_sector_panel_info(None)
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
 
