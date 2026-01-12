@@ -13,9 +13,7 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
-    BooleanSelectorConfig,
     NumberSelectorMode,
-    BooleanSelector,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
