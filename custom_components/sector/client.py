@@ -347,7 +347,7 @@ class SectorAlarmAPI:
         except Exception as err:
             raise self._handle_exception(err=err, method="POST", url=url)
 
-    async def arm_system(self, mode: str, code: str) -> None:
+    async def arm_system(self, mode: str, code: str | None) -> None:
         """Arm the alarm system."""
         panel_code = code
         if mode == "full":
@@ -359,8 +359,8 @@ class SectorAlarmAPI:
             raise NotImplementedError("Unsupported mode %s", mode)
 
         payload = {
-            "PanelCode": panel_code,
             "PanelId": self._panel_id,
+            **({"PanelCode": panel_code} if panel_code is not None else {}),
         }
         response: APIResponse = await self._post(endpoint.uri(), payload)
         if not response.is_ok():

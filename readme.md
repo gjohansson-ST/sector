@@ -75,12 +75,9 @@ After installation:
 4. Restart Home Assistant
 
 ## Configuration options ##
-
-### Set once during setup ###
-- **Username –** E-mail address associated with your Sector Alarm account
-- **Password -** Password used for the Sector Alarm app or website
-
-### Adjustable after setup ###
-Options that you can change at any time:
-
-- **Code format –** Number of digits used for the alarm control panel
+| Configuration        | Required | Description                   |
+|----------------------| -------- | ----------------------------- |
+| Username             | **Yes**  | Sets the e-mail user address for your Sector alarm account.|
+| Password             | **Yes**  | Sets the password for your Sector alarm account.|
+| Door lock PIN-length | **Conditional**  | Required **only if you have a door lock**. <br> Sets the expected PIN length for door locks.|
+| Ignore ”Quick Arming”| No       | *Default: false* <br> Ignore the "Quick Arming" Sector alarm setting and always require PIN-code when arming.|

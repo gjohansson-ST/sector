@@ -44,6 +44,9 @@ class LogRecords(TypedDict):
 
 class PanelInfo(TypedDict):
     PanelId: str
+    PanelCodeLength: int
+    QuickArmEnabled: bool
+    CanPartialArm: bool
     Locks: list[Lock]
     Temperatures: list[Temperature]
     Smartplugs: list[SmartPlug]

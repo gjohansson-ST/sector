@@ -68,13 +68,15 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
     }
     panel_info: PanelInfo = {
         "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": True,
         "Locks": [lock],
         "Smartplugs": [smart_plug],
         "Temperatures": [temperature],
     }
 
     mock_api = AsyncMock()
-
     mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
@@ -101,6 +103,9 @@ async def test_async_setup_should_keep_mandatory_endpoints_from_empty_PanelInfo(
     # Prepare
     panel_info: PanelInfo = {
         "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": True,
         "Locks": [],
         "Smartplugs": [],
         "Temperatures": [],
@@ -152,6 +157,15 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
     hass: HomeAssistant,
 ):
     # Prepare
+    panel_info: PanelInfo = {
+        "PanelId": "1234",
+        "PanelCodeLength": 4,
+        "QuickArmEnabled": True,
+        "CanPartialArm": False,
+        "Locks": [],
+        "Smartplugs": [],
+        "Temperatures": [],
+    }
     smart_plug: SmartPlug = {
         "Id": "plug_1",
         "Label": "Living Room Plug",
@@ -192,7 +206,7 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
         ),
     }
 
-    mock_panel_info_coordinator = _create_mock_sector_panel_info(None)
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
 
@@ -230,11 +244,25 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
         "alarm_status": alarm_panel.get("Status"),
     }
     assert panel["model"] == "Sector Alarm Control Panel"
+    assert panel["panel_code_length"] == 4
+    assert panel["panel_quick_arm"]
+    assert not panel["panel_partial_arm"]
+
 
 async def test_async_update_data_should_not_proccess_empty_or_failed_PanelInfo_devices(
     hass: HomeAssistant,
 ):
     # Prepare
+    panel_info: PanelInfo = {
+        "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": True,
+        "Locks": [],
+        "Smartplugs": [],
+        "Temperatures": [],
+    }
+
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.return_value = {
         DataEndpointType.SMART_PLUG_STATUS: APIResponse(
@@ -248,7 +276,7 @@ async def test_async_update_data_should_not_proccess_empty_or_failed_PanelInfo_d
         ),
     }
 
-    mock_panel_info_coordinator = _create_mock_sector_panel_info(None)
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
 
@@ -263,10 +291,29 @@ async def test_async_update_data_should_not_proccess_empty_or_failed_PanelInfo_d
     assert "devices" in coordinator_data
     assert coordinator_data["devices"] == {}
 
+
 async def test__async_update_data_should_proccess_log_events(
     hass: HomeAssistant,
 ):
     # Prepare
+    panel_info: PanelInfo = {
+        "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": True,
+        "Locks": [],
+        "Smartplugs": [],
+        "Temperatures": [],
+    }
+    smart_lock: Lock = {
+        "AutoLockEnabled": False,
+        "Label": "ABC",
+        "Serial": "LOCK_SERIAL",
+        "SerialNo": "LOCK_SERIAL",
+        "Status": "unlock",
+        "BatteryLow": True,
+        "LowBattery": None,
+    }
     log_records: LogRecords = {
         "Records": [
             {
@@ -294,27 +341,30 @@ async def test__async_update_data_should_proccess_log_events(
                 "User": "Kod",
                 "Channel": "App",
                 "Time": "2025-12-13T23:25:13Z",
-                "EventType": "disarmed",
-                "LockName": "",
+                "EventType": "unlock",
+                "LockName": "ABC",
             },
             {
                 "User": "Kod",
                 "Channel": "App",
                 "Time": "2025-10-19T01:49:40Z",
-                "EventType": "armed",
-                "LockName": "",
+                "EventType": "lock",
+                "LockName": "ABC",
             },
         ]
     }
 
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.LOCK_STATUS: APIResponse(
+            response_code=200, response_is_json=True, response_data=[smart_lock]
+        ),
         DataEndpointType.LOGS: APIResponse(
             response_code=200, response_is_json=True, response_data=log_records
         ),
     }
 
-    mock_panel_info_coordinator = _create_mock_sector_panel_info(None)
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
 
@@ -335,10 +385,20 @@ async def test_async_update_data_should_raise_ConfigEntryAuthFailed_exception_on
     hass: HomeAssistant,
 ):
     # Prepare
+    panel_info: PanelInfo = {
+        "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": True,
+        "Locks": [],
+        "Smartplugs": [],
+        "Temperatures": [],
+    }
+
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.side_effect = LoginError("Failed To Login User")
 
-    mock_panel_info_coordinator = _create_mock_sector_panel_info(None)
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
 

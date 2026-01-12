@@ -52,6 +52,9 @@ async def test_async_update_data_should_fetch_PanelInfo(
     }
     panel_info: PanelInfo = {
         "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": True,
         "Locks": [lock],
         "Smartplugs": [smart_plug],
         "Temperatures": [temperature],
