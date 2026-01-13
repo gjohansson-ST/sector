@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from collections.abc import Awaitable, Callable
 import json
 import logging
 import time
-from typing import Any
 from builtins import ExceptionGroup
+from typing import Any, Tuple, Type, TypeVar
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientSession
@@ -16,12 +17,12 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .endpoints import (
     ACTION_ENDPOINTS,
-    DataEndpointType,
-    fetch_data_endpoints,
-    fetch_action_endpoint,
+    API_URL,
     ActionEndpointType,
     DataEndpoint,
-    API_URL,
+    DataEndpointType,
+    fetch_action_endpoint,
+    fetch_data_endpoints,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -247,11 +248,11 @@ class SectorAlarmAPI:
         """Retrieve data from the target endpoint."""
         url = endpoint.uri(self._panel_id)
         if endpoint.method() == "GET":
-            response: APIResponse = await self._get(url)
+            response: APIResponse = await self._get_with_retry(url)
         elif endpoint.method() == "POST":
             # For POST requests, we need to provide the panel ID in the payload
             payload = {"PanelId": self._panel_id}
-            response: APIResponse = await self._post(url, payload)
+            response: APIResponse = await self._post_with_retry(url, payload)
         else:
             _LOGGER.error(
                 f"Unsupported HTTP method {endpoint.method()} for endpoint {url}"
@@ -260,6 +261,13 @@ class SectorAlarmAPI:
 
         if response:
             data[endpoint.type()] = response
+
+    async def _get_with_retry(self, url) -> APIResponse:
+        retry = Retryable(
+            attempts=3,
+            retry_exceptions=(ApiError, AuthenticationError),
+        )
+        return await retry.run(lambda: self._get(url))
 
     async def _get(self, url) -> APIResponse:
         """Helper method to perform GET requests with timeout."""
@@ -302,6 +310,13 @@ class SectorAlarmAPI:
                         )
         except Exception as err:
             raise self._handle_exception(err=err, method="GET", url=url)
+
+    async def _post_with_retry(self, url, payload) -> APIResponse:
+        retry = Retryable(
+            attempts=3,
+            retry_exceptions=(ApiError, AuthenticationError),
+        )
+        return await retry.run(lambda: self._post(url, payload))
 
     async def _post(self, url, payload) -> APIResponse:
         """Helper method to perform POST requests with timeout."""
@@ -460,3 +475,46 @@ class SectorAlarmAPI:
         """Logout from the API."""
         logout_url = fetch_action_endpoint(ActionEndpointType.LOGOUT).uri()
         await self._post(logout_url, {})
+
+
+T = TypeVar("T")
+
+
+class Retryable:
+    """Simple async retry class with exponential backoff."""
+
+    def __init__(
+        self,
+        *,
+        attempts: int = 3,
+        retry_exceptions: Tuple[Type[BaseException], ...] = (Exception,),
+        initial_delay: float = 1.0,
+        max_delay: float = 10.0,
+        backoff: float = 2.0,
+    ) -> None:
+        self._attempts = attempts
+        self._retry_exceptions = retry_exceptions
+        self._initial_delay = initial_delay
+        self._max_delay = max_delay
+        self._backoff = backoff
+
+    async def run(self, func: Callable[[], Awaitable[T]]) -> T:
+        delay = self._initial_delay
+        last_exception: Exception | None = None
+        for attempt in range(1, self._attempts + 1):
+            try:
+                return await func()
+            except Exception as ex:
+                if not isinstance(ex, self._retry_exceptions):
+                    raise ex
+                if attempt >= self._attempts:
+                    raise ex
+
+                last_exception = ex
+                await asyncio.sleep(delay)
+                delay = min(delay * self._backoff, self._max_delay)
+
+        if last_exception:
+            raise last_exception
+        else:
+            raise RuntimeError("Retryable.run failed without an exception")
