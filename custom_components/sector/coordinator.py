@@ -53,6 +53,9 @@ type SectorAlarmConfigEntry = ConfigEntry[
     ]
 ]
 
+_PANEL_INFO_UPDATE_INTERVAL = timedelta(minutes=5)
+_ACTION_UPDATE_INTERVAL = timedelta(seconds=60)
+_SENSOR_UPDATE_INTERVAL = timedelta(minutes=5)
 
 class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(
@@ -69,7 +72,7 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             config_entry=entry,
             name="SectorPanelInfoDataUpdateCoordinator",
-            update_interval=timedelta(minutes=5),
+            update_interval=_PANEL_INFO_UPDATE_INTERVAL,
         )
 
     async def _async_setup(self):
@@ -135,7 +138,7 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             config_entry=entry,
             name="SectorActionDataUpdateCoordinator",
-            update_interval=timedelta(seconds=60),
+            update_interval=_ACTION_UPDATE_INTERVAL,
         )
 
     @callback
@@ -278,7 +281,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             config_entry=entry,
             name="SectorSensorDataUpdateCoordinator",
-            update_interval=timedelta(minutes=5),
+            update_interval=_SENSOR_UPDATE_INTERVAL,
         )
 
     @callback
