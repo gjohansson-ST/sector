@@ -69,7 +69,7 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             config_entry=entry,
             name="SectorPanelInfoDataUpdateCoordinator",
-            update_interval=timedelta(seconds=60),
+            update_interval=timedelta(minutes=5),
         )
 
     async def _async_setup(self):
@@ -278,7 +278,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER,
             config_entry=entry,
             name="SectorSensorDataUpdateCoordinator",
-            update_interval=timedelta(seconds=60),
+            update_interval=timedelta(minutes=5),
         )
 
     @callback
