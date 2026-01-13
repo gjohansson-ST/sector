@@ -60,7 +60,13 @@ async def async_setup_entry(
 class SectorAlarmControlPanel(
     SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], AlarmControlPanelEntity
 ):
-    """Representation of the Sector Alarm control panel."""
+    """
+    Sector Alarm alarm control panel.
+
+    To ensure UI responsiveness during arm/disarm operations, a custom pending state is used.
+    This state is set immediately when an arm/disarm command is issued and cleared upon
+    successful completion or failure of the operation.
+    """
 
     _attr_name = None
     _attr_code_format = CodeFormat.NUMBER
@@ -78,7 +84,10 @@ class SectorAlarmControlPanel(
             "Alarm panel",
         )
 
+        # Safe guard for reload scheduling
         self._reload_scheduled = False
+        # Custom pending state to improve UI responsiveness during arm/disarm state changes
+        self._pending_state: AlarmControlPanelState | None = None
         self._config_entry = config_entry
         self._ignore_quick_arm = config_entry.options[CONF_IGNORE_QUICK_ARM]
         self._attr_unique_id = f"{self._serial_no}_alarm_panel"
@@ -96,6 +105,11 @@ class SectorAlarmControlPanel(
     @property
     def alarm_state(self) -> AlarmControlPanelState | None:
         """Return the state of the device."""
+
+        # If there's a pending state, show it instead
+        if self._pending_state is not None:
+            return self._pending_state
+
         alarm_panel: dict[str, Any] = self._alarm_panel_data
         sensors: dict[str, Any] = alarm_panel.get("sensors", {})
 
@@ -117,46 +131,66 @@ class SectorAlarmControlPanel(
         if not self._is_valid_arm_code(code):
             raise ServiceValidationError("Invalid code length")
 
+        # Set pending state immediately, before API call, for better UI experience
+        self._pending_state = AlarmControlPanelState.ARMING
+        self.async_write_ha_state()
+
         try:
-            await self.coordinator.api.arm_system("full", code=code)
-            await self.coordinator.async_request_refresh()
-        except LoginError as err:
-            raise ConfigEntryAuthFailed from err
-        except AuthenticationError as err:
-            raise HomeAssistantError(
-                "Failed to arm (full) alarm - authentication failed"
-            ) from err
-        except ApiError as err:
-            raise HomeAssistantError(
-                "Failed to arm (full) alarm - API related error"
-            ) from err
+            try:
+                await self.coordinator.api.arm_system("full", code=code)
+                await self.coordinator.async_request_refresh()
+            except LoginError as err:
+                raise ConfigEntryAuthFailed from err
+            except AuthenticationError as err:
+                raise HomeAssistantError(
+                    "Failed to arm (full) alarm - authentication failed"
+                ) from err
+            except ApiError as err:
+                raise HomeAssistantError(
+                    "Failed to arm (full) alarm - API related error"
+                ) from err
+            except Exception as err:
+                raise HomeAssistantError(
+                    "Failed to arm (full) alarm - unexpected error"
+                ) from err
         except Exception as err:
-            raise HomeAssistantError(
-                "Failed to arm (full) alarm - unexpected error"
-            ) from err
+            # Clear pending state on failure, resets UI
+            self._pending_state = None
+            self.async_write_ha_state()
+            raise err
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send arm home command."""
         if not self._is_valid_arm_code(code):
             raise ServiceValidationError("Invalid code length")
 
+        # Set pending state immediately, before API call, for better UI experience
+        self._pending_state = AlarmControlPanelState.ARMING
+        self.async_write_ha_state()
+
         try:
-            await self.coordinator.api.arm_system("partial", code=code)
-            await self.coordinator.async_request_refresh()
-        except LoginError as err:
-            raise ConfigEntryAuthFailed from err
-        except AuthenticationError as err:
-            raise HomeAssistantError(
-                "Failed to arm (partial) alarm - authentication failed"
-            ) from err
-        except ApiError as err:
-            raise HomeAssistantError(
-                "Failed to arm (partial) alarm - API related error"
-            ) from err
+            try:
+                await self.coordinator.api.arm_system("partial", code=code)
+                await self.coordinator.async_request_refresh()
+            except LoginError as err:
+                raise ConfigEntryAuthFailed from err
+            except AuthenticationError as err:
+                raise HomeAssistantError(
+                    "Failed to arm (partial) alarm - authentication failed"
+                ) from err
+            except ApiError as err:
+                raise HomeAssistantError(
+                    "Failed to arm (partial) alarm - API related error"
+                ) from err
+            except Exception as err:
+                raise HomeAssistantError(
+                    "Failed to arm (partial) alarm - unexpected error"
+                ) from err
         except Exception as err:
-            raise HomeAssistantError(
-                "Failed to arm (partial) alarm - unexpected error"
-            ) from err
+            # Clear pending state on failure, resets UI
+            self._pending_state = None
+            self.async_write_ha_state()
+            raise err
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Send disarm command."""
@@ -165,23 +199,33 @@ class SectorAlarmControlPanel(
         if not self._is_valid_disarm_code(code):
             raise ServiceValidationError("Invalid code length")
 
+        # Set pending state immediately, before API call, for better UI experience
+        self._pending_state = AlarmControlPanelState.DISARMING
+        self.async_write_ha_state()
+
         try:
-            await self.coordinator.api.disarm_system(code=code)
-            await self.coordinator.async_request_refresh()
-        except LoginError as err:
-            raise ConfigEntryAuthFailed from err
-        except AuthenticationError as err:
-            raise HomeAssistantError(
-                "Failed to disarm alarm - authentication failed"
-            ) from err
-        except ApiError as err:
-            raise HomeAssistantError(
-                "Failed to disarm alarm - API related error"
-            ) from err
+            try:
+                await self.coordinator.api.disarm_system(code=code)
+                await self.coordinator.async_request_refresh()
+            except LoginError as err:
+                raise ConfigEntryAuthFailed from err
+            except AuthenticationError as err:
+                raise HomeAssistantError(
+                    "Failed to disarm alarm - authentication failed"
+                ) from err
+            except ApiError as err:
+                raise HomeAssistantError(
+                    "Failed to disarm alarm - API related error"
+                ) from err
+            except Exception as err:
+                raise HomeAssistantError(
+                    "Failed to disarm alarm - unexpected error"
+                ) from err
         except Exception as err:
-            raise HomeAssistantError(
-                "Failed to disarm alarm - unexpected error"
-            ) from err
+            # Clear pending state on failure, resets UI
+            self._pending_state = None
+            self.async_write_ha_state()
+            raise err
 
     def _is_valid_arm_code(self, code: str | None) -> bool:
         quick_arm = not self._attr_code_arm_required
@@ -205,6 +249,8 @@ class SectorAlarmControlPanel(
         # If detected, force a reload so cards can adapt
         pin_required = not self._panel_quick_arm_property
         if pin_required == self._attr_code_arm_required:
+            # Reset custom pending state
+            self._pending_state = None
             super()._handle_coordinator_update()
         else:
             if not self._reload_scheduled:
