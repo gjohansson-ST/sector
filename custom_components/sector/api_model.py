@@ -11,13 +11,10 @@ class PanelStatus(TypedDict):
     ReadyToArm: bool
 
 class Lock(TypedDict):
-    AutoLockEnabled: bool
     Label: str
     Serial: str
     SerialNo: str
     Status: str
-    BatteryLow: Optional[bool] # unsure if valid
-    LowBattery: Optional[bool] # unsure if valid
 
 class SmartPlug(TypedDict):
     Id: str

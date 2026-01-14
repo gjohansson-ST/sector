@@ -160,7 +160,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
             response_code=200,
             response_is_json=True,
             response_data={
-                "Sections": [{"Places": [{"Components": [humidity_component]}]}]
+                "Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]
             },
         ),
         DataEndpointType.SMOKE_DETECTORS: APIResponse(
@@ -290,7 +290,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
             response_code=200,
             response_is_json=True,
             response_data={
-                "Sections": [{"Places": [{"Components": [humidity_component]}]}]
+                "Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]
             },
         ),
         DataEndpointType.SMOKE_DETECTORS: APIResponse(

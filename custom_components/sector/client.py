@@ -433,11 +433,7 @@ class SectorAlarmAPI:
         """Turn on a smart plug."""
         url = fetch_action_endpoint(ActionEndpointType.TURN_ON_SMART_PLUG).uri()
         url = url + f"?switchId={plug_id}&panelId={self._panel_id}"
-        payload = {
-            "PanelId": self._panel_id,
-            "DeviceId": plug_id,
-        }
-        response: APIResponse = await self._post(url, payload)
+        response: APIResponse = await self._post(url, None)
         if not response.is_ok():
             raise ApiError(
                 f"Request failure during TURN_ON_SMART_PLUG request to '{url}' (SwitchId {plug_id}, HTTP {response.response_code} - {response.response_data})"
@@ -447,11 +443,7 @@ class SectorAlarmAPI:
         """Turn off a smart plug."""
         url = fetch_action_endpoint(ActionEndpointType.TURN_OFF_SMART_PLUG).uri()
         url = url + f"?switchId={plug_id}&panelId={self._panel_id}"
-        payload = {
-            "PanelId": self._panel_id,
-            "DeviceId": plug_id,
-        }
-        response: APIResponse = await self._post(url, payload)
+        response: APIResponse = await self._post(url, None)
         if not response.is_ok():
             raise ApiError(
                 f"Request failure during TURN_OFF_SMART_PLUG request to '{url}' (SwitchId {plug_id}, HTTP {response.response_code} - {response.response_data})"
@@ -470,11 +462,6 @@ class SectorAlarmAPI:
             return image_data
         _LOGGER.warning("Failed to retrieve image for camera %s", serial_no)
         return None
-
-    async def logout(self):
-        """Logout from the API."""
-        logout_url = fetch_action_endpoint(ActionEndpointType.LOGOUT).uri()
-        await self._post(logout_url, {})
 
 
 T = TypeVar("T")

@@ -45,13 +45,10 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
 ):
     # Prepare
     lock: Lock = {
-        "AutoLockEnabled": False,
         "Label": "Front Door",
         "Serial": "LOCK123",
         "SerialNo": "LOCK123",
         "Status": "lock",
-        "BatteryLow": False,
-        "LowBattery": False,
     }
     smart_plug: SmartPlug = {
         "Id": "plug_1",
@@ -174,13 +171,10 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
         "Status": "On",
     }
     smart_lock: Lock = {
-        "AutoLockEnabled": False,
         "Label": "Front Door",
         "Serial": "LOCK_SERIAL",
         "SerialNo": "LOCK_SERIAL",
         "Status": "lock",
-        "BatteryLow": True,
-        "LowBattery": None,
     }
     alarm_panel: PanelStatus = {
         "IsOnline": True,
@@ -225,7 +219,6 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
     assert lock["serial_no"] == smart_lock["SerialNo"]
     assert lock["sensors"] == {
         "lock_status": smart_lock.get("Status"),
-        "low_battery": smart_lock.get("BatteryLow"),
     }
     assert lock["model"] == "Smart Lock"
 
@@ -306,13 +299,11 @@ async def test__async_update_data_should_proccess_log_events(
         "Temperatures": [],
     }
     smart_lock: Lock = {
-        "AutoLockEnabled": False,
+
         "Label": "ABC",
         "Serial": "LOCK_SERIAL",
         "SerialNo": "LOCK_SERIAL",
         "Status": "unlock",
-        "BatteryLow": True,
-        "LowBattery": None,
     }
     log_records: LogRecords = {
         "Records": [

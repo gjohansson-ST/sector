@@ -1,5 +1,6 @@
 """Sector Alarm coordinator."""
 
+from calendar import c
 from enum import Enum
 import logging
 from datetime import datetime, timedelta
@@ -56,6 +57,7 @@ type SectorAlarmConfigEntry = ConfigEntry[
 _PANEL_INFO_UPDATE_INTERVAL = timedelta(minutes=5)
 _ACTION_UPDATE_INTERVAL = timedelta(seconds=60)
 _SENSOR_UPDATE_INTERVAL = timedelta(minutes=5)
+
 
 class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(
@@ -504,16 +506,12 @@ class _DeviceProcessor:
 
             name = lock.get("Label")
             lock_status = lock.get("Status")
-            low_battery = lock.get("BatteryLow")
-            if low_battery is None:
-                low_battery = lock.get("LowBattery")
 
             devices[serial_no] = {
                 "name": name,
                 "serial_no": serial_no,
                 "sensors": {
                     "lock_status": lock_status,
-                    **({"low_battery": low_battery} if low_battery is not None else {}),
                 },
                 "model": "Smart Lock",
             }
@@ -526,79 +524,81 @@ class _DeviceProcessor:
         self, category_name: DataEndpointType, category_data: HouseCheck, devices: dict
     ) -> None:
         """Process devices within a specific category and add them to devices dictionary."""
-        default_model_name = category_name.value
-
-        # Note that some values might not exist as the Component model
-        # is shared between different devices.
-        # Hence we need to use "get"
+        # Floors is currently only used by Humidity sensors
         if "Sections" in category_data:
             for section in category_data.get("Sections", []):
                 for place in section.get("Places", []):
                     for component in place.get("Components", []):
-                        serial_no = component.get("SerialNo") or component.get("Serial")
-
-                        if serial_no is None:
-                            _LOGGER.warning(
-                                "Component missing SerialNo/Serial: %s", component
-                            )
-                            continue
-
-                        device_type = str(component.get("Type", "")).lower()
-                        model_name = CATEGORY_MODEL_MAPPING.get(
-                            device_type, default_model_name
-                        )
-
-                        sensors = {}
-                        closed = component.get("Closed")
-                        if closed is not None:
-                            sensors["closed"] = closed
-
-                        low_battery = component.get("LowBattery")
-                        if low_battery is not None:
-                            sensors["low_battery"] = low_battery
-
-                        battery_low = component.get("BatteryLow")
-                        if battery_low is not None:
-                            sensors["low_battery"] = battery_low
-
-                        alarm = component.get("Alarm")
-                        if alarm is not None:
-                            sensors["alarm"] = alarm
-
-                        temperature = component.get("Temperature")
-                        if temperature is not None:
-                            sensors["temperature"] = temperature
-
-                        humidity = component.get("Humidity")
-                        if humidity is not None:
-                            sensors["humidity"] = humidity
-
-                        if sensors.__len__() == 0:
-                            _LOGGER.debug(
-                                "No sensors were found in component for category '%s'",
-                                category_name,
-                            )
-
-                        # Initialize or update device entry with sensors
-                        device_info = devices.setdefault(
-                            serial_no,
-                            {
-                                "name": component.get("Label") or component.get("Name"),
-                                "serial_no": serial_no,
-                                "sensors": sensors,
-                                "model": model_name,
-                                "type": component.get("Type", ""),
-                            },
-                        )
-
-                        _LOGGER.debug(
-                            "Processed device: category: %s, device: %s",
-                            category_name,
-                            device_info,
-                        )
-
+                        self._process_housecheck_device(category_name, component, devices) # type: ignore
+        elif "Floors" in category_data:
+            for floor in category_data.get("Floors", []):
+                for room in floor.get("Rooms", []):
+                    for device in room.get("Devices", []):
+                        self._process_housecheck_device(category_name, device, devices) # type: ignore
         else:
             _LOGGER.debug("Category %s does not contain Sections", category_name)
+
+    def _process_housecheck_device(
+        self, category_name: DataEndpointType, device_data: dict[Any, Any], devices: dict
+    ):
+        default_model_name = category_name.value
+        serial_no = device_data.get("SerialNo") or device_data.get("Serial")
+
+        if serial_no is None:
+            _LOGGER.warning("Device data missing SerialNo/Serial: %s", device_data)
+            return
+
+        device_type = str(device_data.get("Type", "")).lower()
+        model_name = CATEGORY_MODEL_MAPPING.get(device_type, default_model_name)
+
+        sensors = {}
+        closed = device_data.get("Closed")
+        if closed is not None:
+            sensors["closed"] = closed
+
+        low_battery = device_data.get("LowBattery")
+        if low_battery is not None:
+            sensors["low_battery"] = low_battery
+
+        battery_low = device_data.get("BatteryLow")
+        if battery_low is not None:
+            sensors["low_battery"] = battery_low
+
+        alarm = device_data.get("Alarm")
+        if alarm is not None:
+            sensors["alarm"] = alarm
+
+        temperature = device_data.get("Temperature")
+        if temperature is not None:
+            sensors["temperature"] = temperature
+
+        humidity = device_data.get("Humidity")
+        if humidity is not None:
+            sensors["humidity"] = humidity
+
+        if sensors.__len__() == 0:
+            _LOGGER.debug(
+                "No sensors were found in device data for category '%s'",
+                category_name,
+            )
+
+        # Initialize or update device entry with sensors
+        device_info = devices.setdefault(
+            serial_no,
+            {
+                "name": device_data.get("Label") or device_data.get("Name"),
+                "serial_no": serial_no,
+                "sensors": sensors,
+                "model": model_name,
+                "type": device_data.get("Type", ""),
+            },
+        )
+
+        _LOGGER.debug(
+            "Processed device: category: %s, device: %s",
+            category_name,
+            device_info,
+        )
 
     async def process_event_logs(self, logs: LogRecords, devices):
         """Process event logs, associating them with the correct lock devices using LockName."""

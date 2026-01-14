@@ -21,7 +21,6 @@ class DataEndpointType(Enum):
 
 class ActionEndpointType(Enum):
     LOGIN = ("Login",)
-    LOGOUT = ("Logout",)
     UNLOCK = ("Unlock",)
     LOCK = ("Lock",)
     ARM = ("Arm",)
@@ -108,7 +107,7 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/Panel/GetTemperatures?panelId={{panelId}}",
     ),
     DataEndpoint(
-        type=DataEndpointType.TEMPERATURES,
+        type=DataEndpointType.TEMPERATURES,  # Seems not be used by Sector
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/temperatures",
     ),
@@ -123,17 +122,17 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/v2/housecheck/doorsandwindows",
     ),
     DataEndpoint(
-        type=DataEndpointType.LEAKAGE_DETECTORS,
+        type=DataEndpointType.LEAKAGE_DETECTORS,  # Seems not be used by Sector
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/leakagedetectors",
     ),
     DataEndpoint(
-        type=DataEndpointType.SMOKE_DETECTORS,
+        type=DataEndpointType.SMOKE_DETECTORS,  # Seems not be used by Sector
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/smokedetectors",
     ),
     DataEndpoint(
-        type=DataEndpointType.CAMERAS,
+        type=DataEndpointType.CAMERAS,  # Seems not be used by Sector
         method="GET",
         uri=f"{API_URL}/api/v2/housecheck/cameras/{{panelId}}",
     ),
@@ -142,9 +141,6 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
 ACTION_ENDPOINTS: set[ActionEndpoint] = {
     ActionEndpoint(
         type=ActionEndpointType.LOGIN, method="POST", uri=f"{API_URL}/api/Login/Login"
-    ),
-    ActionEndpoint(
-        type=ActionEndpointType.LOGOUT, method="POST", uri=f"{API_URL}/api/Login/Logout"
     ),
     ActionEndpoint(
         type=ActionEndpointType.UNLOCK, method="POST", uri=f"{API_URL}/api/Panel/Unlock"
