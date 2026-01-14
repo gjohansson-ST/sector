@@ -160,7 +160,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
             response_code=200,
             response_is_json=True,
             response_data={
-                "Sections": [{"Places": [{"Components": [humidity_component]}]}]
+                "Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]
             },
         ),
         DataEndpointType.SMOKE_DETECTORS: APIResponse(
@@ -183,13 +183,14 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
     await sensor_coordinator._async_setup()
 
     # Assert
+    # Redacted unsupported endpoints by Sector App
     assert sensor_coordinator._use_legacy_api
     assert sensor_coordinator._data_endpoints == {
         DataEndpointType.TEMPERATURES_LEGACY,
-        DataEndpointType.TEMPERATURES,
+        # DataEndpointType.TEMPERATURES,
         DataEndpointType.HUMIDITY,
-        DataEndpointType.LEAKAGE_DETECTORS,
-        DataEndpointType.SMOKE_DETECTORS,
+        # DataEndpointType.LEAKAGE_DETECTORS,
+        # DataEndpointType.SMOKE_DETECTORS,
         DataEndpointType.DOORS_AND_WINDOWS,
     }
 
@@ -290,7 +291,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
             response_code=200,
             response_is_json=True,
             response_data={
-                "Sections": [{"Places": [{"Components": [humidity_component]}]}]
+                "Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]
             },
         ),
         DataEndpointType.SMOKE_DETECTORS: APIResponse(

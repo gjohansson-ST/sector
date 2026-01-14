@@ -29,13 +29,10 @@ async def test_async_update_data_should_fetch_PanelInfo(
 ):
     # Prepare
     lock: Lock = {
-        "AutoLockEnabled": False,
         "Label": "Front Door",
         "Serial": "LOCK123",
         "SerialNo": "LOCK123",
-        "Status": "lock",
-        "BatteryLow": False,
-        "LowBattery": False,
+        "Status": "lock"
     }
     smart_plug: SmartPlug = {
         "Id": "plug_1",
