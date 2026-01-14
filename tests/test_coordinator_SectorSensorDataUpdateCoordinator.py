@@ -183,13 +183,14 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
     await sensor_coordinator._async_setup()
 
     # Assert
+    # Redacted unsupported endpoints by Sector App
     assert sensor_coordinator._use_legacy_api
     assert sensor_coordinator._data_endpoints == {
         DataEndpointType.TEMPERATURES_LEGACY,
-        DataEndpointType.TEMPERATURES,
+        # DataEndpointType.TEMPERATURES,
         DataEndpointType.HUMIDITY,
-        DataEndpointType.LEAKAGE_DETECTORS,
-        DataEndpointType.SMOKE_DETECTORS,
+        # DataEndpointType.LEAKAGE_DETECTORS,
+        # DataEndpointType.SMOKE_DETECTORS,
         DataEndpointType.DOORS_AND_WINDOWS,
     }
 

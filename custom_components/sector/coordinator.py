@@ -1,6 +1,5 @@
 """Sector Alarm coordinator."""
 
-from calendar import c
 from enum import Enum
 import logging
 from datetime import datetime, timedelta
@@ -166,9 +165,9 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
 
         if locks.__len__() == 0:
-            optional_endpoint_types.remove(DataEndpointType.LOCK_STATUS)
+            optional_endpoint_types.discard(DataEndpointType.LOCK_STATUS)
         if plugs.__len__() == 0:
-            optional_endpoint_types.remove(DataEndpointType.SMART_PLUG_STATUS)
+            optional_endpoint_types.discard(DataEndpointType.SMART_PLUG_STATUS)
 
         supported_endpoint_types = mandatory_endpoint_types | optional_endpoint_types
         _LOGGER.debug("Supported ACTION endpoint types: %s", supported_endpoint_types)
@@ -249,12 +248,12 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
 class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
     _OPTIONAL_DATA_ENDPOINT_TYPES = {
         # via HouseCheck API
-        DataEndpointType.TEMPERATURES,
+        # DataEndpointType.TEMPERATURES, <--- not used by Sector App
         DataEndpointType.HUMIDITY,
-        DataEndpointType.LEAKAGE_DETECTORS,
-        DataEndpointType.SMOKE_DETECTORS,
+        # DataEndpointType.LEAKAGE_DETECTORS, <--- not used by Sector App
+        # DataEndpointType.SMOKE_DETECTORS, <--- not used by Sector App
         DataEndpointType.DOORS_AND_WINDOWS,
-        DataEndpointType.CAMERAS,
+        # DataEndpointType.CAMERAS, <--- not yet supported
         # via legacy
         DataEndpointType.TEMPERATURES_LEGACY,
     }
@@ -306,7 +305,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             temperatures: list[Temperature] = panel_info.get("Temperatures", {})
             if temperatures.__len__() == 0:
                 self._use_legacy_api = False
-                optional_endpoint_types.remove(DataEndpointType.TEMPERATURES_LEGACY)
+                optional_endpoint_types.discard(DataEndpointType.TEMPERATURES_LEGACY)
 
             # Scan and build supported endpoints from non-panel-info endpoints
             api_data: dict[
@@ -314,7 +313,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             ] = await self.api.retrieve_all_data(optional_endpoint_types)
             for endpoint_type, response in api_data.items():
                 if response.response_code == 404:
-                    optional_endpoint_types.remove(endpoint_type)
+                    optional_endpoint_types.discard(endpoint_type)
 
             _LOGGER.debug("Supported endpoint types: %s", optional_endpoint_types)
             self._data_endpoints = optional_endpoint_types
@@ -364,7 +363,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         ):
             # Do not call TEMPERATURES_LEGACY
             endpoints_redacted_temperatures = self._data_endpoints.copy()
-            endpoints_redacted_temperatures.remove(DataEndpointType.TEMPERATURES_LEGACY)
+            endpoints_redacted_temperatures.discard(DataEndpointType.TEMPERATURES_LEGACY)
             data = await self.api.retrieve_all_data(endpoints_redacted_temperatures)
 
             # Add previous cached response, if present

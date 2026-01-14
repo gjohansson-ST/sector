@@ -107,7 +107,7 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/Panel/GetTemperatures?panelId={{panelId}}",
     ),
     DataEndpoint(
-        type=DataEndpointType.TEMPERATURES,  # Seems not be used by Sector
+        type=DataEndpointType.TEMPERATURES,  # Seems not be used by Sector App
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/temperatures",
     ),
@@ -122,17 +122,17 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/v2/housecheck/doorsandwindows",
     ),
     DataEndpoint(
-        type=DataEndpointType.LEAKAGE_DETECTORS,  # Seems not be used by Sector
+        type=DataEndpointType.LEAKAGE_DETECTORS,  # Seems not be used by Sector App
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/leakagedetectors",
     ),
     DataEndpoint(
-        type=DataEndpointType.SMOKE_DETECTORS,  # Seems not be used by Sector
+        type=DataEndpointType.SMOKE_DETECTORS,  # Seems not be used by Sector App
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/smokedetectors",
     ),
     DataEndpoint(
-        type=DataEndpointType.CAMERAS,  # Seems not be used by Sector
+        type=DataEndpointType.CAMERAS,  # Not yet supported
         method="GET",
         uri=f"{API_URL}/api/v2/housecheck/cameras/{{panelId}}",
     ),
