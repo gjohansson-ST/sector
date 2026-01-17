@@ -17,6 +17,7 @@ _LOGGER = logging.getLogger(__name__)
 
 _DataT = TypeVar("_DataT", bound=DataUpdateCoordinator)
 
+
 class SectorAlarmBaseEntity(CoordinatorEntity[_DataT]):
     """Representation of a Sector Alarm base entity."""
 
@@ -59,4 +60,9 @@ class SectorAlarmBaseEntity(CoordinatorEntity[_DataT]):
     @property
     def available(self) -> bool:
         """Return entity availability."""
-        return True
+        device = self.coordinator.data.get("devices", {}).get(self._serial_no, {})
+        if device is None:
+            return False
+
+        failed_update_count: int = device.get("failed_update_count", 0)
+        return failed_update_count < 2

@@ -242,6 +242,183 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
     assert not panel["panel_partial_arm"]
 
 
+async def test_async_update_data_should_count_failed_update_on_failure(
+    hass: HomeAssistant,
+):
+    # Prepare
+    panel_info: PanelInfo = {
+        "PanelId": "1234",
+        "PanelCodeLength": 4,
+        "QuickArmEnabled": True,
+        "CanPartialArm": False,
+        "Locks": [],
+        "Smartplugs": [],
+        "Temperatures": [],
+    }
+    smart_plug: SmartPlug = {
+        "Id": "plug_1",
+        "Label": "Living Room Plug",
+        "Serial": "PLUG_SERIAL",
+        "SerialNo": "PLUG_SERIAL",
+        "Status": "On",
+    }
+    alarm_panel: PanelStatus = {
+        "IsOnline": True,
+        "ReadyToArm": True,
+        "Status": 1,
+        "AnnexStatus": 0,
+        "PanelTimeZoneOffset": 0,
+        "StatusTime": "unused",
+        "StatusTimeUtc": "unused",
+        "TimeZoneName": "unused",
+    }
+
+    mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.SMART_PLUG_STATUS: APIResponse(
+            response_code=200, response_is_json=False, response_data=None
+        ),
+        DataEndpointType.PANEL_STATUS: APIResponse(
+            response_code=200, response_is_json=True, response_data=alarm_panel
+        ),
+    }
+
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
+    mock_entity = _create_mock_config_entity()
+    mock_entity.add_to_hass(hass)
+
+    action_coordinator = SectorActionDataUpdateCoordinator(
+        hass, mock_entity, mock_api, mock_panel_info_coordinator
+    )
+    # Set previous data with one temperature sensor
+    action_coordinator.data = {"devices": {}}
+    action_coordinator.data["devices"]["PLUG_SERIAL"] = {
+        "name": smart_plug["Label"],
+        "id": smart_plug["Id"],
+        "serial_no": smart_plug["SerialNo"],
+        "sensors": {
+            "plug_status": smart_plug["Status"],
+        },
+        "model": "Smart Plug",
+        "failed_update_count": 3,
+    }
+
+    # Act
+    coordinator_data = await action_coordinator._async_update_data()
+
+    # Assert
+    assert "devices" in coordinator_data
+
+    plug = coordinator_data["devices"]["PLUG_SERIAL"]
+    assert plug["name"] == smart_plug["Label"]
+    assert plug["id"] == smart_plug["Id"]
+    assert plug["serial_no"] == smart_plug["SerialNo"]
+    assert plug["sensors"] == {"plug_status": smart_plug.get("Status")}
+    assert plug["model"] == "Smart Plug"
+    assert plug["failed_update_count"] == 4
+
+    panel = coordinator_data["devices"]["alarm_panel"]
+    assert panel["name"] == "Alarm Control Panel"
+    assert panel["serial_no"] == _PANEL_ID
+    assert panel["sensors"] == {
+        "online": alarm_panel.get("IsOnline"),
+        "alarm_status": alarm_panel.get("Status"),
+    }
+    assert panel["model"] == "Sector Alarm Control Panel"
+    assert panel["panel_code_length"] == 4
+    assert panel["panel_quick_arm"]
+    assert not panel["panel_partial_arm"]
+    assert "failed_update_count" not in panel
+
+async def test_async_update_data_should_reset_count_failed_update_on_success(
+    hass: HomeAssistant,
+):
+    # Prepare
+    panel_info: PanelInfo = {
+        "PanelId": "1234",
+        "PanelCodeLength": 4,
+        "QuickArmEnabled": True,
+        "CanPartialArm": False,
+        "Locks": [],
+        "Smartplugs": [],
+        "Temperatures": [],
+    }
+    smart_plug: SmartPlug = {
+        "Id": "plug_1",
+        "Label": "Living Room Plug",
+        "Serial": "PLUG_SERIAL",
+        "SerialNo": "PLUG_SERIAL",
+        "Status": "On",
+    }
+    alarm_panel: PanelStatus = {
+        "IsOnline": True,
+        "ReadyToArm": True,
+        "Status": 1,
+        "AnnexStatus": 0,
+        "PanelTimeZoneOffset": 0,
+        "StatusTime": "unused",
+        "StatusTimeUtc": "unused",
+        "TimeZoneName": "unused",
+    }
+
+    mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.SMART_PLUG_STATUS: APIResponse(
+            response_code=200, response_is_json=True, response_data=[smart_plug]
+        ),
+        DataEndpointType.PANEL_STATUS: APIResponse(
+            response_code=200, response_is_json=True, response_data=alarm_panel
+        ),
+    }
+
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
+    mock_entity = _create_mock_config_entity()
+    mock_entity.add_to_hass(hass)
+
+    action_coordinator = SectorActionDataUpdateCoordinator(
+        hass, mock_entity, mock_api, mock_panel_info_coordinator
+    )
+    # Set previous data with one temperature sensor
+    action_coordinator.data = {"devices": {}}
+    action_coordinator.data["devices"]["PLUG_SERIAL"] = {
+        "name": smart_plug["Label"],
+        "id": smart_plug["Id"],
+        "serial_no": smart_plug["SerialNo"],
+        "sensors": {
+            "plug_status": smart_plug["Status"],
+        },
+        "model": "Smart Plug",
+        "failed_update_count": 3,
+    }
+
+    # Act
+    coordinator_data = await action_coordinator._async_update_data()
+
+    # Assert
+    assert "devices" in coordinator_data
+
+    plug = coordinator_data["devices"]["PLUG_SERIAL"]
+    assert plug["name"] == smart_plug["Label"]
+    assert plug["id"] == smart_plug["Id"]
+    assert plug["serial_no"] == smart_plug["SerialNo"]
+    assert plug["sensors"] == {"plug_status": smart_plug.get("Status")}
+    assert plug["model"] == "Smart Plug"
+    assert "failed_update_count" not in plug
+
+    panel = coordinator_data["devices"]["alarm_panel"]
+    assert panel["name"] == "Alarm Control Panel"
+    assert panel["serial_no"] == _PANEL_ID
+    assert panel["sensors"] == {
+        "online": alarm_panel.get("IsOnline"),
+        "alarm_status": alarm_panel.get("Status"),
+    }
+    assert panel["model"] == "Sector Alarm Control Panel"
+    assert panel["panel_code_length"] == 4
+    assert panel["panel_quick_arm"]
+    assert not panel["panel_partial_arm"]
+    assert "failed_update_count" not in panel
+
+
 async def test_async_update_data_should_not_proccess_empty_or_failed_PanelInfo_devices(
     hass: HomeAssistant,
 ):
@@ -299,7 +476,6 @@ async def test__async_update_data_should_proccess_log_events(
         "Temperatures": [],
     }
     smart_lock: Lock = {
-
         "Label": "ABC",
         "Serial": "LOCK_SERIAL",
         "SerialNo": "LOCK_SERIAL",

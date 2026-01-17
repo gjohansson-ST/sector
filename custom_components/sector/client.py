@@ -264,7 +264,7 @@ class SectorAlarmAPI:
 
     async def _get_with_retry(self, url) -> APIResponse:
         retry = Retryable(
-            attempts=3,
+            attempts=2,
             retry_exceptions=(ApiError, AuthenticationError),
         )
         return await retry.run(lambda: self._get(url))
@@ -313,7 +313,7 @@ class SectorAlarmAPI:
 
     async def _post_with_retry(self, url, payload) -> APIResponse:
         retry = Retryable(
-            attempts=3,
+            attempts=2,
             retry_exceptions=(ApiError, AuthenticationError),
         )
         return await retry.run(lambda: self._post(url, payload))

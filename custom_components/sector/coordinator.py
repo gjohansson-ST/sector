@@ -31,7 +31,7 @@ from .client import (
     APIResponse,
     LoginError,
 )
-from .const import CATEGORY_MODEL_MAPPING, CONF_PANEL_ID
+from .const import CONF_PANEL_ID
 from .endpoints import (
     DataEndpointType,
 )
@@ -176,6 +176,10 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
+            data: dict[str, Any] = {}
+            if self.data:
+                data = self.data.copy().get("devices", {})
+
             panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
             if panel_info is None:
                 raise UpdateFailed(
@@ -188,18 +192,14 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
-            devices = self._device_proccessor.process_devices(panel_info, api_data)
+            devices = self._device_proccessor.process_devices(
+                panel_info, api_data, data
+            )
 
             # Process logs for event handling
-            if (
-                DataEndpointType.LOGS in api_data
-                and api_data[DataEndpointType.LOGS].is_ok()
-                and api_data[DataEndpointType.LOGS].is_json()
-            ):
-                log_data: LogRecords = api_data[DataEndpointType.LOGS].response_data
-                self._event_logs = await self._device_proccessor.process_event_logs(
-                    log_data, devices
-                )
+            self._event_logs = await self._device_proccessor.process_event_logs(
+                api_data, devices
+            )
 
             return {
                 "devices": devices,
@@ -329,6 +329,10 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Sector Alarm API."""
         try:
+            data: dict[str, Any] = {}
+            if self.data:
+                data = self.data.copy().get("devices", {})
+
             panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
             if panel_info is None:
                 raise UpdateFailed(
@@ -343,7 +347,9 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
-            devices = self._device_proccessor.process_devices(panel_info, api_data)
+            devices = self._device_proccessor.process_devices(
+                panel_info, api_data, data
+            )
 
             return {"devices": devices}
 
@@ -363,7 +369,9 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         ):
             # Do not call TEMPERATURES_LEGACY
             endpoints_redacted_temperatures = self._data_endpoints.copy()
-            endpoints_redacted_temperatures.discard(DataEndpointType.TEMPERATURES_LEGACY)
+            endpoints_redacted_temperatures.discard(
+                DataEndpointType.TEMPERATURES_LEGACY
+            )
             data = await self.api.retrieve_all_data(endpoints_redacted_temperatures)
 
             # Add previous cached response, if present
@@ -389,45 +397,64 @@ class _DeviceProcessor:
         self._hass = hass
         self._panel_id = panel_id
 
+    def _count_failed_entity(
+        self, endpoint_type: DataEndpointType, devices: dict[str, Any]
+    ):
+        """Increment the failed_update_count counter for devices of a specific type."""
+        for unused, device in devices.items():
+            if device.get("model") == endpoint_type.value:
+                fail_count: int = device.get("failed_update_count", 0)
+                device["failed_update_count"] = fail_count + 1
+
     def process_devices(
-        self, panel_info: PanelInfo, api_data: dict[DataEndpointType, APIResponse]
+        self,
+        panel_info: PanelInfo,
+        api_data: dict[DataEndpointType, APIResponse],
+        devices: dict[str, Any],
     ) -> dict[str, Any]:
         """Process device data from the API, including humidity, closed, and alarm sensors."""
-        devices: dict[str, Any] = {}
-        for category_name, category_data in api_data.items():
-            if category_name in [DataEndpointType.LOGS]:
+        for endpoint_type, endpoint_data in api_data.items():
+            # Skip logs processing here
+            if endpoint_type in [DataEndpointType.LOGS]:
                 continue
 
-            _LOGGER.debug("Processing category: %s", category_name)
+            _LOGGER.debug("Processing category: %s", endpoint_type)
 
-            if not category_data.is_ok():
+            if not endpoint_data.is_ok():
                 _LOGGER.warning(
-                    f"Unable to process data for category '{category_name}' due to API error: data={str(category_data)}"
+                    f"Unable to process data for category '{endpoint_type}' due to API error: data={str(endpoint_data)}"
                 )
+                self._count_failed_entity(endpoint_type, devices)
                 continue
 
-            if not category_data.is_json():
+            if not endpoint_data.is_json():
                 _LOGGER.warning(
-                    f"Unable to process data for category '{category_name}' due to unexpected response type: data={str(category_data)}"
+                    f"Unable to process data for category '{endpoint_type}' due to unexpected response type: data={str(endpoint_data)}"
                 )
+                self._count_failed_entity(endpoint_type, devices)
                 continue
 
-            response_data = category_data.response_data
-            if category_name == DataEndpointType.PANEL_STATUS:
-                self.process_alarm_panel(panel_info, response_data, devices)
-            elif category_name == DataEndpointType.SMART_PLUG_STATUS:
-                self.process_smart_plugs(response_data, devices)
-            elif category_name == DataEndpointType.LOCK_STATUS:
-                self.process_locks(response_data, devices)
-            elif category_name == DataEndpointType.TEMPERATURES_LEGACY:
-                self.process_legacy_temperatures(response_data, devices)
+            response_data = endpoint_data.response_data
+            if endpoint_type == DataEndpointType.PANEL_STATUS:
+                self.process_alarm_panel(
+                    endpoint_type, panel_info, response_data, devices
+                )
+            elif endpoint_type == DataEndpointType.SMART_PLUG_STATUS:
+                self.process_smart_plugs(endpoint_type, response_data, devices)
+            elif endpoint_type == DataEndpointType.LOCK_STATUS:
+                self.process_locks(endpoint_type, response_data, devices)
+            elif endpoint_type == DataEndpointType.TEMPERATURES_LEGACY:
+                self.process_legacy_temperatures(endpoint_type, response_data, devices)
             else:
-                self.process_housecheck_devices(category_name, response_data, devices)
+                self.process_housecheck_devices(endpoint_type, response_data, devices)
 
         return devices
 
     def process_legacy_temperatures(
-        self, temps_data: list[Temperature], devices: dict
+        self,
+        endpoint_type: DataEndpointType,
+        temps_data: list[Temperature],
+        devices: dict,
     ) -> None:
         """Process legacy temperatures"""
         for temp in temps_data:
@@ -442,7 +469,7 @@ class _DeviceProcessor:
                 "sensors": {
                     "temperature": temp.get("Temperature"),
                 },
-                "model": "Temperature Sensor",
+                "model": f"{endpoint_type.value}",
             }
             _LOGGER.debug(
                 "Processed temperature sensor with serial_no %s: %s",
@@ -451,7 +478,10 @@ class _DeviceProcessor:
             )
 
     def process_smart_plugs(
-        self, smart_plug_data: list[SmartPlug], devices: dict
+        self,
+        endpoint_type: DataEndpointType,
+        smart_plug_data: list[SmartPlug],
+        devices: dict,
     ) -> None:
         """Process smart plugs data and add to devices dictionary."""
         for smart_plug in smart_plug_data:
@@ -466,14 +496,18 @@ class _DeviceProcessor:
                 "id": plug_id,
                 "serial_no": serial_no,
                 "sensors": {"plug_status": smart_plug.get("Status")},
-                "model": "Smart Plug",
+                "model": f"{endpoint_type.value}",
             }
             _LOGGER.debug(
                 "Processed smart plug with Serial %s: %s", serial_no, devices[serial_no]
             )
 
     def process_alarm_panel(
-        self, panel_info: PanelInfo, panel_status_data: PanelStatus, devices: dict
+        self,
+        endpoint_type: DataEndpointType,
+        panel_info: PanelInfo,
+        panel_status_data: PanelStatus,
+        devices: dict,
     ) -> None:
         """Process alarm panel status data and add to devices dictionary."""
         serial_no = self._panel_id
@@ -484,10 +518,10 @@ class _DeviceProcessor:
                 "online": panel_status_data.get("IsOnline"),
                 "alarm_status": panel_status_data.get("Status"),
             },
-            "model": "Sector Alarm Control Panel",
             "panel_code_length": panel_info.get("PanelCodeLength", 0),
             "panel_quick_arm": panel_info.get("QuickArmEnabled", False),
             "panel_partial_arm": panel_info.get("CanPartialArm", False),
+            "model": f"{endpoint_type.value}",
         }
         _LOGGER.debug(
             "Processed alarm panel with Serial %s: %s",
@@ -495,7 +529,9 @@ class _DeviceProcessor:
             devices["alarm_panel"],
         )
 
-    def process_locks(self, locks_data: list[Lock], devices: dict) -> None:
+    def process_locks(
+        self, endpoint_type: DataEndpointType, locks_data: list[Lock], devices: dict
+    ) -> None:
         """Process lock data and add to devices dictionary."""
         for lock in locks_data:
             serial_no = lock.get("SerialNo") or lock.get("Serial")
@@ -512,7 +548,7 @@ class _DeviceProcessor:
                 "sensors": {
                     "lock_status": lock_status,
                 },
-                "model": "Smart Lock",
+                "model": f"{endpoint_type.value}",
             }
 
             _LOGGER.debug(
@@ -520,7 +556,7 @@ class _DeviceProcessor:
             )
 
     def process_housecheck_devices(
-        self, category_name: DataEndpointType, category_data: HouseCheck, devices: dict
+        self, endpoint_type: DataEndpointType, category_data: HouseCheck, devices: dict
     ) -> None:
         """Process devices within a specific category and add them to devices dictionary."""
         # Floors is currently only used by Humidity sensors
@@ -528,27 +564,30 @@ class _DeviceProcessor:
             for section in category_data.get("Sections", []):
                 for place in section.get("Places", []):
                     for component in place.get("Components", []):
-                        self._process_housecheck_device(category_name, component, devices) # type: ignore
+                        self._process_housecheck_device(
+                            endpoint_type,
+                            component,  # type: ignore
+                            devices,
+                        )
         elif "Floors" in category_data:
             for floor in category_data.get("Floors", []):
                 for room in floor.get("Rooms", []):
                     for device in room.get("Devices", []):
-                        self._process_housecheck_device(category_name, device, devices) # type: ignore
+                        self._process_housecheck_device(endpoint_type, device, devices)  # type: ignore
         else:
-            _LOGGER.debug("Category %s does not contain Sections", category_name)
+            _LOGGER.debug("Category %s does not contain Sections", endpoint_type)
 
     def _process_housecheck_device(
-        self, category_name: DataEndpointType, device_data: dict[Any, Any], devices: dict
+        self,
+        endpoint_type: DataEndpointType,
+        device_data: dict[Any, Any],
+        devices: dict,
     ):
-        default_model_name = category_name.value
         serial_no = device_data.get("SerialNo") or device_data.get("Serial")
 
         if serial_no is None:
             _LOGGER.warning("Device data missing SerialNo/Serial: %s", device_data)
             return
-
-        device_type = str(device_data.get("Type", "")).lower()
-        model_name = CATEGORY_MODEL_MAPPING.get(device_type, default_model_name)
 
         sensors = {}
         closed = device_data.get("Closed")
@@ -578,8 +617,9 @@ class _DeviceProcessor:
         if sensors.__len__() == 0:
             _LOGGER.debug(
                 "No sensors were found in device data for category '%s'",
-                category_name,
+                endpoint_type,
             )
+            return
 
         # Initialize or update device entry with sensors
         device_info = devices.setdefault(
@@ -588,20 +628,42 @@ class _DeviceProcessor:
                 "name": device_data.get("Label") or device_data.get("Name"),
                 "serial_no": serial_no,
                 "sensors": sensors,
-                "model": model_name,
+                "model": f"{endpoint_type.value}",
                 "type": device_data.get("Type", ""),
             },
         )
 
         _LOGGER.debug(
             "Processed device: category: %s, device: %s",
-            category_name,
+            endpoint_type,
             device_info,
         )
 
-    async def process_event_logs(self, logs: LogRecords, devices):
+    async def process_event_logs(
+        self,
+        api_data: dict[DataEndpointType, APIResponse],
+        devices: dict[str, Any],
+    ) -> dict[str, Any]:
         """Process event logs, associating them with the correct lock devices using LockName."""
-        grouped_events = {}
+
+        endpoint_type = DataEndpointType.LOGS
+        if endpoint_type not in api_data:
+            return {}
+
+        api_response = api_data[endpoint_type]
+        if not api_response.is_ok():
+            _LOGGER.warning(
+                f"Unable to process data for category '{endpoint_type}' due to API error: data={str(api_response)}"
+            )
+            return {}
+
+        if not api_response.is_json():
+            _LOGGER.warning(
+                f"Unable to process data for category '{endpoint_type}' due to unexpected response type: data={str(api_response)}"
+            )
+            return {}
+
+        logs: LogRecords = api_response.response_data
 
         # Get the user's configured timezone from Home Assistant
         user_time_zone = self._hass.config.time_zone or "UTC"
@@ -617,7 +679,7 @@ class _DeviceProcessor:
         lock_names = {
             device["name"]: serial_no
             for serial_no, device in devices.items()
-            if device.get("model") == "Smart Lock"
+            if device.get("model") == DataEndpointType.LOCK_STATUS.value
         }
 
         for log_entry in records:
@@ -675,12 +737,14 @@ class _DeviceProcessor:
             formatted_event = f"{lock_name} {event_type.replace('_', ' ')} by {user or 'unknown'} via {channel or 'unknown'}"
 
             # Group valid events
+            grouped_events = {}
             grouped_events.setdefault(serial_no, {}).setdefault(event_type, []).append(
                 {
                     "time": timestamp,
                     "user": user,
                     "channel": channel,
                     "formatted_event": formatted_event,
+                    "model": endpoint_type,
                 }
             )
 

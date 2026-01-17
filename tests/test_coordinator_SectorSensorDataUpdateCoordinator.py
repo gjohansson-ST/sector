@@ -159,9 +159,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
         DataEndpointType.HUMIDITY: APIResponse(
             response_code=200,
             response_is_json=True,
-            response_data={
-                "Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]
-            },
+            response_data={"Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]},
         ),
         DataEndpointType.SMOKE_DETECTORS: APIResponse(
             response_code=200,
@@ -290,9 +288,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         DataEndpointType.HUMIDITY: APIResponse(
             response_code=200,
             response_is_json=True,
-            response_data={
-                "Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]
-            },
+            response_data={"Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]},
         ),
         DataEndpointType.SMOKE_DETECTORS: APIResponse(
             response_code=200,
@@ -317,19 +313,22 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     assert temp_legacy["name"] == temperature["Label"]
     assert temp_legacy["serial_no"] == temperature["SerialNo"]
     assert temp_legacy["sensors"] == {"temperature": temperature["Temperature"]}
-    assert temp_legacy["model"] == "Temperature Sensor"
+    assert temp_legacy["model"] == "Temperature Sensor (legacy)"
+    assert "failed_update_count" not in temp_legacy
 
     temp = coordinator_data["devices"]["TEMP_SERIAL"]
     assert temp["name"] == temperature_component["Label"]
     assert temp["serial_no"] == temperature_component["SerialNo"]
     assert temp["sensors"] == {"temperature": temperature_component["Temperature"]}
     assert temp["model"] == "Temperature Sensor"
+    assert "failed_update_count" not in temp
 
     humidity = coordinator_data["devices"]["HUM_SERIAL"]
     assert humidity["name"] == humidity_component["Label"]
     assert humidity["serial_no"] == humidity_component["SerialNo"]
     assert humidity["sensors"] == {"humidity": humidity_component["Humidity"]}
     assert humidity["model"] == "Humidity Sensor"
+    assert "failed_update_count" not in humidity
 
     door = coordinator_data["devices"]["DOOR_SERIAL"]
     assert door["name"] == door_and_window_detector_component["Label"]
@@ -339,6 +338,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         "closed": door_and_window_detector_component.get("Closed"),
     }
     assert door["model"] == "Door/Window Sensor"
+    assert "failed_update_count" not in door
 
     smoke = coordinator_data["devices"]["SMOKE_SERIAL"]
     assert smoke["name"] == smoke_detector_component["Label"]
@@ -348,6 +348,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         "low_battery": smoke_detector_component.get("BatteryLow"),
     }
     assert smoke["model"] == "Smoke Detector"
+    assert "failed_update_count" not in smoke
 
     leakage = coordinator_data["devices"]["LEAK_SERIAL"]
     assert leakage["name"] == leakage_detector_component["Label"]
@@ -357,6 +358,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         "low_battery": leakage_detector_component.get("BatteryLow"),
     }
     assert leakage["model"] == "Leakage Detector"
+    assert "failed_update_count" not in leakage
 
 
 async def test_async_update_data_should_not_proccess_empty_or_failed_devices(
@@ -394,6 +396,120 @@ async def test_async_update_data_should_not_proccess_empty_or_failed_devices(
     assert "devices" in coordinator_data
     assert coordinator_data["devices"] == {}
 
+
+async def test_async_update_data_should_count_failed_update_on_failure(
+    hass: HomeAssistant,
+):
+    # Prepare
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
+    mock_entity = _create_mock_config_entity()
+    mock_entity.add_to_hass(hass)
+
+    mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.TEMPERATURES_LEGACY: APIResponse(
+            response_code=500,
+            response_is_json=True,
+            response_data=None,
+        ),
+        DataEndpointType.HUMIDITY: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={"Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]},
+        ),
+    }
+
+    sensor_coordinator = SectorSensorDataUpdateCoordinator(
+        hass, mock_entity, mock_api, mock_panel_info_coordinator
+    )
+    # Set previous data with one temperature sensor
+    sensor_coordinator.data = {"devices": {}}
+    sensor_coordinator.data["devices"]["TEMP_SERIAL_LEGACY"] = {
+        "name": temperature["Label"],
+        "serial_no": temperature["SerialNo"],
+        "sensors": {
+            "temperature": temperature["Temperature"],
+        },
+        "model": "Temperature Sensor (legacy)",
+        "failed_update_count": 3
+    }
+
+    # Act
+    coordinator_data = await sensor_coordinator._async_update_data()
+
+    # Assert
+    assert "devices" in coordinator_data
+
+    temp_legacy = coordinator_data["devices"]["TEMP_SERIAL_LEGACY"]
+    assert temp_legacy["name"] == temperature["Label"]
+    assert temp_legacy["serial_no"] == temperature["SerialNo"]
+    assert temp_legacy["sensors"] == {"temperature": temperature["Temperature"]}
+    assert temp_legacy["model"] == "Temperature Sensor (legacy)"
+    assert temp_legacy["failed_update_count"] == 4
+
+    humidity = coordinator_data["devices"]["HUM_SERIAL"]
+    assert humidity["name"] == humidity_component["Label"]
+    assert humidity["serial_no"] == humidity_component["SerialNo"]
+    assert humidity["sensors"] == {"humidity": humidity_component["Humidity"]}
+    assert humidity["model"] == "Humidity Sensor"
+    assert "failed_update_count" not in humidity
+
+async def test_async_update_data_should_reset_count_failed_update_on_success(
+    hass: HomeAssistant,
+):
+    # Prepare
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
+    mock_entity = _create_mock_config_entity()
+    mock_entity.add_to_hass(hass)
+
+    mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.TEMPERATURES_LEGACY: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data=[temperature],
+        ),
+        DataEndpointType.HUMIDITY: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={"Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]},
+        ),
+    }
+
+    sensor_coordinator = SectorSensorDataUpdateCoordinator(
+        hass, mock_entity, mock_api, mock_panel_info_coordinator
+    )
+    # Set previous data with one temperature sensor
+    sensor_coordinator.data = {"devices": {}}
+    sensor_coordinator.data["devices"]["TEMP_SERIAL_LEGACY"] = {
+        "name": temperature["Label"],
+        "serial_no": temperature["SerialNo"],
+        "sensors": {
+            "temperature": temperature["Temperature"],
+        },
+        "model": "Temperature Sensor (legacy)",
+        "failed_update_count": 3,
+    }
+
+    # Act
+    coordinator_data = await sensor_coordinator._async_update_data()
+
+    # Assert
+    assert "devices" in coordinator_data
+
+    temp_legacy = coordinator_data["devices"]["TEMP_SERIAL_LEGACY"]
+    assert temp_legacy["name"] == temperature["Label"]
+    assert temp_legacy["serial_no"] == temperature["SerialNo"]
+    assert temp_legacy["sensors"] == {"temperature": temperature["Temperature"]}
+    assert temp_legacy["model"] == "Temperature Sensor (legacy)"
+    assert "failed_update_count" not in temp_legacy
+
+    humidity = coordinator_data["devices"]["HUM_SERIAL"]
+    assert humidity["name"] == humidity_component["Label"]
+    assert humidity["serial_no"] == humidity_component["SerialNo"]
+    assert humidity["sensors"] == {"humidity": humidity_component["Humidity"]}
+    assert humidity["model"] == "Humidity Sensor"
+    assert "failed_update_count" not in humidity
 
 async def test_async_update_data_should_raise_ConfigEntryAuthFailed_exception_on_LoginError(
     hass: HomeAssistant,

@@ -7,26 +7,26 @@ API_URL = "https://mypagesapi.sectoralarm.net"
 
 class DataEndpointType(Enum):
     LOGS = "Logs"
-    PANEL_STATUS = "Panel Status"
-    SMART_PLUG_STATUS = ("Smart Plug",)
-    LOCK_STATUS = ("Smart Lock",)
-    HUMIDITY = ("Humidity",)
-    DOORS_AND_WINDOWS = ("Doors and Windows",)
-    LEAKAGE_DETECTORS = ("Leakage Detectors",)
-    SMOKE_DETECTORS = ("Smoke Detectors",)
-    CAMERAS = ("Cameras",)
-    TEMPERATURES = ("Temperatures",)
-    TEMPERATURES_LEGACY = "Temperatures"
+    PANEL_STATUS = "Sector Alarm Control Panel"
+    SMART_PLUG_STATUS = "Smart Plug"
+    LOCK_STATUS = "Smart Lock"
+    HUMIDITY = "Humidity Sensor"
+    DOORS_AND_WINDOWS = "Door/Window Sensor"
+    LEAKAGE_DETECTORS = "Leakage Detector"
+    SMOKE_DETECTORS = "Smoke Detector"
+    CAMERAS = "Camera"
+    TEMPERATURES = "Temperature Sensor"
+    TEMPERATURES_LEGACY = "Temperature Sensor (legacy)"
 
 
 class ActionEndpointType(Enum):
-    LOGIN = ("Login",)
-    UNLOCK = ("Unlock",)
-    LOCK = ("Lock",)
-    ARM = ("Arm",)
-    PARTIAL_ARM = ("Partial Arm",)
-    DISARM = ("Disarm",)
-    TURN_OFF_SMART_PLUG = ("Turn off Smart Plug",)
+    LOGIN = "Login"
+    UNLOCK = "Unlock"
+    LOCK = "Lock"
+    ARM = "Arm"
+    PARTIAL_ARM = "Partial Arm"
+    DISARM = "Disarm"
+    TURN_OFF_SMART_PLUG = "Turn off Smart Plug"
     TURN_ON_SMART_PLUG = "Turn on Smart Plug"
 
 
