@@ -313,14 +313,14 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     assert temp_legacy["name"] == temperature["Label"]
     assert temp_legacy["serial_no"] == temperature["SerialNo"]
     assert temp_legacy["sensors"] == {"temperature": temperature["Temperature"]}
-    assert temp_legacy["model"] == "Temperature Sensor (legacy)"
+    assert temp_legacy["model"] == "Temperature Sensor"
     assert "failed_update_count" not in temp_legacy
 
     temp = coordinator_data["devices"]["TEMP_SERIAL"]
     assert temp["name"] == temperature_component["Label"]
     assert temp["serial_no"] == temperature_component["SerialNo"]
     assert temp["sensors"] == {"temperature": temperature_component["Temperature"]}
-    assert temp["model"] == "Temperature Sensor"
+    assert temp["model"] == "Temperature Sensor V2"
     assert "failed_update_count" not in temp
 
     humidity = coordinator_data["devices"]["HUM_SERIAL"]
@@ -430,7 +430,7 @@ async def test_async_update_data_should_count_failed_update_on_failure(
         "sensors": {
             "temperature": temperature["Temperature"],
         },
-        "model": "Temperature Sensor (legacy)",
+        "model": "Temperature Sensor",
         "failed_update_count": 3
     }
 
@@ -444,7 +444,7 @@ async def test_async_update_data_should_count_failed_update_on_failure(
     assert temp_legacy["name"] == temperature["Label"]
     assert temp_legacy["serial_no"] == temperature["SerialNo"]
     assert temp_legacy["sensors"] == {"temperature": temperature["Temperature"]}
-    assert temp_legacy["model"] == "Temperature Sensor (legacy)"
+    assert temp_legacy["model"] == "Temperature Sensor"
     assert temp_legacy["failed_update_count"] == 4
 
     humidity = coordinator_data["devices"]["HUM_SERIAL"]
@@ -487,7 +487,7 @@ async def test_async_update_data_should_reset_count_failed_update_on_success(
         "sensors": {
             "temperature": temperature["Temperature"],
         },
-        "model": "Temperature Sensor (legacy)",
+        "model": "Temperature Sensor",
         "failed_update_count": 3,
     }
 
@@ -501,7 +501,7 @@ async def test_async_update_data_should_reset_count_failed_update_on_success(
     assert temp_legacy["name"] == temperature["Label"]
     assert temp_legacy["serial_no"] == temperature["SerialNo"]
     assert temp_legacy["sensors"] == {"temperature": temperature["Temperature"]}
-    assert temp_legacy["model"] == "Temperature Sensor (legacy)"
+    assert temp_legacy["model"] == "Temperature Sensor"
     assert "failed_update_count" not in temp_legacy
 
     humidity = coordinator_data["devices"]["HUM_SERIAL"]

@@ -94,6 +94,7 @@ class SectorAlarmSwitch(
         super().__init__(
             coordinator,
             serial_no,
+            serial_no,
             name,
             model,
         )

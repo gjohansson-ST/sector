@@ -663,6 +663,7 @@ class _DeviceProcessor:
             )
             return {}
 
+        grouped_events = {}
         logs: LogRecords = api_response.response_data
 
         # Get the user's configured timezone from Home Assistant
@@ -737,7 +738,6 @@ class _DeviceProcessor:
             formatted_event = f"{lock_name} {event_type.replace('_', ' ')} by {user or 'unknown'} via {channel or 'unknown'}"
 
             # Group valid events
-            grouped_events = {}
             grouped_events.setdefault(serial_no, {}).setdefault(event_type, []).append(
                 {
                     "time": timestamp,

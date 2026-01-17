@@ -15,8 +15,8 @@ class DataEndpointType(Enum):
     LEAKAGE_DETECTORS = "Leakage Detector"
     SMOKE_DETECTORS = "Smoke Detector"
     CAMERAS = "Camera"
-    TEMPERATURES = "Temperature Sensor"
-    TEMPERATURES_LEGACY = "Temperature Sensor (legacy)"
+    TEMPERATURES = "Temperature Sensor V2"
+    TEMPERATURES_LEGACY = "Temperature Sensor"
 
 
 class ActionEndpointType(Enum):

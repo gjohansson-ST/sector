@@ -77,7 +77,7 @@ class SectorAlarmEvent(
         """Initialize the single event entity for the device."""
         # Pass serial_no, device_name, and device_model to the parent class
         super().__init__(
-            coordinator, serial_no, device_info["name"], device_info["model"]
+            coordinator, serial_no, serial_no, device_info["name"], device_info["model"]
         )
         self._serial_no = serial_no
         self._device_name = device_info["name"]

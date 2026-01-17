@@ -74,7 +74,7 @@ class SectorAlarmLock(
         device_model: str | None,
     ) -> None:
         """Initialize the lock with device info."""
-        super().__init__(coordinator, serial_no, device_name, device_model)
+        super().__init__(coordinator, serial_no, serial_no, device_name, device_model)
         self._attr_code_format = rf"^\d{{{code_format}}}$"
         self._attr_unique_id = f"{serial_no}_lock"
 
@@ -114,7 +114,7 @@ class SectorAlarmLock(
         code: str | None = kwargs.get(ATTR_CODE)
         if TYPE_CHECKING:
             assert code is not None
-        
+
         try:
             await self.coordinator.api.unlock_door(self._serial_no, code=code)
             await self.coordinator.async_request_refresh()

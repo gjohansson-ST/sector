@@ -26,12 +26,14 @@ class SectorAlarmBaseEntity(CoordinatorEntity[_DataT]):
     def __init__(
         self,
         coordinator: _DataT,
+        coordinator_id: str,
         serial_no: str,
         device_name: str,
         device_model: str | None,
     ) -> None:
         """Initialize the base entity with device info."""
         super().__init__(coordinator)
+        self._coordinator_id = coordinator_id
         self._serial_no = serial_no
         self.device_name = device_name
         self.device_model = device_model
@@ -60,7 +62,7 @@ class SectorAlarmBaseEntity(CoordinatorEntity[_DataT]):
     @property
     def available(self) -> bool:
         """Return entity availability."""
-        device = self.coordinator.data.get("devices", {}).get(self._serial_no, {})
+        device = self.coordinator.data.get("devices", {}).get(self._coordinator_id, {})
         if device is None:
             return False
 

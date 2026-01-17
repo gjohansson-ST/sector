@@ -79,6 +79,7 @@ class SectorAlarmControlPanel(
         """Initialize the control panel."""
         super().__init__(
             coordinator,
+            "alarm_status",
             coordinator.panel_id,
             "Sector Alarm Panel",
             "Alarm panel",

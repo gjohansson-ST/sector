@@ -66,7 +66,7 @@ class SectorAlarmCamera(
         device_model: str | None,
     ) -> None:
         """Initialize the camera entity with device info."""
-        super().__init__(coordinator, serial_no, device_name, device_model)
+        super().__init__(coordinator, serial_no, serial_no, device_name, device_model)
         Camera.__init__(self)
         self._attr_unique_id = f"{self._serial_no}_camera"
         _LOGGER.debug(
