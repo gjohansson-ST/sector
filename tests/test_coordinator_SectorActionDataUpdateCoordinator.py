@@ -1,4 +1,3 @@
-from calendar import c
 from unittest.mock import AsyncMock
 
 from homeassistant.core import HomeAssistant

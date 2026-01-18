@@ -1,29 +1,14 @@
-from calendar import c
 from datetime import timedelta
 from unittest.mock import AsyncMock
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import UpdateFailed
-from homeassistant.exceptions import ConfigEntryAuthFailed
-import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
 )
 
-from custom_components.sector.api_model import (
-    Lock,
-    LogRecords,
-    PanelInfo,
-    SmartPlug,
-    Temperature,
-    PanelStatus,
-)
-from custom_components.sector.client import APIResponse, ApiError, LoginError
 from custom_components.sector.coordinator import (
-    SectorActionDataUpdateCoordinator,
     SectorBaseDataUpdateCoordinator,
 )
-from custom_components.sector.endpoints import DataEndpointType
 from custom_components.sector.entity import _FAILED_UPDATE_LIMIT, SectorAlarmBaseEntity
 
 _PANEL_ID = "1234"
