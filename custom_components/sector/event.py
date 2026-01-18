@@ -85,7 +85,6 @@ class SectorAlarmEvent(
         self._events = []  # Store all events
         self._attr_unique_id = f"{self._device_name}_event"
         self._attr_name = f"{self._device_name} Event Log"
-        self._attr_device_class = "timestamp"
         self._last_event_type = None
         self._last_formatted_event = None
         _LOGGER.debug(
@@ -144,7 +143,7 @@ class SectorAlarmEvent(
                     event_time,
                 )
 
-    def _trigger_event(self, event_type, event_attributes):
+    def _trigger_event(self, event_type, event_attributes: dict[str, Any]):
         """Trigger an event update with the latest type."""
         event_timestamp = event_attributes.get(
             "timestamp", datetime.now(dt_util.UTC).isoformat()
