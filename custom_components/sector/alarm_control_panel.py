@@ -138,7 +138,7 @@ class SectorAlarmControlPanel(
 
         try:
             try:
-                await self.coordinator.api.arm_system("full", code=code)
+                await self.coordinator.sector_api.arm_system("full", code=code)
                 await self.coordinator.async_request_refresh()
             except LoginError as err:
                 raise ConfigEntryAuthFailed from err
@@ -171,7 +171,7 @@ class SectorAlarmControlPanel(
 
         try:
             try:
-                await self.coordinator.api.arm_system("partial", code=code)
+                await self.coordinator.sector_api.arm_system("partial", code=code)
                 await self.coordinator.async_request_refresh()
             except LoginError as err:
                 raise ConfigEntryAuthFailed from err
@@ -206,7 +206,7 @@ class SectorAlarmControlPanel(
 
         try:
             try:
-                await self.coordinator.api.disarm_system(code=code)
+                await self.coordinator.sector_api.disarm_system(code=code)
                 await self.coordinator.async_request_refresh()
             except LoginError as err:
                 raise ConfigEntryAuthFailed from err

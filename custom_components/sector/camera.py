@@ -81,5 +81,5 @@ class SectorAlarmCamera(
         _LOGGER.debug(
             "SECTOR_CAMERA: Requesting image for device %s", self._attr_unique_id
         )
-        image = await self.coordinator.api.get_camera_image(self._serial_no)
+        image = await self.coordinator.sector_api.get_camera_image(self._serial_no)
         return image

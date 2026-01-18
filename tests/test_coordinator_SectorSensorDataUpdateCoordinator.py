@@ -1,3 +1,4 @@
+from calendar import c
 from unittest.mock import AsyncMock
 
 from homeassistant.core import HomeAssistant
@@ -13,7 +14,7 @@ from custom_components.sector.api_model import (
     PanelInfo,
     Temperature,
 )
-from custom_components.sector.client import APIResponse, LoginError
+from custom_components.sector.client import APIResponse, ApiError, LoginError
 from custom_components.sector.coordinator import (
     SectorSensorDataUpdateCoordinator,
 )
@@ -307,6 +308,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     coordinator_data = await sensor_coordinator._async_update_data()
 
     # Assert
+    assert sensor_coordinator.is_healthy()
     assert "devices" in coordinator_data
 
     temp_legacy = coordinator_data["devices"]["TEMP_SERIAL_LEGACY"]
@@ -314,6 +316,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     assert temp_legacy["serial_no"] == temperature["SerialNo"]
     assert temp_legacy["sensors"] == {"temperature": temperature["Temperature"]}
     assert temp_legacy["model"] == "Temperature Sensor"
+    assert temp_legacy["last_updated"]
     assert "failed_update_count" not in temp_legacy
 
     temp = coordinator_data["devices"]["TEMP_SERIAL"]
@@ -321,6 +324,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     assert temp["serial_no"] == temperature_component["SerialNo"]
     assert temp["sensors"] == {"temperature": temperature_component["Temperature"]}
     assert temp["model"] == "Temperature Sensor V2"
+    assert temp["last_updated"]
     assert "failed_update_count" not in temp
 
     humidity = coordinator_data["devices"]["HUM_SERIAL"]
@@ -328,6 +332,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     assert humidity["serial_no"] == humidity_component["SerialNo"]
     assert humidity["sensors"] == {"humidity": humidity_component["Humidity"]}
     assert humidity["model"] == "Humidity Sensor"
+    assert humidity["last_updated"]
     assert "failed_update_count" not in humidity
 
     door = coordinator_data["devices"]["DOOR_SERIAL"]
@@ -338,6 +343,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         "closed": door_and_window_detector_component.get("Closed"),
     }
     assert door["model"] == "Door/Window Sensor"
+    assert door["last_updated"]
     assert "failed_update_count" not in door
 
     smoke = coordinator_data["devices"]["SMOKE_SERIAL"]
@@ -348,6 +354,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         "low_battery": smoke_detector_component.get("BatteryLow"),
     }
     assert smoke["model"] == "Smoke Detector"
+    assert smoke["last_updated"]
     assert "failed_update_count" not in smoke
 
     leakage = coordinator_data["devices"]["LEAK_SERIAL"]
@@ -358,7 +365,65 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         "low_battery": leakage_detector_component.get("BatteryLow"),
     }
     assert leakage["model"] == "Leakage Detector"
+    assert leakage["last_updated"]
     assert "failed_update_count" not in leakage
+
+
+async def test_async_update_data_should_reset_coordinator_update_error_counter_on_success(
+    hass: HomeAssistant,
+):
+    # Prepare
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
+    mock_entity = _create_mock_config_entity()
+    mock_entity.add_to_hass(hass)
+
+    mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.HUMIDITY: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={"Floors": [{"Rooms": [{"Devices": [humidity_component]}]}]},
+        ),
+    }
+
+    sensor_coordinator = SectorSensorDataUpdateCoordinator(
+        hass, mock_entity, mock_api, mock_panel_info_coordinator
+    )
+    sensor_coordinator._update_error_counter = 3
+
+    # Act
+    await sensor_coordinator._async_update_data()
+
+    # Assert
+    assert sensor_coordinator.is_healthy()
+    assert sensor_coordinator._update_error_counter == 0
+
+
+async def test_async_update_data_should_increment_coordinator_update_error_counter_on_exception_failure(
+    hass: HomeAssistant,
+):
+    # Prepare
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
+    mock_entity = _create_mock_config_entity()
+    mock_entity.add_to_hass(hass)
+
+    mock_api = AsyncMock()
+    mock_api.retrieve_all_data.side_effect = ApiError("Failed To Call API")
+
+    sensor_coordinator = SectorSensorDataUpdateCoordinator(
+        hass, mock_entity, mock_api, mock_panel_info_coordinator
+    )
+    sensor_coordinator._update_error_counter = 3
+    # Act
+    with pytest.raises(
+        UpdateFailed,
+        match="Failed To Call API",
+    ):
+        await sensor_coordinator._async_update_data()
+
+    # Assert
+    assert not sensor_coordinator.is_healthy()
+    assert sensor_coordinator._update_error_counter == 4
 
 
 async def test_async_update_data_should_not_proccess_empty_or_failed_devices(
@@ -431,7 +496,7 @@ async def test_async_update_data_should_count_failed_update_on_failure(
             "temperature": temperature["Temperature"],
         },
         "model": "Temperature Sensor",
-        "failed_update_count": 3
+        "failed_update_count": 3,
     }
 
     # Act
@@ -453,6 +518,7 @@ async def test_async_update_data_should_count_failed_update_on_failure(
     assert humidity["sensors"] == {"humidity": humidity_component["Humidity"]}
     assert humidity["model"] == "Humidity Sensor"
     assert "failed_update_count" not in humidity
+
 
 async def test_async_update_data_should_reset_count_failed_update_on_success(
     hass: HomeAssistant,
@@ -510,6 +576,7 @@ async def test_async_update_data_should_reset_count_failed_update_on_success(
     assert humidity["sensors"] == {"humidity": humidity_component["Humidity"]}
     assert humidity["model"] == "Humidity Sensor"
     assert "failed_update_count" not in humidity
+
 
 async def test_async_update_data_should_raise_ConfigEntryAuthFailed_exception_on_LoginError(
     hass: HomeAssistant,

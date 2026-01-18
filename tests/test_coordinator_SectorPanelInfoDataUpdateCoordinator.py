@@ -32,7 +32,7 @@ async def test_async_update_data_should_fetch_PanelInfo(
         "Label": "Front Door",
         "Serial": "LOCK123",
         "SerialNo": "LOCK123",
-        "Status": "lock"
+        "Status": "lock",
     }
     smart_plug: SmartPlug = {
         "Id": "plug_1",
@@ -71,6 +71,7 @@ async def test_async_update_data_should_fetch_PanelInfo(
     data: dict[str, Any] = await coordinator._async_update_data()
 
     # Assert
+    assert coordinator.is_healthy()
     assert data["panel_info"] == panel_info
 
 

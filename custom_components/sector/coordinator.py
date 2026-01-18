@@ -58,20 +58,51 @@ _ACTION_UPDATE_INTERVAL = timedelta(seconds=60)
 _SENSOR_UPDATE_INTERVAL = timedelta(minutes=5)
 
 
-class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
+class SectorBaseDataUpdateCoordinator(DataUpdateCoordinator):
+    """Base class for Sector Alarm Data Update Coordinators."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config_entry: SectorAlarmConfigEntry,
+        sector_api: SectorAlarmAPI,
+        name: str,
+        update_interval: timedelta,
+    ) -> None:
+        self._hass = hass
+        self.sector_api = sector_api
+        self.panel_id = config_entry.data[CONF_PANEL_ID]
+        self._update_error_counter: int = 0
+        super().__init__(
+            hass=hass,
+            logger=_LOGGER,
+            config_entry=config_entry,
+            name=name,
+            update_interval=update_interval,
+        )
+
+    def _increment_update_error_counter(self):
+        self._update_error_counter += 1
+
+    def _reset_update_error_counter(self):
+        self._update_error_counter = 0
+
+    def is_healthy(self) -> bool:
+        """Determine if the coordinator is healthy based on error count."""
+        return self._update_error_counter < 3
+
+
+class SectorPanelInfoDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
     def __init__(
         self,
         hass: HomeAssistant,
         entry: SectorAlarmConfigEntry,
         sector_api: SectorAlarmAPI,
     ) -> None:
-        self._hass = hass
-        self._api = sector_api
-        self._panel_id = entry.data[CONF_PANEL_ID]
         super().__init__(
-            hass,
-            _LOGGER,
+            hass=hass,
             config_entry=entry,
+            sector_api=sector_api,
             name="SectorPanelInfoDataUpdateCoordinator",
             update_interval=_PANEL_INFO_UPDATE_INTERVAL,
         )
@@ -84,32 +115,36 @@ class SectorPanelInfoDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _fetch_data(self) -> dict[str, Any]:
         try:
-            response = await self._api.get_panel_info()
+            response = await self.sector_api.get_panel_info()
             if not response.is_ok():
                 raise UpdateFailed(
-                    f"Failed to retrieve panel information for panel '{self._panel_id}' (HTTP {response.response_code} - {response.response_data})"
+                    f"Failed to retrieve panel information for panel '{self.panel_id}' (HTTP {response.response_code} - {response.response_data})"
                 )
             if not response.is_json():
                 raise UpdateFailed(
-                    f"Failed to retrieve panel information for panel '{self._panel_id}' (response data is not JSON '{response.response_data}')"
+                    f"Failed to retrieve panel information for panel '{self.panel_id}' (response data is not JSON '{response.response_data}')"
                 )
             panel_info: PanelInfo = response.response_data
             if panel_info is None:
                 raise UpdateFailed(
-                    f"Failed to retrieve panel information for panel '{self._panel_id}' (no data returned from API)"
+                    f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from API)"
                 )
 
+            self._reset_update_error_counter()
             return {"panel_info": panel_info}
 
         except LoginError as error:
+            self._increment_update_error_counter()
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
+            self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
         except ApiError as error:
+            self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
 
 
-class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
+class SectorActionDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
     _MANDATORY_ENDPOINT_TYPES = {DataEndpointType.PANEL_STATUS, DataEndpointType.LOGS}
 
     _OPTIONAL_DATA_ENDPOINT_TYPES = {
@@ -124,23 +159,18 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         sector_api: SectorAlarmAPI,
         panel_info_coordinator: SectorPanelInfoDataUpdateCoordinator,
     ) -> None:
-        self._hass = hass
-        self.api = sector_api
-        self.panel_id = entry.data[CONF_PANEL_ID]
-        self.sector_config_entry = entry
+        super().__init__(
+            hass=hass,
+            sector_api=sector_api,
+            config_entry=entry,
+            name="SectorActionDataUpdateCoordinator",
+            update_interval=_ACTION_UPDATE_INTERVAL,
+        )
         self._panel_info_coordinator = panel_info_coordinator
         self._panel_info_coordinator.async_add_listener(self._handle_parent_update)
         self._data_endpoints: set[DataEndpointType] = set()
         self._event_logs: dict[str, Any] = {}
         self._device_proccessor = _DeviceProcessor(self._hass, self.panel_id)
-
-        super().__init__(
-            hass,
-            _LOGGER,
-            config_entry=entry,
-            name="SectorActionDataUpdateCoordinator",
-            update_interval=_ACTION_UPDATE_INTERVAL,
-        )
 
     @callback
     def _handle_parent_update(self):
@@ -188,7 +218,7 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
 
             api_data: dict[
                 DataEndpointType, APIResponse
-            ] = await self.api.retrieve_all_data(self._data_endpoints)
+            ] = await self.sector_api.retrieve_all_data(self._data_endpoints)
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
@@ -201,16 +231,20 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
                 api_data, devices
             )
 
+            self._reset_update_error_counter()
             return {
                 "devices": devices,
                 "logs": self._event_logs,
             }
 
         except LoginError as error:
+            self._increment_update_error_counter()
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
+            self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
         except ApiError as error:
+            self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
 
     def get_device_info(self, serial):
@@ -245,7 +279,7 @@ class SectorActionDataUpdateCoordinator(DataUpdateCoordinator):
         return self._event_logs
 
 
-class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
+class SectorSensorDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
     _OPTIONAL_DATA_ENDPOINT_TYPES = {
         # via HouseCheck API
         # DataEndpointType.TEMPERATURES, <--- not used by Sector App
@@ -265,10 +299,13 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         sector_api: SectorAlarmAPI,
         panel_info_coordinator: SectorPanelInfoDataUpdateCoordinator,
     ) -> None:
-        self._hass = hass
-        self.api = sector_api
-        self.panel_id = entry.data[CONF_PANEL_ID]
-        self.sector_config_entry = entry
+        super().__init__(
+            hass=hass,
+            sector_api=sector_api,
+            config_entry=entry,
+            name="SectorSensorDataUpdateCoordinator",
+            update_interval=_SENSOR_UPDATE_INTERVAL,
+        )
         self._panel_info_coordinator = panel_info_coordinator
         self._panel_info_coordinator.async_add_listener(self._handle_parent_update)
         self._use_legacy_api = True
@@ -276,14 +313,6 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
         self._legacy_temperature_last_response: Optional[APIResponse] = None
         self._data_endpoints: set[DataEndpointType] = set()
         self._device_proccessor = _DeviceProcessor(self._hass, self.panel_id)
-
-        super().__init__(
-            hass,
-            _LOGGER,
-            config_entry=entry,
-            name="SectorSensorDataUpdateCoordinator",
-            update_interval=_SENSOR_UPDATE_INTERVAL,
-        )
 
     @callback
     def _handle_parent_update(self):
@@ -310,7 +339,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             # Scan and build supported endpoints from non-panel-info endpoints
             api_data: dict[
                 DataEndpointType, APIResponse
-            ] = await self.api.retrieve_all_data(optional_endpoint_types)
+            ] = await self.sector_api.retrieve_all_data(optional_endpoint_types)
             for endpoint_type, response in api_data.items():
                 if response.response_code == 404:
                     optional_endpoint_types.discard(endpoint_type)
@@ -342,7 +371,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             if self._use_legacy_api:
                 api_data = await self._legacy_retrieve_all_data()
             else:
-                api_data = await self.api.retrieve_all_data(self._data_endpoints)
+                api_data = await self.sector_api.retrieve_all_data(self._data_endpoints)
 
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
@@ -351,13 +380,17 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
                 panel_info, api_data, data
             )
 
+            self._reset_update_error_counter()
             return {"devices": devices}
 
         except LoginError as error:
+            self._increment_update_error_counter()
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
+            self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
         except ApiError as error:
+            self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
 
     async def _legacy_retrieve_all_data(self):
@@ -372,7 +405,9 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
             endpoints_redacted_temperatures.discard(
                 DataEndpointType.TEMPERATURES_LEGACY
             )
-            data = await self.api.retrieve_all_data(endpoints_redacted_temperatures)
+            data = await self.sector_api.retrieve_all_data(
+                endpoints_redacted_temperatures
+            )
 
             # Add previous cached response, if present
             if self._legacy_temperature_last_response:
@@ -382,7 +417,7 @@ class SectorSensorDataUpdateCoordinator(DataUpdateCoordinator):
                 )
             return data
 
-        data = await self.api.retrieve_all_data(self._data_endpoints)
+        data = await self.sector_api.retrieve_all_data(self._data_endpoints)
         response = data.get(DataEndpointType.TEMPERATURES_LEGACY)
 
         # We only update legacy temperature variables if last check succeeded
@@ -413,6 +448,7 @@ class _DeviceProcessor:
         devices: dict[str, Any],
     ) -> dict[str, Any]:
         """Process device data from the API, including humidity, closed, and alarm sensors."""
+        proccess_time = datetime.now(tz=dt_util.UTC)
         for endpoint_type, endpoint_data in api_data.items():
             # Skip logs processing here
             if endpoint_type in [DataEndpointType.LOGS]:
@@ -437,16 +473,22 @@ class _DeviceProcessor:
             response_data = endpoint_data.response_data
             if endpoint_type == DataEndpointType.PANEL_STATUS:
                 self.process_alarm_panel(
-                    endpoint_type, panel_info, response_data, devices
+                    endpoint_type, panel_info, response_data, proccess_time, devices
                 )
             elif endpoint_type == DataEndpointType.SMART_PLUG_STATUS:
-                self.process_smart_plugs(endpoint_type, response_data, devices)
+                self.process_smart_plugs(
+                    endpoint_type, response_data, proccess_time, devices
+                )
             elif endpoint_type == DataEndpointType.LOCK_STATUS:
-                self.process_locks(endpoint_type, response_data, devices)
+                self.process_locks(endpoint_type, response_data, proccess_time, devices)
             elif endpoint_type == DataEndpointType.TEMPERATURES_LEGACY:
-                self.process_legacy_temperatures(endpoint_type, response_data, devices)
+                self.process_legacy_temperatures(
+                    endpoint_type, response_data, proccess_time, devices
+                )
             else:
-                self.process_housecheck_devices(endpoint_type, response_data, devices)
+                self.process_housecheck_devices(
+                    endpoint_type, response_data, proccess_time, devices
+                )
 
         return devices
 
@@ -454,6 +496,7 @@ class _DeviceProcessor:
         self,
         endpoint_type: DataEndpointType,
         temps_data: list[Temperature],
+        proccess_time: datetime,
         devices: dict,
     ) -> None:
         """Process legacy temperatures"""
@@ -470,6 +513,7 @@ class _DeviceProcessor:
                     "temperature": temp.get("Temperature"),
                 },
                 "model": f"{endpoint_type.value}",
+                "last_updated": proccess_time.isoformat(),
             }
             _LOGGER.debug(
                 "Processed temperature sensor with serial_no %s: %s",
@@ -481,6 +525,7 @@ class _DeviceProcessor:
         self,
         endpoint_type: DataEndpointType,
         smart_plug_data: list[SmartPlug],
+        proccess_time: datetime,
         devices: dict,
     ) -> None:
         """Process smart plugs data and add to devices dictionary."""
@@ -497,6 +542,7 @@ class _DeviceProcessor:
                 "serial_no": serial_no,
                 "sensors": {"plug_status": smart_plug.get("Status")},
                 "model": f"{endpoint_type.value}",
+                "last_updated": proccess_time.isoformat(),
             }
             _LOGGER.debug(
                 "Processed smart plug with Serial %s: %s", serial_no, devices[serial_no]
@@ -507,6 +553,7 @@ class _DeviceProcessor:
         endpoint_type: DataEndpointType,
         panel_info: PanelInfo,
         panel_status_data: PanelStatus,
+        proccess_time: datetime,
         devices: dict,
     ) -> None:
         """Process alarm panel status data and add to devices dictionary."""
@@ -522,6 +569,7 @@ class _DeviceProcessor:
             "panel_quick_arm": panel_info.get("QuickArmEnabled", False),
             "panel_partial_arm": panel_info.get("CanPartialArm", False),
             "model": f"{endpoint_type.value}",
+            "last_updated": proccess_time.isoformat(),
         }
         _LOGGER.debug(
             "Processed alarm panel with Serial %s: %s",
@@ -530,7 +578,11 @@ class _DeviceProcessor:
         )
 
     def process_locks(
-        self, endpoint_type: DataEndpointType, locks_data: list[Lock], devices: dict
+        self,
+        endpoint_type: DataEndpointType,
+        locks_data: list[Lock],
+        proccess_time: datetime,
+        devices: dict,
     ) -> None:
         """Process lock data and add to devices dictionary."""
         for lock in locks_data:
@@ -549,6 +601,7 @@ class _DeviceProcessor:
                     "lock_status": lock_status,
                 },
                 "model": f"{endpoint_type.value}",
+                "last_updated": proccess_time.isoformat(),
             }
 
             _LOGGER.debug(
@@ -556,7 +609,11 @@ class _DeviceProcessor:
             )
 
     def process_housecheck_devices(
-        self, endpoint_type: DataEndpointType, category_data: HouseCheck, devices: dict
+        self,
+        endpoint_type: DataEndpointType,
+        category_data: HouseCheck,
+        proccess_time: datetime,
+        devices: dict,
     ) -> None:
         """Process devices within a specific category and add them to devices dictionary."""
         # Floors is currently only used by Humidity sensors
@@ -567,13 +624,19 @@ class _DeviceProcessor:
                         self._process_housecheck_device(
                             endpoint_type,
                             component,  # type: ignore
+                            proccess_time,
                             devices,
                         )
         elif "Floors" in category_data:
             for floor in category_data.get("Floors", []):
                 for room in floor.get("Rooms", []):
                     for device in room.get("Devices", []):
-                        self._process_housecheck_device(endpoint_type, device, devices)  # type: ignore
+                        self._process_housecheck_device(
+                            endpoint_type,
+                            device,  # type: ignore
+                            proccess_time,
+                            devices,
+                        )
         else:
             _LOGGER.debug("Category %s does not contain Sections", endpoint_type)
 
@@ -581,6 +644,7 @@ class _DeviceProcessor:
         self,
         endpoint_type: DataEndpointType,
         device_data: dict[Any, Any],
+        proccess_time: datetime,
         devices: dict,
     ):
         serial_no = device_data.get("SerialNo") or device_data.get("Serial")
@@ -628,8 +692,9 @@ class _DeviceProcessor:
                 "name": device_data.get("Label") or device_data.get("Name"),
                 "serial_no": serial_no,
                 "sensors": sensors,
-                "model": f"{endpoint_type.value}",
                 "type": device_data.get("Type", ""),
+                "model": f"{endpoint_type.value}",
+                "last_updated": proccess_time.isoformat(),
             },
         )
 

@@ -96,7 +96,7 @@ class SectorAlarmLock(
             assert code is not None
 
         try:
-            await self.coordinator.api.lock_door(self._serial_no, code=code)
+            await self.coordinator.sector_api.lock_door(self._serial_no, code=code)
             await self.coordinator.async_request_refresh()
         except LoginError as err:
             raise ConfigEntryAuthFailed from err
@@ -116,7 +116,7 @@ class SectorAlarmLock(
             assert code is not None
 
         try:
-            await self.coordinator.api.unlock_door(self._serial_no, code=code)
+            await self.coordinator.sector_api.unlock_door(self._serial_no, code=code)
             await self.coordinator.async_request_refresh()
         except LoginError as err:
             raise ConfigEntryAuthFailed from err

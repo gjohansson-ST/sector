@@ -134,7 +134,7 @@ class SectorAlarmSwitch(
     async def async_turn_on(self, **kwargs) -> None:
         """Turn the switch on."""
         try:
-            await self.coordinator.api.turn_on_smartplug(self._id)
+            await self.coordinator.sector_api.turn_on_smartplug(self._id)
 
             # Optimistic update
             self._attr_is_on = True
@@ -157,7 +157,7 @@ class SectorAlarmSwitch(
     async def async_turn_off(self, **kwargs) -> None:
         """Turn the switch off."""
         try:
-            await self.coordinator.api.turn_off_smartplug(self._id)
+            await self.coordinator.sector_api.turn_off_smartplug(self._id)
 
             # Optimistic update
             self._attr_is_on = False
