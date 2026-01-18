@@ -122,7 +122,9 @@ def _proccess_coordinator(
     if entities:
         async_add_entities(entities)
     else:
-        _LOGGER.debug(f"No binary sensor entities to add for '{coordinator.__class__.__name__}'")
+        _LOGGER.debug(
+            f"No binary sensor entities to add for '{coordinator.__class__.__name__}'"
+        )
 
 
 class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
@@ -139,7 +141,9 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
         device_model: str,
     ) -> None:
         """Initialize the sensor with device info."""
-        super().__init__(coordinator, "alarm_status", serial_no, device_name, device_model)
+        super().__init__(
+            coordinator, "alarm_panel", serial_no, device_name, device_model
+        )
         self.entity_description = entity_description
         self._sensor_type = entity_description.key
         self._attr_unique_id = f"{serial_no}_{entity_description.key}"
