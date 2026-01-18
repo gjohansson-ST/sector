@@ -115,7 +115,7 @@ class SectorAlarmSwitch(
             return self._attr_is_on
 
         # Fall back to coordinator data
-        device = self.coordinator.data["devices"].get(self._serial_no)
+        device = self.coordinator.data["devices"].get(self._device_id)
         if device:
             status = device["sensors"].get("plug_status")
             _LOGGER.debug(

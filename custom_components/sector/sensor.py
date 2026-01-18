@@ -95,6 +95,6 @@ class SectorAlarmSensor(
     def native_value(self) -> float | None:
         """Return the sensor value."""
         devices: dict[str, Any] = self.coordinator.data.get("devices", {})
-        device: dict[str, Any] = devices.get(self._serial_no, {})
+        device: dict[str, Any] = devices.get(self._device_id, {})
         sensors: dict[str, Any] = device.get("sensors", {})
         return sensors.get(self.entity_description.key)

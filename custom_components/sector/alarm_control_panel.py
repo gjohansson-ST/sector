@@ -284,4 +284,4 @@ class SectorAlarmControlPanel(
 
     @property
     def _alarm_panel_data(self) -> dict[str, Any]:
-        return self.coordinator.data.get("devices", {}).get("alarm_panel", {})
+        return self.coordinator.data.get("devices", {}).get(self._device_id, {})

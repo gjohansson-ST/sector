@@ -79,7 +79,6 @@ class SectorAlarmEvent(
         super().__init__(
             coordinator, serial_no, serial_no, device_info["name"], device_info["model"]
         )
-        self._serial_no = serial_no
         self._device_name = device_info["name"]
         self._device_model = device_info["model"]
         self._events = []  # Store all events

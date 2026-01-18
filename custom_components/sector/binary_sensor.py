@@ -90,11 +90,15 @@ def _proccess_coordinator(
                 entities.append(
                     SectorAlarmPanelOnlineBinarySensor(
                         coordinator,
+                        "alarm_panel",
                         serial_no,
                         description,
                         device_name,
                         device_model,
                     )
+                )
+                _LOGGER.debug(
+                    "Added %s sensor for device %s", description.name, serial_no
                 )
 
             elif description.key == "closed":
@@ -102,17 +106,25 @@ def _proccess_coordinator(
                     SectorAlarmClosedSensor(
                         coordinator,
                         serial_no,
+                        serial_no,
                         description,
                         device_name,
                         device_model,
                     )
                 )
-                _LOGGER.debug("Added closed sensor for device %s", serial_no)
+                _LOGGER.debug(
+                    "Added %s sensor for device %s", description.name, serial_no
+                )
 
             else:
                 entities.append(
                     SectorAlarmBinarySensor(
-                        coordinator, serial_no, description, device_name, device_model
+                        coordinator,
+                        serial_no,
+                        serial_no,
+                        description,
+                        device_name,
+                        device_model,
                     )
                 )
                 _LOGGER.debug(
@@ -135,15 +147,14 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     def __init__(
         self,
         coordinator: DataUpdateCoordinator,
+        device_id: str,
         serial_no: str,
         entity_description: BinarySensorEntityDescription,
         device_name: str,
         device_model: str,
     ) -> None:
         """Initialize the sensor with device info."""
-        super().__init__(
-            coordinator, "alarm_panel", serial_no, device_name, device_model
-        )
+        super().__init__(coordinator, device_id, serial_no, device_name, device_model)
         self.entity_description = entity_description
         self._sensor_type = entity_description.key
         self._attr_unique_id = f"{serial_no}_{entity_description.key}"
@@ -151,7 +162,7 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         """Return True if the sensor is on."""
-        device: dict = self.coordinator.data["devices"].get(self._serial_no, {})
+        device: dict = self.coordinator.data["devices"].get(self._device_id, {})
         sensors = device.get("sensors", {})
         return sensors.get(self._sensor_type, None)
 
@@ -162,7 +173,7 @@ class SectorAlarmClosedSensor(SectorAlarmBinarySensor):
     @property
     def is_on(self) -> bool:
         """Return True if the door/window is open (closed: False)."""
-        device: dict = self.coordinator.data["devices"].get(self._serial_no, {})
+        device: dict = self.coordinator.data["devices"].get(self._device_id, {})
         sensors = device.get("sensors", {})
         return sensors.get("closed", None)
 
@@ -173,6 +184,6 @@ class SectorAlarmPanelOnlineBinarySensor(SectorAlarmBinarySensor, BinarySensorEn
     @property
     def is_on(self):
         """Return True if the panel is online."""
-        device: dict = self.coordinator.data["devices"].get("alarm_panel", {})
+        device: dict = self.coordinator.data["devices"].get(self._device_id, {})
         sensors = device.get("sensors", {})
         return sensors.get("online", None)

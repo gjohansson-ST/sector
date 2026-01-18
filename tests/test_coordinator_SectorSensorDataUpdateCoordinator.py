@@ -133,15 +133,6 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
 
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.return_value = {
-        DataEndpointType.DOORS_AND_WINDOWS: APIResponse(
-            response_code=200,
-            response_is_json=True,
-            response_data={
-                "Sections": [
-                    {"Places": [{"Components": [door_and_window_detector_component]}]}
-                ]
-            },
-        ),
         DataEndpointType.LEAKAGE_DETECTORS: APIResponse(
             response_code=200,
             response_is_json=True,
@@ -188,7 +179,6 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
         DataEndpointType.HUMIDITY,
         # DataEndpointType.LEAKAGE_DETECTORS,
         # DataEndpointType.SMOKE_DETECTORS,
-        DataEndpointType.DOORS_AND_WINDOWS,
     }
 
 
@@ -261,15 +251,6 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
             response_is_json=True,
             response_data=[temperature],
         ),
-        DataEndpointType.DOORS_AND_WINDOWS: APIResponse(
-            response_code=200,
-            response_is_json=True,
-            response_data={
-                "Sections": [
-                    {"Places": [{"Components": [door_and_window_detector_component]}]}
-                ]
-            },
-        ),
         DataEndpointType.LEAKAGE_DETECTORS: APIResponse(
             response_code=200,
             response_is_json=True,
@@ -332,17 +313,6 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     assert humidity["model"] == "Humidity Sensor"
     assert humidity["last_updated"]
     assert "failed_update_count" not in humidity
-
-    door = coordinator_data["devices"]["DOOR_SERIAL"]
-    assert door["name"] == door_and_window_detector_component["Label"]
-    assert door["serial_no"] == door_and_window_detector_component["SerialNo"]
-    assert door["sensors"] == {
-        "low_battery": door_and_window_detector_component.get("LowBattery"),
-        "closed": door_and_window_detector_component.get("Closed"),
-    }
-    assert door["model"] == "Door/Window Sensor"
-    assert door["last_updated"]
-    assert "failed_update_count" not in door
 
     smoke = coordinator_data["devices"]["SMOKE_SERIAL"]
     assert smoke["name"] == smoke_detector_component["Label"]

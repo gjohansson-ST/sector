@@ -9,6 +9,7 @@ from pytest_homeassistant_custom_component.common import (
 )
 
 from custom_components.sector.api_model import (
+    Component,
     Lock,
     LogRecords,
     PanelInfo,
@@ -72,8 +73,32 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
         "Smartplugs": [smart_plug],
         "Temperatures": [temperature],
     }
+    door_and_window_detector_component: Component = {
+        "SerialNo": "DOOR_SERIAL",
+        "Serial": "DOOR_SERIAL",
+        "Label": "Front Door",
+        "Name": "Front Door Lock",
+        "Type": "Doors and Windows",
+        "Closed": True,
+        "LowBattery": False,
+        "BatteryLow": None,
+        "Alarm": None,
+        "Temperature": None,
+        "Humidity": None,
+    }
 
     mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.DOORS_AND_WINDOWS: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={
+                "Sections": [
+                    {"Places": [{"Components": [door_and_window_detector_component]}]}
+                ]
+            },
+        ),
+    }
     mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
     mock_entity.add_to_hass(hass)
@@ -90,6 +115,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
         DataEndpointType.LOCK_STATUS,
         DataEndpointType.SMART_PLUG_STATUS,
         DataEndpointType.PANEL_STATUS,
+        DataEndpointType.DOORS_AND_WINDOWS,
         DataEndpointType.LOGS,
     }
 
@@ -109,6 +135,13 @@ async def test_async_setup_should_keep_mandatory_endpoints_from_empty_PanelInfo(
     }
 
     mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.DOORS_AND_WINDOWS: APIResponse(
+            response_code=404,
+            response_is_json=False,
+            response_data=None,
+        ),
+    }
 
     mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
     mock_entity = _create_mock_config_entity()
@@ -150,7 +183,7 @@ async def test_async_setup_should_raise_UpdateFailed_when_none_PanelInfo(
         await action_coordinator._async_setup()
 
 
-async def test_async_update_data_should_proccess_PanelInfo_devices(
+async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_devices(
     hass: HomeAssistant,
 ):
     # Prepare
@@ -186,6 +219,19 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
         "StatusTimeUtc": "unused",
         "TimeZoneName": "unused",
     }
+    door_and_window_detector_component: Component = {
+        "SerialNo": "DOOR_SERIAL",
+        "Serial": "DOOR_SERIAL",
+        "Label": "Front Door",
+        "Name": "Front Door Lock",
+        "Type": "Doors and Windows",
+        "Closed": True,
+        "LowBattery": False,
+        "BatteryLow": None,
+        "Alarm": None,
+        "Temperature": None,
+        "Humidity": None,
+    }
 
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.return_value = {
@@ -197,6 +243,15 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
         ),
         DataEndpointType.PANEL_STATUS: APIResponse(
             response_code=200, response_is_json=True, response_data=alarm_panel
+        ),
+        DataEndpointType.DOORS_AND_WINDOWS: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={
+                "Sections": [
+                    {"Places": [{"Components": [door_and_window_detector_component]}]}
+                ]
+            },
         ),
     }
 
@@ -240,6 +295,17 @@ async def test_async_update_data_should_proccess_PanelInfo_devices(
     assert panel["panel_code_length"] == 4
     assert panel["panel_quick_arm"]
     assert not panel["panel_partial_arm"]
+
+    door = coordinator_data["devices"]["DOOR_SERIAL"]
+    assert door["name"] == door_and_window_detector_component["Label"]
+    assert door["serial_no"] == door_and_window_detector_component["SerialNo"]
+    assert door["sensors"] == {
+        "low_battery": door_and_window_detector_component.get("LowBattery"),
+        "closed": door_and_window_detector_component.get("Closed"),
+    }
+    assert door["model"] == "Door/Window Sensor"
+    assert door["last_updated"]
+    assert "failed_update_count" not in door
 
 
 async def test_async_update_data_should_reset_count_failed_update_on_success(

@@ -40,8 +40,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SectorCoordinatorType(Enum):
-    PANEL_INFO = ("Panel Info Coordinator",)
-    ACTION_DEVICES = ("Action Devices Coordinator",)
+    PANEL_INFO = "Panel Info Coordinator"
+    ACTION_DEVICES = "Action Devices Coordinator"
     SENSOR_DEVICES = "Sensor Devices Coordinator"
 
 
@@ -150,6 +150,7 @@ class SectorActionDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
     _OPTIONAL_DATA_ENDPOINT_TYPES = {
         DataEndpointType.LOCK_STATUS,
         DataEndpointType.SMART_PLUG_STATUS,
+        DataEndpointType.DOORS_AND_WINDOWS, # Magnetic sensor but contains vital alert binary sensor, making it an action
     }
 
     def __init__(
@@ -198,6 +199,14 @@ class SectorActionDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
             optional_endpoint_types.discard(DataEndpointType.LOCK_STATUS)
         if plugs.__len__() == 0:
             optional_endpoint_types.discard(DataEndpointType.SMART_PLUG_STATUS)
+
+        # Scan and build supported endpoints from non-panel-info endpoints
+        api_data: dict[
+            DataEndpointType, APIResponse
+        ] = await self.sector_api.retrieve_all_data(optional_endpoint_types)
+        for endpoint_type, response in api_data.items():
+            if response.response_code == 404:
+                optional_endpoint_types.discard(endpoint_type)
 
         supported_endpoint_types = mandatory_endpoint_types | optional_endpoint_types
         _LOGGER.debug("Supported ACTION endpoint types: %s", supported_endpoint_types)
@@ -286,7 +295,6 @@ class SectorSensorDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
         DataEndpointType.HUMIDITY,
         # DataEndpointType.LEAKAGE_DETECTORS, <--- not used by Sector App
         # DataEndpointType.SMOKE_DETECTORS, <--- not used by Sector App
-        DataEndpointType.DOORS_AND_WINDOWS,
         # DataEndpointType.CAMERAS, <--- not yet supported
         # via legacy
         DataEndpointType.TEMPERATURES_LEGACY,

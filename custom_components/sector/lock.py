@@ -81,7 +81,7 @@ class SectorAlarmLock(
     @property
     def is_locked(self) -> bool:
         """Return true if the lock is locked."""
-        device = self.coordinator.data["devices"].get(self._serial_no)
+        device = self.coordinator.data["devices"].get(self._device_id)
         if device:
             status = device["sensors"].get("lock_status")
             _LOGGER.debug("Lock %s status is currently: %s", self._serial_no, status)
