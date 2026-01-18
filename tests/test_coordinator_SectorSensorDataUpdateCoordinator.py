@@ -182,7 +182,6 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
 
     # Assert
     # Redacted unsupported endpoints by Sector App
-    assert sensor_coordinator._use_legacy_api
     assert sensor_coordinator._data_endpoints == {
         DataEndpointType.TEMPERATURES_LEGACY,
         # DataEndpointType.TEMPERATURES,
@@ -193,7 +192,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
     }
 
 
-async def test_async_setup_should_not_use_legacy_api_temperatures_if_not_defined_in_PanelInfo(
+async def test_async_setup_should_not_use_panel_temperatures_if_not_defined_in_PanelInfo(
     hass: HomeAssistant,
 ):
     # Prepare
@@ -222,7 +221,7 @@ async def test_async_setup_should_not_use_legacy_api_temperatures_if_not_defined
     await sensor_coordinator._async_setup()
 
     # Assert
-    assert not sensor_coordinator._use_legacy_api
+    assert DataEndpointType.TEMPERATURES_LEGACY not in sensor_coordinator._data_endpoints
 
 
 async def test_async_setup_should_raise_UpdateFailed_when_none_PanelInfo(

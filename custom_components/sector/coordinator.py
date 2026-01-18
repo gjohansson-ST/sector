@@ -3,7 +3,7 @@
 from enum import Enum
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from homeassistant.components.recorder import history
@@ -55,7 +55,7 @@ type SectorAlarmConfigEntry = ConfigEntry[
 
 _PANEL_INFO_UPDATE_INTERVAL = timedelta(minutes=5)
 _ACTION_UPDATE_INTERVAL = timedelta(seconds=60)
-_SENSOR_UPDATE_INTERVAL = timedelta(minutes=5)
+_SENSOR_UPDATE_INTERVAL = timedelta(minutes=15)
 
 
 class SectorBaseDataUpdateCoordinator(DataUpdateCoordinator):
@@ -308,9 +308,6 @@ class SectorSensorDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
         )
         self._panel_info_coordinator = panel_info_coordinator
         self._panel_info_coordinator.async_add_listener(self._handle_parent_update)
-        self._use_legacy_api = True
-        self._legacy_temperature_last_update: Optional[datetime] = None
-        self._legacy_temperature_last_response: Optional[APIResponse] = None
         self._data_endpoints: set[DataEndpointType] = set()
         self._device_proccessor = _DeviceProcessor(self._hass, self.panel_id)
 
@@ -333,7 +330,6 @@ class SectorSensorDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
 
             temperatures: list[Temperature] = panel_info.get("Temperatures", {})
             if temperatures.__len__() == 0:
-                self._use_legacy_api = False
                 optional_endpoint_types.discard(DataEndpointType.TEMPERATURES_LEGACY)
 
             # Scan and build supported endpoints from non-panel-info endpoints
@@ -368,11 +364,7 @@ class SectorSensorDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
                     f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
                 )
 
-            if self._use_legacy_api:
-                api_data = await self._legacy_retrieve_all_data()
-            else:
-                api_data = await self.sector_api.retrieve_all_data(self._data_endpoints)
-
+            api_data = await self.sector_api.retrieve_all_data(self._data_endpoints)
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
             # Process devices
@@ -392,40 +384,6 @@ class SectorSensorDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
         except ApiError as error:
             self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
-
-    async def _legacy_retrieve_all_data(self):
-        now = datetime.now(tz=dt_util.UTC)
-        # Only refresh legacy temperatures every 15 min as they are costly
-        if (
-            self._legacy_temperature_last_update
-            and now - self._legacy_temperature_last_update < timedelta(minutes=15)
-        ):
-            # Do not call TEMPERATURES_LEGACY
-            endpoints_redacted_temperatures = self._data_endpoints.copy()
-            endpoints_redacted_temperatures.discard(
-                DataEndpointType.TEMPERATURES_LEGACY
-            )
-            data = await self.sector_api.retrieve_all_data(
-                endpoints_redacted_temperatures
-            )
-
-            # Add previous cached response, if present
-            if self._legacy_temperature_last_response:
-                data.setdefault(
-                    DataEndpointType.TEMPERATURES_LEGACY,
-                    self._legacy_temperature_last_response,
-                )
-            return data
-
-        data = await self.sector_api.retrieve_all_data(self._data_endpoints)
-        response = data.get(DataEndpointType.TEMPERATURES_LEGACY)
-
-        # We only update legacy temperature variables if last check succeeded
-        if response and response.is_ok():
-            self._legacy_temperature_last_update = now
-            self._legacy_temperature_last_response = response
-        return data
-
 
 class _DeviceProcessor:
     def __init__(self, hass: HomeAssistant, panel_id: str) -> None:
