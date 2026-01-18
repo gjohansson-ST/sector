@@ -11,7 +11,7 @@ from custom_components.sector.switch import SectorAlarmSwitch
 async def test_switch_turn_on_is_optimistic(hass: HomeAssistant):
     # Prepare
     coordinator = MagicMock()
-    coordinator.api.turn_on_smartplug = AsyncMock()
+    coordinator.sector_api.turn_on_smartplug = AsyncMock()
     coordinator.data = {"devices": {"ABC123": {"sensors": {"plug_status": "Off"}}}}
 
     switch = SectorAlarmSwitch(
@@ -28,13 +28,13 @@ async def test_switch_turn_on_is_optimistic(hass: HomeAssistant):
     await switch.async_turn_on()
 
     # Assert
-    coordinator.api.turn_on_smartplug.assert_awaited_once_with("plug_1")
+    coordinator.sector_api.turn_on_smartplug.assert_awaited_once_with("plug_1")
     assert switch.is_on is True
 
 async def test_switch_turn_off_is_optimistic(hass: HomeAssistant):
     # Prepare
     coordinator = MagicMock()
-    coordinator.api.turn_off_smartplug = AsyncMock()
+    coordinator.sector_api.turn_off_smartplug = AsyncMock()
     coordinator.data = {"devices": {"ABC123": {"sensors": {"plug_status": "On"}}}}
 
     switch = SectorAlarmSwitch(
@@ -51,7 +51,7 @@ async def test_switch_turn_off_is_optimistic(hass: HomeAssistant):
     await switch.async_turn_off()
 
     # Assert
-    coordinator.api.turn_off_smartplug.assert_awaited_once_with("plug_1")
+    coordinator.sector_api.turn_off_smartplug.assert_awaited_once_with("plug_1")
     assert switch.is_on is False
 
 def test_coordinator_update_reconciles_state(hass):
