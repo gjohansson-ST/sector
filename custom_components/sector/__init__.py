@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
+from math import e
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .client import AsyncTokenProvider, SectorAlarmAPI
-from .const import PLATFORMS, CONF_PANEL_ID
+from .const import CONF_IGNORE_QUICK_ARM, PLATFORMS, CONF_PANEL_ID
 from .coordinator import (
     SectorActionDataUpdateCoordinator,
     SectorAlarmConfigEntry,
@@ -86,5 +87,17 @@ async def async_migrate_entry(
             "Migration is not supported, please remove the integration and add it again"
         )
         return False
+    
+    if entry.version == 4:
+        new_data = dict(entry.data)
+        new_options = dict(entry.options)
+        new_options.setdefault(CONF_IGNORE_QUICK_ARM, False)
 
+        hass.config_entries.async_update_entry(
+            entry=entry,
+            data=new_data,
+            options=new_options,
+            version=5)
+
+    _LOGGER.info("Migration to version %s successful", entry.version)
     return True

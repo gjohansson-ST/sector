@@ -104,6 +104,12 @@ class SectorAlarmControlPanel(
         )
 
     @property
+    def available(self) -> bool:
+        if super().available:
+            return self._panel_online_property
+        return False
+
+    @property
     def alarm_state(self) -> AlarmControlPanelState | None:
         """Return the state of the device."""
 
@@ -111,16 +117,8 @@ class SectorAlarmControlPanel(
         if self._pending_state is not None:
             return self._pending_state
 
-        alarm_panel: dict[str, Any] = self._alarm_panel_data
-        sensors: dict[str, Any] = alarm_panel.get("sensors", {})
-
-        status_code = sensors.get("alarm_status", 0)
-        online_status = sensors.get("online", False)
-
-        if not online_status:
-            return None
-
         # Map status code to the appropriate Home Assistant state
+        status_code = self._panel_alarm_status_property
         mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code)
         _LOGGER.debug(
             "Alarm status_code: %s, Mapped state: %s", status_code, mapped_state
@@ -281,6 +279,18 @@ class SectorAlarmControlPanel(
     def _panel_code_length_property(self) -> int:
         alarm_panel = self._alarm_panel_data
         return alarm_panel.get("panel_code_length", 0)
+
+    @property
+    def _panel_online_property(self) -> bool:
+        alarm_panel = self._alarm_panel_data
+        sensors: dict[str, Any] = alarm_panel.get("sensors", {})
+        return sensors.get("online", False)
+
+    @property
+    def _panel_alarm_status_property(self) -> int:
+        alarm_panel = self._alarm_panel_data
+        sensors: dict[str, Any] = alarm_panel.get("sensors", {})
+        return sensors.get("alarm_status", 0)
 
     @property
     def _alarm_panel_data(self) -> dict[str, Any]:
