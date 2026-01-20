@@ -117,13 +117,13 @@ class SectorAlarmSwitch(
         # Fall back to coordinator data
         device = self.coordinator.data["devices"].get(self._device_id)
         if device:
-            status = device["sensors"].get("plug_status")
+            status = device.get("sensors", {}).get("plug_status", "Unknown")
             _LOGGER.debug(
                 "Switch %s coordinator status: %s",
                 self._serial_no,
                 status,
             )
-            return status == "On"
+            return str(status).lower() == "on"
 
         _LOGGER.warning(
             "No switch status found for plug %s",
