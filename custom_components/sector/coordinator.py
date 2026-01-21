@@ -145,12 +145,15 @@ class SectorPanelInfoDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
 
 
 class SectorActionDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
-    _MANDATORY_ENDPOINT_TYPES = {DataEndpointType.PANEL_STATUS, DataEndpointType.LOGS}
+    _MANDATORY_ENDPOINT_TYPES = {
+        DataEndpointType.PANEL_STATUS,
+        # DataEndpointType.LOGS <--- disabled as it is related to events, which has not been tested TODO repair events
+    }
 
     _OPTIONAL_DATA_ENDPOINT_TYPES = {
         DataEndpointType.LOCK_STATUS,
         DataEndpointType.SMART_PLUG_STATUS,
-        DataEndpointType.DOORS_AND_WINDOWS, # Magnetic sensor but contains vital alert binary sensor, making it an action
+        DataEndpointType.DOORS_AND_WINDOWS, # sensor but contains vital alert data, making it an action
     }
 
     def __init__(

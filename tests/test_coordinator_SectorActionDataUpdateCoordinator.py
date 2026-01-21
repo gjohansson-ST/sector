@@ -116,7 +116,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
         DataEndpointType.SMART_PLUG_STATUS,
         DataEndpointType.PANEL_STATUS,
         DataEndpointType.DOORS_AND_WINDOWS,
-        DataEndpointType.LOGS,
+        # DataEndpointType.LOGS, <--- disabled for now TODO repair events
     }
 
 
@@ -157,7 +157,7 @@ async def test_async_setup_should_keep_mandatory_endpoints_from_empty_PanelInfo(
     # Assert
     assert action_coordinator._data_endpoints == {
         DataEndpointType.PANEL_STATUS,
-        DataEndpointType.LOGS,
+        # DataEndpointType.LOGS, <--- disabled for now TODO repair events
     }
 
 
