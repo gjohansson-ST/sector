@@ -80,7 +80,6 @@ After installation:
 |----------------------| -------- | ----------------------------- |
 | Username             | **Yes**  | Sets the e-mail user address for your Sector alarm account.|
 | Password             | **Yes**  | Sets the password for your Sector alarm account.|
-| Door lock PIN-length | **Conditional**  | Required **only if you have a door lock**. <br> Sets the expected PIN length for door locks.|
 | Ignore ”Quick Arming”| No       | *Default: false* <br> Ignore the "Quick Arming" Sector alarm setting and always require PIN-code when arming.|
 
 ## Contributing & Support ##

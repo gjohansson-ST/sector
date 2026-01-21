@@ -114,7 +114,7 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
     DataEndpoint(
         type=DataEndpointType.HUMIDITY,
         method="GET",
-        uri=f"{API_URL}/api/housecheck/panels/{{panelId}}/humidity",
+        uri=f"{API_URL}/api/v2/housecheck/panels/{{panelId}}/humidity",
     ),
     DataEndpoint(
         type=DataEndpointType.DOORS_AND_WINDOWS,

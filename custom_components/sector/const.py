@@ -14,5 +14,4 @@ PLATFORMS = [
 ]
 
 CONF_PANEL_ID = "panel_id"
-CONF_CODE_FORMAT = "code_format"
 CONF_IGNORE_QUICK_ARM = "ignore_quick_arm"

@@ -441,12 +441,14 @@ class _DeviceProcessor:
                 self.process_alarm_panel(
                     endpoint_type, panel_info, response_data, proccess_time, devices
                 )
+            elif endpoint_type == DataEndpointType.LOCK_STATUS:
+                self.process_locks(
+                    endpoint_type, panel_info, response_data, proccess_time, devices
+                )
             elif endpoint_type == DataEndpointType.SMART_PLUG_STATUS:
                 self.process_smart_plugs(
                     endpoint_type, response_data, proccess_time, devices
                 )
-            elif endpoint_type == DataEndpointType.LOCK_STATUS:
-                self.process_locks(endpoint_type, response_data, proccess_time, devices)
             elif endpoint_type == DataEndpointType.TEMPERATURES_LEGACY:
                 self.process_legacy_temperatures(
                     endpoint_type, response_data, proccess_time, devices
@@ -546,6 +548,7 @@ class _DeviceProcessor:
     def process_locks(
         self,
         endpoint_type: DataEndpointType,
+        panel_info: PanelInfo,
         locks_data: list[Lock],
         proccess_time: datetime,
         devices: dict,
@@ -566,6 +569,7 @@ class _DeviceProcessor:
                 "sensors": {
                     "lock_status": lock_status,
                 },
+                "panel_code_length": panel_info.get("PanelCodeLength", 0),
                 "model": f"{endpoint_type.value}",
                 "last_updated": proccess_time.isoformat(),
             }

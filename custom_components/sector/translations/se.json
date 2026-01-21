@@ -14,7 +14,6 @@
                 "data": {
                     "email": "Epost adress",
                     "password": "Lösenord",
-                    "code_format": "Dörrlås PIN-längd",
                     "ignore_quick_arm": "Ignorera inställningen ”Snabbarmering”"
                 }
             },
@@ -36,7 +35,6 @@
             "init": {
                 "title": "Sector Alarm alternativ",
                 "data": {
-                    "code_format": "Dörrlås PIN-längd",
                     "ignore_quick_arm": "Ignorera inställningen ”Snabbarmering”"
                 }
             }

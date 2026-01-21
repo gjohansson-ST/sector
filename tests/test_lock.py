@@ -24,7 +24,7 @@ def _create_mock_coordinator(devices: dict):
     return coordinator
 
 
-def _create_mock_config_entity(code_format: int) -> MockConfigEntry:
+def _create_mock_config_entity() -> MockConfigEntry:
     return MockConfigEntry(
         domain="sector",
         title="Test Panel",
@@ -32,9 +32,6 @@ def _create_mock_config_entity(code_format: int) -> MockConfigEntry:
             "panel_id": _PANEL_ID,
             "username": "abc",
             "password": "xyz",
-        },
-        options={
-            "code_format": code_format,
         },
         entry_id="test123",
     )
@@ -47,6 +44,7 @@ async def test_setup_creates_lock_entity(hass: HomeAssistant):
             "name": "Front Door",
             "serial_no": "SERIAL_123",
             "sensors": {"lock_status": "lock"},
+            "panel_code_length": 6,
             "model": "Smart Lock",
             "last_updated": "",
         },
@@ -54,6 +52,7 @@ async def test_setup_creates_lock_entity(hass: HomeAssistant):
             "name": "Back Door",
             "serial_no": "SERIAL_321",
             "sensors": {"lock_status": "unlock"},
+            "panel_code_length": 4,
             "model": "Smart Lock",
             "last_updated": "",
         },
@@ -61,13 +60,14 @@ async def test_setup_creates_lock_entity(hass: HomeAssistant):
             "name": "Back Door",
             "serial_no": "SERIAL_321",
             "sensors": {"lock_status": "lock"},
+            "panel_code_length": 6,
             "model": "Dumb Lock",
             "last_updated": "",
         },
     }
 
     coordinator = _create_mock_coordinator(devices)
-    entry = _create_mock_config_entity(6)
+    entry = _create_mock_config_entity()
     entry.runtime_data = {SectorCoordinatorType.ACTION_DEVICES: coordinator}
 
     entities = []
@@ -93,7 +93,23 @@ async def test_setup_creates_lock_entity(hass: HomeAssistant):
     assert back_lock._device_id == "SERIAL_321"
     assert back_lock.device_name == "Back Door"
     assert back_lock.device_model == "Smart Lock"
-    assert back_lock._attr_code_format == r"^\d{6}$"
+    assert back_lock._attr_code_format == r"^\d{4}$"
+
+async def test_code_format_regex_when_not_defined():
+    coordinator = _create_mock_coordinator(
+        {
+            "LOCK123": {
+                "name": "Front Door",
+                "serial_no": "SERIAL_123",
+                "sensors": {"lock_status": "unlock"},
+                "model": "Smart Lock",
+                "last_updated": "",
+            }
+        }
+    )
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
+
+    assert lock._attr_code_format == r"^\d{0}$"
 
 async def test_is_locked_true():
     coordinator = _create_mock_coordinator(
@@ -102,13 +118,14 @@ async def test_is_locked_true():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": "lock"},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             },
         }
     )
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
 
     assert lock.is_locked is True
 
@@ -120,13 +137,14 @@ async def test_is_locked_false():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": "unlock"},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             }
         }
     )
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
 
     assert lock.is_locked is False
 
@@ -134,7 +152,7 @@ async def test_is_locked_false():
 async def test_is_locked_missing_device():
     coordinator = _create_mock_coordinator({})
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
 
     assert lock.is_locked is False
 
@@ -145,13 +163,14 @@ async def test_is_locked_missing_status():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": None},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             }
         }
     )
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
     assert lock.is_locked is False
 
 async def test_is_locked_case_insensitive():
@@ -161,13 +180,14 @@ async def test_is_locked_case_insensitive():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": "LOCK"},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             }
         }
     )
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
     assert lock.is_locked is True
 
 async def test_async_lock_success():
@@ -177,13 +197,14 @@ async def test_async_lock_success():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": "unlock"},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             }
         }
     )
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
 
     await lock.async_lock(**{ATTR_CODE: "123456"})
 
@@ -197,13 +218,14 @@ async def test_async_unlock_success():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": "unlock"},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             }
         }
     )
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
 
     await lock.async_unlock(**{ATTR_CODE: "123456"})
 
@@ -219,6 +241,7 @@ async def test_async_lock_login_error():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": "unlock"},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             }
@@ -227,7 +250,7 @@ async def test_async_lock_login_error():
 
     coordinator.sector_api.lock_door.side_effect = LoginError("bad login")
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
 
     with pytest.raises(ConfigEntryAuthFailed):
         await lock.async_lock(**{ATTR_CODE: "123456"})
@@ -239,6 +262,7 @@ async def test_async_lock_authentication_error():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": "unlock"},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             }
@@ -247,7 +271,7 @@ async def test_async_lock_authentication_error():
 
     coordinator.sector_api.lock_door.side_effect = AuthenticationError("bad token")
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
 
     with pytest.raises(HomeAssistantError):
         await lock.async_lock(**{ATTR_CODE: "123456"})
@@ -259,6 +283,7 @@ async def test_async_lock_api_error():
                 "name": "Front Door",
                 "serial_no": "SERIAL_123",
                 "sensors": {"lock_status": "unlock"},
+                "panel_code_length": 6,
                 "model": "Smart Lock",
                 "last_updated": "",
             }
@@ -267,13 +292,7 @@ async def test_async_lock_api_error():
 
     coordinator.sector_api.lock_door.side_effect = ApiError("api broken")
 
-    lock = SectorAlarmLock(coordinator, 6, "LOCK123", "Front Door", "Smart Lock")
+    lock = SectorAlarmLock(coordinator, "LOCK123", "Front Door", "Smart Lock")
 
     with pytest.raises(HomeAssistantError):
         await lock.async_lock(**{ATTR_CODE: "123456"})
-
-def test_code_format_regex():
-    coordinator = _create_mock_coordinator({})
-    lock = SectorAlarmLock(coordinator, 4, "LOCK123", "Front Door", "Smart Lock")
-
-    assert lock._attr_code_format == r"^\d{4}$"

@@ -14,7 +14,6 @@
                 "data": {
                     "email": "E-mail address",
                     "password": "Password",
-                    "code_format": "Door lock PIN-length",
                     "ignore_quick_arm": "Ignore ”Quick Arming”"
                 }
             },
@@ -36,7 +35,6 @@
             "init": {
                 "title": "Sector Alarm options",
                 "data": {
-                    "code_format": "Door lock PIN-length",
                     "ignore_quick_arm": "Ignore ”Quick Arming”"
                 }
             }

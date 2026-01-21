@@ -13,7 +13,6 @@ from homeassistant.exceptions import (
 )
 from custom_components.sector.client import ApiError, AuthenticationError, LoginError
 
-from .const import CONF_CODE_FORMAT
 from .coordinator import (
     SectorActionDataUpdateCoordinator,
     SectorAlarmConfigEntry,
@@ -34,18 +33,15 @@ async def async_setup_entry(
         SectorActionDataUpdateCoordinator,
         entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
     )
-    code_format = entry.options[CONF_CODE_FORMAT]
+
     devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
     entities = []
 
     for serial_no, device_info in devices.items():
-        if device_info.get("model") == "Smart Lock":
+        model: str = device_info.get("model", "")
+        if model == "Smart Lock":
             device_name: str = device_info["name"]
-            entities.append(
-                SectorAlarmLock(
-                    coordinator, code_format, serial_no, device_name, "Smart Lock"
-                )
-            )
+            entities.append(SectorAlarmLock(coordinator, serial_no, device_name, model))
             _LOGGER.debug(
                 "Added lock entity with serial: %s and name: %s",
                 serial_no,
@@ -68,26 +64,25 @@ class SectorAlarmLock(
     def __init__(
         self,
         coordinator: SectorActionDataUpdateCoordinator,
-        code_format: int,
         serial_no: str,
         device_name: str,
         device_model: str | None,
     ) -> None:
         """Initialize the lock with device info."""
         super().__init__(coordinator, serial_no, serial_no, device_name, device_model)
-        self._attr_code_format = rf"^\d{{{code_format}}}$"
+        self._attr_code_format = rf"^\d{{{self._panel_code_length_property}}}$"
         self._attr_unique_id = f"{serial_no}_lock"
 
     @property
     def is_locked(self) -> bool:
         """Return true if the lock is locked."""
-        device = self.coordinator.data.get("devices", {}).get(self._device_id)
-        if device:
-            status: str = device.get("sensors", {}).get("lock_status", "unknown")
+        status: str = self._lock_status_property
+        if status == "unknown":
+            _LOGGER.warning("No lock status found for lock %s", self._serial_no)
+            return False
+        else:
             _LOGGER.debug("Lock %s status is currently: %s", self._serial_no, status)
             return str(status).lower() == "lock"
-        _LOGGER.warning("No lock status found for lock %s", self._serial_no)
-        return False
 
     async def async_lock(self, **kwargs) -> None:
         """Lock the device."""
@@ -125,6 +120,24 @@ class SectorAlarmLock(
                 "Failed to unlock door - authentication failed"
             ) from err
         except ApiError as err:
-            raise HomeAssistantError("Failed to unlock door - API related error") from err
+            raise HomeAssistantError(
+                "Failed to unlock door - API related error"
+            ) from err
         except Exception as err:
-            raise HomeAssistantError("Failed to unlock door - unexpected error") from err
+            raise HomeAssistantError(
+                "Failed to unlock door - unexpected error"
+            ) from err
+
+    @property
+    def _panel_code_length_property(self) -> int:
+        lock_device = self._lock_device
+        return lock_device.get("panel_code_length", 0)
+
+    @property
+    def _lock_status_property(self) -> str:
+        lock_device = self._lock_device
+        return lock_device.get("sensors", {}).get("lock_status", "unknown")
+
+    @property
+    def _lock_device(self) -> dict[str, Any]:
+        return self.coordinator.data.get("devices", {}).get(self._device_id, {})

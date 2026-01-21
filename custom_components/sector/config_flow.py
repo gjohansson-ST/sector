@@ -11,9 +11,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -30,7 +27,7 @@ from .client import (
     AsyncTokenProvider,
     LoginError,
 )
-from .const import CONF_CODE_FORMAT, CONF_IGNORE_QUICK_ARM, CONF_PANEL_ID, DOMAIN
+from .const import CONF_IGNORE_QUICK_ARM, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,9 +45,6 @@ DATA_SCHEMA = vol.Schema(
 )
 DATA_SCHEMA_OPTIONS = vol.Schema(
     {
-        vol.Optional(CONF_CODE_FORMAT, default=6): NumberSelector(
-            NumberSelectorConfig(min=0, max=6, step=1, mode=NumberSelectorMode.BOX)
-        ),
         vol.Optional(CONF_IGNORE_QUICK_ARM, default=False): bool,
     }
 )
@@ -65,7 +59,6 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self):
         self._email: str | None
         self._password: str | None
-        self._code_format: int | None
         self._ignore_quick_arm: bool | None
         self._panel_ids: dict[str, str]
         self._errors = {}
@@ -112,9 +105,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._email = user_input[CONF_EMAIL]
             self._password = user_input[CONF_PASSWORD]
-            self._code_format = int(user_input[CONF_CODE_FORMAT])
             self._ignore_quick_arm = bool(user_input[CONF_IGNORE_QUICK_ARM])
-            _LOGGER.debug("Setting CONF_CODE_FORMAT: %s", self._code_format)
             _LOGGER.debug("Setting CONF_IGNORE_QUICK_ARM: %s", self._ignore_quick_arm)
 
             client_session = async_get_clientsession(self.hass)
@@ -149,7 +140,6 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
                             CONF_PANEL_ID: list(self._panel_ids.keys())[0],
                         },
                         options={
-                            CONF_CODE_FORMAT: self._code_format,
                             CONF_IGNORE_QUICK_ARM: self._ignore_quick_arm,
                         },
                     )
@@ -185,7 +175,6 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_PANEL_ID: user_input[CONF_PANEL_ID],
                 },
                 options={
-                    CONF_CODE_FORMAT: self._code_format,
                     CONF_IGNORE_QUICK_ARM: self._ignore_quick_arm,
                 },
             )
