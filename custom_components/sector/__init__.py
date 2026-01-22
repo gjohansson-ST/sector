@@ -3,20 +3,57 @@
 from __future__ import annotations
 
 import logging
+from math import e
 
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import PLATFORMS
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .client import AsyncTokenProvider, SectorAlarmAPI
+from .const import CONF_IGNORE_QUICK_ARM, PLATFORMS, CONF_PANEL_ID
+from .coordinator import (
+    SectorActionDataUpdateCoordinator,
+    SectorAlarmConfigEntry,
+    SectorCoordinatorType,
+    SectorPanelInfoDataUpdateCoordinator,
+    SectorSensorDataUpdateCoordinator,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) -> bool:
     """Set up Sector Alarm from a config entry."""
-    coordinator = SectorDataUpdateCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
-    entry.runtime_data = coordinator
+    client_session = async_get_clientsession(hass)
+    sector_api = SectorAlarmAPI(
+        client_session=client_session,
+        panel_id=entry.data[CONF_PANEL_ID],
+        token_provider=AsyncTokenProvider(
+            client_session=client_session,
+            email=entry.data[CONF_EMAIL],
+            password=entry.data[CONF_PASSWORD],
+        ),
+    )
+
+    panel_info_coordinator = SectorPanelInfoDataUpdateCoordinator(
+        hass, entry, sector_api
+    )
+    action_coordinator = SectorActionDataUpdateCoordinator(
+        hass, entry, sector_api, panel_info_coordinator
+    )
+    sensor_coordinator = SectorSensorDataUpdateCoordinator(
+        hass, entry, sector_api, panel_info_coordinator
+    )
+
+    await panel_info_coordinator.async_config_entry_first_refresh()
+    await action_coordinator.async_config_entry_first_refresh()
+    await sensor_coordinator.async_config_entry_first_refresh()
+
+    entry.runtime_data = {
+        SectorCoordinatorType.PANEL_INFO: panel_info_coordinator,
+        SectorCoordinatorType.ACTION_DEVICES: action_coordinator,
+        SectorCoordinatorType.SENSOR_DEVICES: sensor_coordinator,
+    }
 
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
 
@@ -50,5 +87,17 @@ async def async_migrate_entry(
             "Migration is not supported, please remove the integration and add it again"
         )
         return False
+    
+    if entry.version == 4:
+        new_data = dict(entry.data)
+        new_options = dict(entry.options)
+        new_options.setdefault(CONF_IGNORE_QUICK_ARM, False)
 
+        hass.config_entries.async_update_entry(
+            entry=entry,
+            data=new_data,
+            options=new_options,
+            version=5)
+
+    _LOGGER.info("Migration to version %s successful", entry.version)
     return True

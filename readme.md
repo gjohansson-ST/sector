@@ -1,73 +1,89 @@
-[![Sector Alarm](https://github.com/gjohansson-ST/sector/blob/master/logos/logo.png)](https://www.sectoralarm.se/)
+[![Sector Alarm](https://github.com/OathMeadow/sector-maintained/blob/master/logos/logo.png)](https://www.sectoralarm.se/)
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge&cacheSeconds=3600)](https://github.com/hacs/integration)
-[![size_badge](https://img.shields.io/github/repo-size/gjohansson-ST/sector?style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector)
-[![version_badge](https://img.shields.io/github/v/release/gjohansson-ST/sector?label=Latest%20release&style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector/releases/latest)
-[![download_badge](https://img.shields.io/github/downloads/gjohansson-ST/sector/total?style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector/releases/latest)
-![GitHub Repo stars](https://img.shields.io/github/stars/gjohansson-ST/attribute_as_sensor?style=for-the-badge&cacheSeconds=3600)
-![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/gjohansson-ST/attribute_as_sensor?style=for-the-badge&cacheSeconds=3600)
-![GitHub License](https://img.shields.io/github/license/gjohansson-ST/attribute_as_sensor?style=for-the-badge&cacheSeconds=3600)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge&cacheSeconds=3600)](https://github.com/hacs/integration)
+[![Repo size](https://img.shields.io/github/repo-size/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained)
+[![Latest release](https://img.shields.io/github/v/release/OathMeadow/sector-maintained?label=Latest%20release&style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/OathMeadow/sector-maintained/total?style=for-the-badge&cacheSeconds=3600)](https://github.com/OathMeadow/sector-maintained/releases/latest)
+![Stars](https://img.shields.io/github/stars/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)
+![Issues or Pull Requests](https://img.shields.io/github/issues/OathMeadow/sector-maintained?style=for-the-badge&cacheSeconds=3600)
+![License](https://img.shields.io/github/license/OathMeadow/sector-maintained?label=license&style=for-the-badge&cacheSeconds=3600)
 
 [![Made for Home Assistant](https://img.shields.io/badge/Made_for-Home%20Assistant-blue?style=for-the-badge&logo=homeassistant)](https://github.com/home-assistant)
 
-[![Sponsor me](https://img.shields.io/badge/Sponsor-Me-blue?style=for-the-badge&logo=github)](https://github.com/sponsors/gjohansson-ST)
-[![Discord](https://img.shields.io/discord/872446427664625664?style=for-the-badge&label=Discord&cacheSeconds=3600)](https://discord.gg/EG7cWFQMGW)
+[![Discord](https://img.shields.io/discord/1451099352490840106?style=for-the-badge&label=Discord&cacheSeconds=3600)](https://discord.gg/dFQ7UP5Y9g)
 
-# Integratation to Sector Alarm
----
-**Title:** "Sector Alarm"
+# Sector Alarm integration for Home Assistant
 
-**Description:** "Support for Sector Alarm integration with Homeassistant."
+> ⚠️ Work in progress: no official release yet.
+Bug fixes and updates are applied continuously on the `master` branch.
+Please open an issue if you encounter any problems. 🙇
 
-**Date created:** 2020-04-29
+This integration connects Home Assistant with the Sector Alarm system allowing monitoring and control directly from Home Assistant (officially supported in Sweden and expected to work in other regions).
 
-**Last update:** 2023-11-04
+### About this fork ###
 
-**Required HA version:** 2024.11.0
+This integration is based on the work from
+[`gjohansson-ST/sector`](https://github.com/gjohansson-ST/sector).
 
----
+At the time of forking, the upstream repository had multiple reported issues in version 0.5.0
+and no active maintenance for several months.
+Help was proposed but did not recieve any response.
 
-Integrates with Swedish Sector Alarm home alarm system (most likely works in all countries serviced by Sector Alarm).
-Currently implements Alarm panel, Locks, Temperature and Smartplugs
+This fork aims to:
+- Fix known issues in the current release
+- Keep compatibility with recent Home Assistant versions
+- Provide active maintenance going forward
 
-**NOTE**
+If upstream maintenance resumes, contributions back to the original project are welcome.
 
-On alarm installation which are not wired make sure you take the binary sensor "Online" into account to ensure the alarm state is a trusted state
+## Supported features ##
+- ✅ Alarm control
+- ✅ Door lock
+- ✅ Smart Plugs
+- ✅ Temperature sensors
+- ✅ Humidity sensors
+- ✅ Various binary sensors
 
-The entity for alarm panel will only update it's state on alarms which are online
+## Important notes ##
 
-## Configuration Options
+On alarm installation which are not wired make sure you take the binary sensor `Online` into account to ensure the alarm state is a trusted state. The entity for alarm panel will only update it's state on alarms which are online.
 
-Set once:
+## Installation ##
 
-- Username: Your e-mail address linked to Sector Alarm account
-- Password: Password used for app or Sector website
-- Enable Temp sensors (Not recommended and turned off by default due to long api response time)
+**Minimum Required Home Assistant version:** 2025.12.0
 
-Options that you can change at any time:
+> ⚠️ You must uninstall and remove existing integration from [`gjohansson-ST/sector`](https://github.com/gjohansson-ST/sector) before installation can begin.
 
-- Code Format: Number of digits in code
+### Option 1: HACS (recommended)
 
-## Installation
+Click the button below to add the repository to HACS:
 
-### Option 1 (preferred)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=OathMeadow&repository=sector-maintained&category=integration)
 
-Use [HACS](https://hacs.xyz/) to install
+After installation:
 
-### Option 2
+1. Restart Home Assistant
+2. Go to **Settings → Integrations**
+3. Click **Add Integration**
+4. Search for **Sector Alarm**
+5. Follow the on-screen setup instructions
 
-Below config-folder create a new folder called`custom_components` if not already exist.
+### Option 2: Manual ###
 
-Below new `custom_components` folder create a new folder called `sector`
+1. Create a `custom_components` directory if it does not exist
+2. Inside it, create a folder named `sector`
+3. Copy the contents of this repository into `custom_components/sector`
+4. Restart Home Assistant
 
-Upload the files/folders in `custom_components/sector` directory to the newly created folder.
+## Configuration options ##
+| Configuration        | Required | Description                   |
+|----------------------| -------- | ----------------------------- |
+| Username             | **Yes**  | Sets the e-mail user address for your Sector alarm account.|
+| Password             | **Yes**  | Sets the password for your Sector alarm account.|
+| Ignore ”Quick Arming”| No       | *Default: false* <br> Ignore the "Quick Arming" Sector alarm setting and always require PIN-code when arming.|
 
-Restart before proceeding
+## Contributing & Support ##
 
-## Activate integration in HA
+This integration is actively maintained, and help and ideas is always welcome.
 
-[![Add integrations](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start?domain=sector)
-
-After installation go to "Integrations" page in HA, press + and search for Sector Alarm
-Follow onscreen information to type username, password, code etc.
-No restart needed
+If you encounter any issues, bugs, or unexpected behavior, please don’t hesitate to open an issue on GitHub, or make a post in the [discord](https://discord.gg/dFQ7UP5Y9g) channel.

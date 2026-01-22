@@ -10,10 +10,11 @@
         },
         "step": {
             "user": {
+                "title": "Sector Alarm configuration",
                 "data": {
                     "email": "E-mail address",
                     "password": "Password",
-                    "code_format": "Code length"
+                    "ignore_quick_arm": "Ignore ”Quick Arming”"
                 }
             },
             "select_panel": {
@@ -32,8 +33,9 @@
     "options": {
         "step": {
             "init": {
+                "title": "Sector Alarm options",
                 "data": {
-                    "code_format": "Code length"
+                    "ignore_quick_arm": "Ignore ”Quick Arming”"
                 }
             }
         }

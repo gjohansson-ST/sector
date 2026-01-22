@@ -10,10 +10,11 @@
         },
         "step": {
             "user": {
+                "title": "Sector Alarm konfiguration",
                 "data": {
                     "email": "Epost adress",
                     "password": "Lösenord",
-                    "code_format": "Kodlängd"
+                    "ignore_quick_arm": "Ignorera inställningen ”Snabbarmering”"
                 }
             },
             "select_panel": {
@@ -32,8 +33,9 @@
     "options": {
         "step": {
             "init": {
+                "title": "Sector Alarm alternativ",
                 "data": {
-                    "code_format": "Kodlängd"
+                    "ignore_quick_arm": "Ignorera inställningen ”Snabbarmering”"
                 }
             }
         }

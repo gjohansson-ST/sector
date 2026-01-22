@@ -1,7 +1,5 @@
----
-name: PR Labels
+name: Pull Target Labels Action
 
-# yamllint disable-line rule:truthy
 on:
   pull_request_target:
     types:

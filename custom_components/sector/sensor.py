@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -14,7 +14,11 @@ from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import SectorAlarmConfigEntry, SectorDataUpdateCoordinator
+from .coordinator import (
+    SectorAlarmConfigEntry,
+    SectorCoordinatorType,
+    SectorSensorDataUpdateCoordinator,
+)
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,7 +43,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Sector Alarm sensors."""
-    coordinator = entry.runtime_data
+    coordinator = cast(
+        SectorSensorDataUpdateCoordinator,
+        entry.runtime_data[SectorCoordinatorType.SENSOR_DEVICES],
+    )
     devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
     entities: list[SectorAlarmSensor] = []
 
@@ -64,26 +71,30 @@ async def async_setup_entry(
         _LOGGER.debug("No sensor entities to add.")
 
 
-class SectorAlarmSensor(SectorAlarmBaseEntity, SensorEntity):
+class SectorAlarmSensor(
+    SectorAlarmBaseEntity[SectorSensorDataUpdateCoordinator], SensorEntity
+):
     """Base class for a Sector Alarm sensor."""
 
     entity_description: SensorEntityDescription
 
     def __init__(
         self,
-        coordinator: SectorDataUpdateCoordinator,
+        coordinator: SectorSensorDataUpdateCoordinator,
         serial_no: str,
         entity_description: SensorEntityDescription,
         device_name: str,
         device_model: str | None,
     ) -> None:
         """Initialize the sensor with description and device info."""
-        super().__init__(coordinator, serial_no, device_name, device_model)
+        super().__init__(coordinator, serial_no, serial_no, device_name, device_model)
         self.entity_description = entity_description
         self._attr_unique_id = f"{serial_no}_{entity_description.key}"
 
     @property
     def native_value(self) -> float | None:
         """Return the sensor value."""
-        device = self.coordinator.data["devices"].get(self._serial_no)
-        return device["sensors"].get(self.entity_description.key) if device else None
+        devices: dict[str, Any] = self.coordinator.data.get("devices", {})
+        device: dict[str, Any] = devices.get(self._device_id, {})
+        sensors: dict[str, Any] = device.get("sensors", {})
+        return sensors.get(self.entity_description.key)

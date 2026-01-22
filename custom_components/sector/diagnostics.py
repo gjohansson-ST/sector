@@ -7,9 +7,10 @@ from typing import Any
 from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-
-from .const import DOMAIN
-from .coordinator import SectorDataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from .coordinator import (
+    SectorCoordinatorType,
+)
 
 TO_REDACT = {
     "AuthorizationToken",
@@ -37,5 +38,16 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for Sensibo config entry."""
-    coordinator: SectorDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    return async_redact_data(coordinator.data, TO_REDACT)
+    coordinator_action: DataUpdateCoordinator = entry.runtime_data[
+        SectorCoordinatorType.ACTION_DEVICES
+    ]
+    coordinator_sensor: DataUpdateCoordinator = entry.runtime_data[
+        SectorCoordinatorType.SENSOR_DEVICES
+    ]
+    return async_redact_data(
+        {
+            SectorCoordinatorType.ACTION_DEVICES.name: coordinator_action.data,
+            SectorCoordinatorType.SENSOR_DEVICES.name: coordinator_sensor.data,
+        },
+        TO_REDACT,
+    )
