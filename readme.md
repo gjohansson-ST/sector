@@ -48,7 +48,7 @@ After installation:
 
 ### Option 2: Manual ###
 
-1. Download the [latest release](https://github.com/gjohansson-ST/sector/releases)
+1. Download the [latest release](https://github.com/gjohansson-ST/sector/releases/latest)
 2. In your Home Assistant configuration directory, create folder `custom_components` if it doesn’t already exist
 3. Inside `custom_components`, create a folder named `sector`
 4. Copy all files from `custom_components/sector` in the release into `homeassistant/custom_components/sector`.
