@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import logging
-from math import e
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .client import AsyncTokenProvider, SectorAlarmAPI
-from .const import CONF_IGNORE_QUICK_ARM, CONF_PANEL_ID, PLATFORMS
+from .const import CONF_PANEL_ID, PLATFORMS
 from .coordinator import (
     SectorActionDataUpdateCoordinator,
     SectorAlarmConfigEntry,
