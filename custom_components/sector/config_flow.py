@@ -7,9 +7,9 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.config_entries import ConfigFlow, OptionsFlow, ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlowWithReload
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
@@ -22,10 +22,10 @@ from homeassistant.helpers.selector import (
 
 from .client import (
     ApiError,
-    AuthenticationError,
-    SectorAlarmAPI,
     AsyncTokenProvider,
+    AuthenticationError,
     LoginError,
+    SectorAlarmAPI,
 )
 from .const import CONF_IGNORE_QUICK_ARM, CONF_PANEL_ID, DOMAIN
 
@@ -53,8 +53,7 @@ DATA_SCHEMA_OPTIONS = vol.Schema(
 class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Sector Alarm."""
 
-    VERSION = 5
-    SUPPORTS_OPTIONS = True
+    VERSION = 1
 
     def __init__(self):
         self._email: str | None
@@ -197,7 +196,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="select_panel", data_schema=data_schema)
 
 
-class SectorAlarmOptionsFlow(OptionsFlow):
+class SectorAlarmOptionsFlow(OptionsFlowWithReload):
     """Handle Sector options."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
