@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from math import e
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
