@@ -77,3 +77,14 @@ homeassistant/
 This integration is actively maintained, and help and ideas are always welcome.
 
 If you encounter any issues, bugs, or unexpected behavior, please don’t hesitate to open an issue on GitHub, or make a post in the [discord](https://discord.gg/EG7cWFQMGW) channel.
+
+## Maintainers
+
+- [OathMeadow](https://github.com/OathMeadow)
+- [gjohansson-ST](https://github.com/gjohansson-ST)
+
+### Previous maintainers
+
+Big thanks to:
+
+- [garnser](https://github.com/garnser)
