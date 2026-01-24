@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -117,8 +117,8 @@ def _create_mock_config_entity() -> MockConfigEntry:
     )
 
 
-def _create_mock_sector_panel_info(panel_info: PanelInfo | None) -> AsyncMock:
-    coordinator_mock = AsyncMock()
+def _create_mock_sector_panel_info(panel_info: PanelInfo | None) -> Mock:
+    coordinator_mock = Mock()
     coordinator_mock.data = {"panel_info": panel_info}
     return coordinator_mock
 
