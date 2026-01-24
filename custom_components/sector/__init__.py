@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .client import AsyncTokenProvider, SectorAlarmAPI
-from .const import CONF_IGNORE_QUICK_ARM, CONF_PANEL_ID, PLATFORMS
+from .const import CONF_PANEL_ID, PLATFORMS
 from .coordinator import (
     SectorActionDataUpdateCoordinator,
     SectorAlarmConfigEntry,
@@ -55,18 +55,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         SectorCoordinatorType.SENSOR_DEVICES: sensor_coordinator,
     }
 
-    entry.async_on_unload(entry.add_update_listener(async_update_listener))
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
-
-
-async def async_update_listener(
-    hass: HomeAssistant, entry: SectorAlarmConfigEntry
-) -> None:
-    """Handle options update."""
-    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(
