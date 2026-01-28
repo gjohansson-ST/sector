@@ -2,13 +2,30 @@
     "config": {
         "abort": {
             "already_configured": "Account is already configured",
-            "reauth_successful": "Reauthentication successful"
+            "reauth_successful": "Reauthentication successful",
+            "reconfigure_successful": "Configuration updated successfully"
         },
         "error": {
             "authentication_failed": "Username and/or password is incorrect",
             "unknown_error": "Failed to connect"
         },
         "step": {
+            "reconfigure": {
+                "title": "Reconfigure Sector Alarm",
+                "description": "Update your login credentials.",
+                "data": {
+                    "email": "E-mail address",
+                    "password": "Password"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Reconfigure Sector Alarm",
+                "description": "Update your login credentials.",
+                "data": {
+                    "email": "E-mail address",
+                    "password": "Password"
+                }
+            },
             "user": {
                 "title": "Sector Alarm configuration",
                 "data": {
@@ -20,12 +37,6 @@
             "select_panel": {
                 "data": {
                     "panel_id": "Panel ID"
-                }
-            },
-            "reauth_confirm": {
-                "data": {
-                    "email": "E-mail address",
-                    "password": "Password"
                 }
             }
         }

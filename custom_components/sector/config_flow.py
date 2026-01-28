@@ -31,23 +31,28 @@ from .const import CONF_IGNORE_QUICK_ARM, CONF_PANEL_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_EMAIL): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="email")
-        ),
-        vol.Required(CONF_PASSWORD): TextSelector(
-            TextSelectorConfig(
-                type=TextSelectorType.PASSWORD, autocomplete="current-password"
-            )
-        ),
-    }
-)
-DATA_SCHEMA_OPTIONS = vol.Schema(
-    {
-        vol.Optional(CONF_IGNORE_QUICK_ARM, default=False): bool,
-    }
-)
+
+def build_data_schema(default_email: str = "") -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required(CONF_EMAIL, default=default_email): TextSelector(
+                TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="email")
+            ),
+            vol.Required(CONF_PASSWORD): TextSelector(
+                TextSelectorConfig(
+                    type=TextSelectorType.PASSWORD, autocomplete="current-password"
+                )
+            ),
+        }
+    )
+
+
+def build_data_options_schema() -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Optional(CONF_IGNORE_QUICK_ARM, default=False): bool,
+        }
+    )
 
 
 class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -60,52 +65,89 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
         self._password: str | None
         self._ignore_quick_arm: bool | None
         self._panel_ids: dict[str, str]
-        self._errors = {}
 
     @staticmethod
     def async_get_options_flow(config_entry: ConfigEntry):
         return SectorAlarmOptionsFlow()
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]):
-        """Handle re-authentication with Sensibo."""
+        """Handle re-authentication."""
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None):
-        """Confirm re-authentication with Sensibo."""
+        """Confirm re-authentication."""
+        entry = self._get_reauth_entry()
+        errors = {}
+
         if user_input:
-            reauth_entry = self._get_reauth_entry()
-            email = user_input[CONF_EMAIL]
-            password = user_input[CONF_PASSWORD]
+            self._email = user_input[CONF_EMAIL]
+            self._password = user_input[CONF_PASSWORD]
 
             client_session = async_get_clientsession(self.hass)
-            token_provider = AsyncTokenProvider(client_session, email, password)
+            token_provider = AsyncTokenProvider(client_session, self._email, self._password)
             try:
                 await token_provider.get_token()
             except LoginError:
-                self._errors["base"] = "authentication_failed"
+                errors["base"] = "authentication_failed"
             except AuthenticationError:
-                self._errors["base"] = "authentication_failed"
+                errors["base"] = "authentication_failed"
             except Exception as e:
-                self._errors["base"] = "unknown_error"
+                errors["base"] = "unknown_error"
                 _LOGGER.exception("Unexpected exception during authentication: %s", e)
             else:
-                self.async_update_reload_and_abort(
-                    reauth_entry, data_updates=user_input
-                )
+                self.async_update_reload_and_abort(entry, data_updates=user_input)
+                return self.async_abort(reason="reauth_successful")
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=DATA_SCHEMA,
-            errors=self._errors,
+            data_schema=build_data_schema(entry.data.get(CONF_EMAIL, "")),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+        entry = self._get_reconfigure_entry()
+        errors = {}
+
+        if user_input is not None:
+            self._email = user_input[CONF_EMAIL]
+            self._password = user_input[CONF_PASSWORD]
+
+            client_session = async_get_clientsession(self.hass)
+            token_provider = AsyncTokenProvider(client_session, self._email, self._password)
+            try:
+                await token_provider.get_token()
+            except LoginError:
+                errors["base"] = "authentication_failed"
+            except AuthenticationError:
+                errors["base"] = "authentication_failed"
+            except Exception as e:
+                errors["base"] = "unknown_error"
+                _LOGGER.exception("Unexpected exception during authentication: %s", e)
+            else:
+                self.hass.config_entries.async_update_entry(
+                    entry,
+                    data={
+                        **entry.data,
+                        CONF_EMAIL: user_input[CONF_EMAIL],
+                        CONF_PASSWORD: user_input[CONF_PASSWORD],
+                    },
+                )
+                return self.async_abort(reason="reconfigure_successful")
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=build_data_schema(entry.data.get(CONF_EMAIL, "")),
+            errors=errors,
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle the initial step."""
+        errors = {}
+
         if user_input is not None:
             self._email = user_input[CONF_EMAIL]
             self._password = user_input[CONF_PASSWORD]
             self._ignore_quick_arm = bool(user_input[CONF_IGNORE_QUICK_ARM])
-            _LOGGER.debug("Setting CONF_IGNORE_QUICK_ARM: %s", self._ignore_quick_arm)
 
             client_session = async_get_clientsession(self.hass)
             token_provider = AsyncTokenProvider(
@@ -128,7 +170,7 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._panel_ids = panel_list
                 _LOGGER.debug(f"panel_ids: {self._panel_ids}")
                 if not self._panel_ids:
-                    self._errors["base"] = "no_panels_found"
+                    errors["base"] = "no_panels_found"
                 elif len(self._panel_ids) == 1:
                     # Only one panel_id found, directly save it
                     return self.async_create_entry(
@@ -147,19 +189,21 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
                     return await self.async_step_select_panel()
 
             except LoginError:
-                self._errors["base"] = "authentication_failed"
+                errors["base"] = "authentication_failed"
             except AuthenticationError:
-                self._errors["base"] = "authentication_failed"
+                errors["base"] = "authentication_failed"
             except Exception as e:
-                self._errors["base"] = "unknown_error"
+                errors["base"] = "unknown_error"
                 _LOGGER.exception("Unexpected exception during authentication: %s", e)
 
+        data_schema = build_data_schema()
+        data_schema_options = build_data_options_schema()
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(
-                DATA_SCHEMA.extend(DATA_SCHEMA_OPTIONS.schema), user_input or {}
+                data_schema.extend(data_schema_options.schema), user_input or {}
             ),
-            errors=self._errors,
+            errors=errors,
         )
 
     async def async_step_select_panel(self, user_input: dict[str, Any] | None = None):
@@ -208,7 +252,7 @@ class SectorAlarmOptionsFlow(OptionsFlowWithReload):
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
-                DATA_SCHEMA_OPTIONS,
+                build_data_options_schema(),
                 self.config_entry.options,
             ),
         )

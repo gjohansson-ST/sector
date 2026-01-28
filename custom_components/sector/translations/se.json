@@ -2,13 +2,30 @@
     "config": {
         "abort": {
             "already_configured": "Kontot är redan konfigurerat",
-            "reauth_successful": "Omauthentisering lyckades"
+            "reauth_successful": "Omauthentisering lyckades",
+            "reconfigure_successful": "Konfigurationsuppdatering lyckades"
         },
         "error": {
             "authentication_failed": "Authentisering misslyckades",
             "unknown_error": "Kunde inte ansluta"
         },
         "step": {
+            "reconfigure": {
+                "title": "Konfigurera om Sector Alarm",
+                "description": "Uppdatera dina inloggningsuppgifter.",
+                "data": {
+                    "email": "E-postadress",
+                    "password": "Lösenord"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Konfigurera om Sector Alarm",
+                "description": "Uppdatera dina inloggningsuppgifter.",
+                "data": {
+                    "email": "Epost adress",
+                    "password": "Lösenord"
+                }
+            },
             "user": {
                 "title": "Sector Alarm konfiguration",
                 "data": {
@@ -20,12 +37,6 @@
             "select_panel": {
                 "data": {
                     "panel_id": "Panel ID"
-                }
-            },
-            "reauth_confirm": {
-                "data": {
-                    "email": "Epost adress",
-                    "password": "Lösenord"
                 }
             }
         }
