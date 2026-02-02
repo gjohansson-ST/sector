@@ -153,7 +153,7 @@ class SectorActionDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
     _OPTIONAL_DATA_ENDPOINT_TYPES = {
         DataEndpointType.LOCK_STATUS,
         DataEndpointType.SMART_PLUG_STATUS,
-        DataEndpointType.DOORS_AND_WINDOWS, # sensor but contains vital alert data, making it an action
+        DataEndpointType.DOORS_AND_WINDOWS,  # sensor but contains vital alert data, making it an action
     }
 
     def __init__(
@@ -182,39 +182,51 @@ class SectorActionDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
         pass
 
     async def _async_setup(self):
-        panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
-        if panel_info is None:
-            raise UpdateFailed(
-                f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
+        try:
+            panel_info: PanelInfo = self._panel_info_coordinator.data["panel_info"]
+            if panel_info is None:
+                raise UpdateFailed(
+                    f"Failed to retrieve panel information for panel '{self.panel_id}' (no data returned from coordinator)"
+                )
+
+            mandatory_endpoint_types = (
+                SectorActionDataUpdateCoordinator._MANDATORY_ENDPOINT_TYPES.copy()
+            )
+            optional_endpoint_types = (
+                SectorActionDataUpdateCoordinator._OPTIONAL_DATA_ENDPOINT_TYPES.copy()
             )
 
-        mandatory_endpoint_types = (
-            SectorActionDataUpdateCoordinator._MANDATORY_ENDPOINT_TYPES.copy()
-        )
-        optional_endpoint_types = (
-            SectorActionDataUpdateCoordinator._OPTIONAL_DATA_ENDPOINT_TYPES.copy()
-        )
+            locks: list[Lock] = panel_info.get("Locks", {})
+            plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
 
-        locks: list[Lock] = panel_info.get("Locks", {})
-        plugs: list[SmartPlug] = panel_info.get("Smartplugs", {})
+            if locks.__len__() == 0:
+                optional_endpoint_types.discard(DataEndpointType.LOCK_STATUS)
+            if plugs.__len__() == 0:
+                optional_endpoint_types.discard(DataEndpointType.SMART_PLUG_STATUS)
 
-        if locks.__len__() == 0:
-            optional_endpoint_types.discard(DataEndpointType.LOCK_STATUS)
-        if plugs.__len__() == 0:
-            optional_endpoint_types.discard(DataEndpointType.SMART_PLUG_STATUS)
+            # Scan and build supported endpoints from non-panel-info endpoints
+            api_data: dict[
+                DataEndpointType, APIResponse
+            ] = await self.sector_api.retrieve_all_data(optional_endpoint_types)
+            for endpoint_type, response in api_data.items():
+                if response.response_code == 404:
+                    optional_endpoint_types.discard(endpoint_type)
 
-        # Scan and build supported endpoints from non-panel-info endpoints
-        api_data: dict[
-            DataEndpointType, APIResponse
-        ] = await self.sector_api.retrieve_all_data(optional_endpoint_types)
-        for endpoint_type, response in api_data.items():
-            if response.response_code == 404:
-                optional_endpoint_types.discard(endpoint_type)
+            supported_endpoint_types = (
+                mandatory_endpoint_types | optional_endpoint_types
+            )
+            _LOGGER.debug(
+                "Supported ACTION endpoint types: %s", supported_endpoint_types
+            )
+            self._data_endpoints = supported_endpoint_types
+            self.data = {"devices": {}, "logs": {}}
 
-        supported_endpoint_types = mandatory_endpoint_types | optional_endpoint_types
-        _LOGGER.debug("Supported ACTION endpoint types: %s", supported_endpoint_types)
-        self._data_endpoints = supported_endpoint_types
-        self.data = {"devices": {}, "logs": {}}
+        except LoginError as error:
+            raise ConfigEntryAuthFailed from error
+        except AuthenticationError as error:
+            raise UpdateFailed(str(error)) from error
+        except ApiError as error:
+            raise UpdateFailed(str(error)) from error
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -395,6 +407,7 @@ class SectorSensorDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
         except ApiError as error:
             self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
+
 
 class _DeviceProcessor:
     def __init__(self, hass: HomeAssistant, panel_id: str) -> None:
