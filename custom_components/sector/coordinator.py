@@ -153,7 +153,7 @@ class SectorActionDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
     _OPTIONAL_DATA_ENDPOINT_TYPES = {
         DataEndpointType.LOCK_STATUS,
         DataEndpointType.SMART_PLUG_STATUS,
-        DataEndpointType.DOORS_AND_WINDOWS, # sensor but contains vital alert data, making it an action
+        DataEndpointType.DOORS_AND_WINDOWS,  # sensor but contains vital alert data, making it an action
     }
 
     def __init__(
@@ -395,6 +395,7 @@ class SectorSensorDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
         except ApiError as error:
             self._increment_update_error_counter()
             raise UpdateFailed(str(error)) from error
+
 
 class _DeviceProcessor:
     def __init__(self, hass: HomeAssistant, panel_id: str) -> None:
@@ -659,22 +660,19 @@ class _DeviceProcessor:
             return
 
         # Initialize or update device entry with sensors
-        device_info = devices.setdefault(
-            serial_no,
-            {
-                "name": device_data.get("Label") or device_data.get("Name"),
-                "serial_no": serial_no,
-                "sensors": sensors,
-                "type": device_data.get("Type", ""),
-                "model": f"{endpoint_type.value}",
-                "last_updated": proccess_time.isoformat(),
-            },
-        )
+        devices[serial_no] = {
+            "name": device_data.get("Label") or device_data.get("Name"),
+            "serial_no": serial_no,
+            "sensors": sensors,
+            "type": device_data.get("Type", ""),
+            "model": f"{endpoint_type.value}",
+            "last_updated": proccess_time.isoformat(),
+        }
 
         _LOGGER.debug(
             "Processed device: category: %s, device: %s",
             endpoint_type,
-            device_info,
+            devices[serial_no],
         )
 
     async def process_event_logs(
