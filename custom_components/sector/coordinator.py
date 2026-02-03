@@ -578,12 +578,14 @@ class _DeviceProcessor:
 
             name = lock.get("Label")
             lock_status = lock.get("Status")
+            low_battery = lock.get("BatteryLow")
 
             devices[serial_no] = {
                 "name": name,
                 "serial_no": serial_no,
                 "sensors": {
                     "lock_status": lock_status,
+                    **({"low_battery": low_battery} if low_battery is not None else {}),
                 },
                 "panel_code_length": panel_info.get("PanelCodeLength", 0),
                 "model": f"{endpoint_type.value}",

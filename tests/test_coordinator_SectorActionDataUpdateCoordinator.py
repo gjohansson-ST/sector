@@ -50,6 +50,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_from_Pa
         "Serial": "LOCK123",
         "SerialNo": "LOCK123",
         "Status": "lock",
+        "BatteryLow": True,
     }
     smart_plug: SmartPlug = {
         "Id": "plug_1",
@@ -203,11 +204,19 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         "SerialNo": "PLUG_SERIAL",
         "Status": "On",
     }
-    smart_lock: Lock = {
+    smart_lock_low_battery: Lock = {
         "Label": "Front Door",
-        "Serial": "LOCK_SERIAL",
-        "SerialNo": "LOCK_SERIAL",
+        "Serial": "LOCK_SERIAL1",
+        "SerialNo": "LOCK_SERIAL1",
         "Status": "lock",
+        "BatteryLow": True,
+    }
+    smart_lock_no_battery: Lock = {
+        "Label": "Back Door",
+        "Serial": "LOCK_SERIAL2",
+        "SerialNo": "LOCK_SERIAL2",
+        "Status": "lock",
+        "BatteryLow": None,
     }
     alarm_panel: PanelStatus = {
         "IsOnline": True,
@@ -239,7 +248,9 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
             response_code=200, response_is_json=True, response_data=[smart_plug]
         ),
         DataEndpointType.LOCK_STATUS: APIResponse(
-            response_code=200, response_is_json=True, response_data=[smart_lock]
+            response_code=200,
+            response_is_json=True,
+            response_data=[smart_lock_low_battery, smart_lock_no_battery],
         ),
         DataEndpointType.PANEL_STATUS: APIResponse(
             response_code=200, response_is_json=True, response_data=alarm_panel
@@ -269,13 +280,22 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
     # Assert
     assert "devices" in coordinator_data
 
-    lock = coordinator_data["devices"]["LOCK_SERIAL"]
-    assert lock["name"] == smart_lock["Label"]
-    assert lock["serial_no"] == smart_lock["SerialNo"]
-    assert lock["sensors"] == {
-        "lock_status": smart_lock.get("Status"),
+    lock_low_battery = coordinator_data["devices"]["LOCK_SERIAL1"]
+    assert lock_low_battery["name"] == smart_lock_low_battery["Label"]
+    assert lock_low_battery["serial_no"] == smart_lock_low_battery["SerialNo"]
+    assert lock_low_battery["sensors"] == {
+        "lock_status": smart_lock_low_battery.get("Status"),
+        "low_battery": smart_lock_low_battery.get("BatteryLow"),
     }
-    assert lock["model"] == "Smart Lock"
+    assert lock_low_battery["model"] == "Smart Lock"
+
+    lock_no_battery = coordinator_data["devices"]["LOCK_SERIAL2"]
+    assert lock_no_battery["name"] == smart_lock_no_battery["Label"]
+    assert lock_no_battery["serial_no"] == smart_lock_no_battery["SerialNo"]
+    assert lock_no_battery["sensors"] == {
+        "lock_status": smart_lock_no_battery.get("Status"),
+    }
+    assert lock_low_battery["model"] == "Smart Lock"
 
     plug = coordinator_data["devices"]["PLUG_SERIAL"]
     assert plug["name"] == smart_plug["Label"]
@@ -569,7 +589,7 @@ async def test_async_update_data_should_not_proccess_empty_or_failed_PanelInfo_d
     assert coordinator_data["devices"] == {}
 
 
-async def test__async_update_data_should_proccess_log_events(
+async def test_async_update_data_should_proccess_log_events(
     hass: HomeAssistant,
 ):
     # Prepare
@@ -587,6 +607,7 @@ async def test__async_update_data_should_proccess_log_events(
         "Serial": "LOCK_SERIAL",
         "SerialNo": "LOCK_SERIAL",
         "Status": "unlock",
+        "BatteryLow": False,
     }
     log_records: LogRecords = {
         "Records": [

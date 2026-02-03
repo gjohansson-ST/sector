@@ -33,6 +33,7 @@ async def test_async_update_data_should_fetch_PanelInfo(
         "Serial": "LOCK123",
         "SerialNo": "LOCK123",
         "Status": "lock",
+        "BatteryLow": False,
     }
     smart_plug: SmartPlug = {
         "Id": "plug_1",
