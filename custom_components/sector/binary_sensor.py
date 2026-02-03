@@ -23,12 +23,12 @@ _LOGGER = logging.getLogger(__name__)
 BINARY_SENSOR_TYPES: tuple[BinarySensorEntityDescription, ...] = (
     BinarySensorEntityDescription(
         key="low_battery",
-        name="Low battery",
+        name="Battery",
         device_class=BinarySensorDeviceClass.BATTERY,
     ),
     BinarySensorEntityDescription(
         key="closed",
-        name="Closed",
+        name="Door/Window",
         device_class=BinarySensorDeviceClass.DOOR,
     ),
     BinarySensorEntityDescription(
@@ -175,8 +175,12 @@ class SectorAlarmClosedSensor(SectorAlarmBinarySensor):
         """Return True if the door/window is open (closed: False)."""
         device: dict = self.coordinator.data["devices"].get(self._device_id, {})
         sensors = device.get("sensors", {})
-        return sensors.get("closed", None)
+        is_closed: bool = sensors.get("closed", None)
 
+        if is_closed is None:
+            return None # type: ignore
+        else:
+            return not is_closed  # negated because we display Open status
 
 class SectorAlarmPanelOnlineBinarySensor(SectorAlarmBinarySensor, BinarySensorEntity):
     """Binary sensor for the Sector Alarm panel online status."""
