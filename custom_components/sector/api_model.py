@@ -14,6 +14,7 @@ class Lock(TypedDict):
     Label: str
     Serial: str
     SerialNo: str
+    BatteryLow: Optional[bool]
     Status: str
 
 class SmartPlug(TypedDict):
