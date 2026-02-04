@@ -104,12 +104,6 @@ class SectorAlarmControlPanel(
         )
 
     @property
-    def available(self) -> bool:
-        if super().available:
-            return self._panel_online_property
-        return False
-
-    @property
     def alarm_state(self) -> AlarmControlPanelState | None:
         """Return the state of the device."""
 
@@ -127,6 +121,8 @@ class SectorAlarmControlPanel(
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
         """Send arm away command."""
+        if not self._is_online():
+            raise HomeAssistantError("Failed to arm (full) alarm - alarm is offline")
         if not self._is_valid_arm_code(code):
             raise ServiceValidationError("Invalid code length")
 
@@ -160,6 +156,8 @@ class SectorAlarmControlPanel(
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send arm home command."""
+        if not self._is_online():
+            raise HomeAssistantError("Failed to arm (partial) alarm - alarm is offline")
         if not self._is_valid_arm_code(code):
             raise ServiceValidationError("Invalid code length")
 
@@ -193,6 +191,8 @@ class SectorAlarmControlPanel(
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Send disarm command."""
+        if not self._is_online():
+            raise HomeAssistantError("Failed to disarm alarm - alarm is offline")
         if TYPE_CHECKING:
             assert code is not None
         if not self._is_valid_disarm_code(code):
@@ -241,6 +241,9 @@ class SectorAlarmControlPanel(
         if code_length == 0:
             return True
         return bool(code and len(code) == code_length)
+
+    def _is_online(self) -> bool:
+        return self._panel_online_property
 
     @callback
     def _handle_coordinator_update(self) -> None:

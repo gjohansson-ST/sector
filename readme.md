@@ -26,7 +26,7 @@ This integration connects Home Assistant with the Sector Alarm system allowing m
 
 ## Important notes ##
 
-On alarm installation which are not wired make sure you take the binary sensor `Online` into account to ensure the alarm state is a trusted state. The entity for alarm panel will only update it's state on alarms which are online.
+On alarm installations which are not wired, make sure you take the binary sensor `Online` into account to ensure the alarm state is a trusted state. The entity for alarm panel can only be armed/disarmed on alarms which are online.
 
 ## Installation ##
 
