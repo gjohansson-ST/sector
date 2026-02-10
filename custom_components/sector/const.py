@@ -1,5 +1,6 @@
 """Constants for the Sector Alarm integration."""
 
+from enum import Enum
 from homeassistant.const import Platform
 
 DOMAIN = "sector"
@@ -15,3 +16,7 @@ PLATFORMS = [
 
 CONF_PANEL_ID = "panel_id"
 CONF_IGNORE_QUICK_ARM = "ignore_quick_arm"
+
+
+class RUNTIME_DATA(Enum):
+    DEVICE_COORDINATORS = "Device coordinators list key"

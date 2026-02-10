@@ -6,17 +6,37 @@ API_URL = "https://mypagesapi.sectoralarm.net"
 
 
 class DataEndpointType(Enum):
-    LOGS = "Logs"
-    PANEL_STATUS = "Sector Alarm Control Panel"
-    SMART_PLUG_STATUS = "Smart Plug"
-    LOCK_STATUS = "Smart Lock"
-    HUMIDITY = "Humidity Sensor"
-    DOORS_AND_WINDOWS = "Door/Window Sensor"
-    LEAKAGE_DETECTORS = "Leakage Detector"
-    SMOKE_DETECTORS = "Smoke Detector"
-    CAMERAS = "Camera"
-    TEMPERATURES = "Temperature Sensor V2"
-    TEMPERATURES_LEGACY = "Temperature Sensor"
+    LOGS = "Logs", True, False
+    PANEL_STATUS = "Alarm panel", True, False
+    SMART_PLUG_STATUS = "Smart Plug", True, False
+    LOCK_STATUS = "Smart Lock", True, False
+    DOORS_AND_WINDOWS = "Door/Window Sensor", True, True
+    LEAKAGE_DETECTORS = "Leakage Detector", True, True
+    SMOKE_DETECTORS = "Smoke Detector", True, True
+    CAMERAS = "Camera", True, True
+    HUMIDITY = "Humidity Sensor", False, True
+    TEMPERATURES = "Temperature Sensor V2", False, True
+    TEMPERATURES_LEGACY = "Temperature Sensor", False, False
+
+    def __new__(cls, *args, **kwds):
+        obj = object.__new__(cls)
+        obj._value_ = args[0]
+        return obj
+
+    def __init__(self, _: str, is_device: bool, is_house_check_endpoint: bool):
+        self._is_device = is_device
+        self._is_house_check_endpoint = is_house_check_endpoint
+
+    def __str__(self):
+        return self.value
+
+    @property
+    def is_device(self):
+        return self._is_device
+
+    @property
+    def is_house_check_endpoint(self):
+        return self._is_house_check_endpoint
 
 
 class ActionEndpointType(Enum):

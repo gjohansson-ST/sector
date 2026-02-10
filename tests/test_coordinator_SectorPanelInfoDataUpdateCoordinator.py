@@ -56,6 +56,7 @@ async def test_async_update_data_should_fetch_PanelInfo(
         "Locks": [lock],
         "Smartplugs": [smart_plug],
         "Temperatures": [temperature],
+        "Capabilities": [],
     }
 
     mock_api = AsyncMock()

@@ -2,20 +2,22 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import logging
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from custom_components.sector.endpoints import DataEndpointType
+
 from .client import AsyncTokenProvider, SectorAlarmAPI
-from .const import CONF_PANEL_ID, PLATFORMS
+from .const import CONF_PANEL_ID, PLATFORMS, RUNTIME_DATA
 from .coordinator import (
-    SectorActionDataUpdateCoordinator,
+    DeviceRegistry,
+    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
-    SectorCoordinatorType,
     SectorPanelInfoDataUpdateCoordinator,
-    SectorSensorDataUpdateCoordinator,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,21 +39,50 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     panel_info_coordinator = SectorPanelInfoDataUpdateCoordinator(
         hass, entry, sector_api
     )
-    action_coordinator = SectorActionDataUpdateCoordinator(
-        hass, entry, sector_api, panel_info_coordinator
+
+    device_registry = DeviceRegistry()
+    action_device_coordinator = SectorDeviceDataUpdateCoordinator(
+        hass=hass,
+        entry=entry,
+        sector_api=sector_api,
+        panel_info_coordinator=panel_info_coordinator,
+        device_registry=device_registry,
+        coordinator_name="SectorActionDeviceDataUpdateCoordinator",
+        optional_endpoints={
+            DataEndpointType.LOCK_STATUS,
+            DataEndpointType.SMART_PLUG_STATUS,
+            DataEndpointType.DOORS_AND_WINDOWS,
+            DataEndpointType.SMOKE_DETECTORS,
+            DataEndpointType.LEAKAGE_DETECTORS,
+            # DataEndpointType.CAMERAS,
+        },
+        mandatory_endpoints={DataEndpointType.PANEL_STATUS},
+        update_interval=timedelta(seconds=60),
     )
-    sensor_coordinator = SectorSensorDataUpdateCoordinator(
-        hass, entry, sector_api, panel_info_coordinator
+    sensor_device_coordinators = SectorDeviceDataUpdateCoordinator(
+        hass=hass,
+        entry=entry,
+        sector_api=sector_api,
+        panel_info_coordinator=panel_info_coordinator,
+        device_registry=device_registry,
+        coordinator_name="SectorSensorDeviceDataUpdateCoordinator",
+        optional_endpoints={
+            DataEndpointType.HUMIDITY,
+            DataEndpointType.TEMPERATURES,
+            DataEndpointType.TEMPERATURES_LEGACY,
+        },
+        update_interval=timedelta(minutes=15),
     )
 
     await panel_info_coordinator.async_config_entry_first_refresh()
-    await action_coordinator.async_config_entry_first_refresh()
-    await sensor_coordinator.async_config_entry_first_refresh()
+    await action_device_coordinator.async_config_entry_first_refresh()
+    await sensor_device_coordinators.async_config_entry_first_refresh()
 
     entry.runtime_data = {
-        SectorCoordinatorType.PANEL_INFO: panel_info_coordinator,
-        SectorCoordinatorType.ACTION_DEVICES: action_coordinator,
-        SectorCoordinatorType.SENSOR_DEVICES: sensor_coordinator,
+        RUNTIME_DATA.DEVICE_COORDINATORS: [
+            action_device_coordinator,
+            sensor_device_coordinators,
+        ],
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

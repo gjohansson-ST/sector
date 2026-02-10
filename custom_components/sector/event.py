@@ -2,17 +2,18 @@
 
 import logging
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
+from custom_components.sector.const import RUNTIME_DATA
+
 from .coordinator import (
-    SectorActionDataUpdateCoordinator,
+    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
-    SectorCoordinatorType,
 )
 from .entity import SectorAlarmBaseEntity
 
@@ -25,51 +26,51 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Set up a single event entity per device in Sector Alarm coordinator."""
-    coordinator = cast(
-        SectorActionDataUpdateCoordinator,
-        entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
-    )
-    grouped_events = coordinator.get_processed_events()
     entities = []
+    coordinators: list[SectorDeviceDataUpdateCoordinator] = entry.runtime_data[
+        RUNTIME_DATA.DEVICE_COORDINATORS
+    ]
 
-    for device_serial, event_categories in grouped_events.items():
-        device_info = coordinator.get_device_info(device_serial)
-        device_name = device_info["name"]
-        device_model = device_info["model"]
+    for coordinator in coordinators:
+        grouped_events = coordinator.get_processed_events()
+        for device_serial in grouped_events.keys():
+            device_info = coordinator.get_device_info(device_serial)
+            device_name = device_info["name"]
+            device_model = device_info["model"]
 
-        _LOGGER.debug(
-            "SECTOR_EVENT: Creating event entity for device: %s, Model: %s",
-            device_name,
-            device_model,
-        )
-
-        # Define unique entity ID for each device, regardless of event type
-        entity_unique_id = f"{device_serial}_event"
-
-        # Check if the entity already exists by unique ID
-        if hass.states.get(f"event.{entity_unique_id}"):
             _LOGGER.debug(
-                "SECTOR_EVENT: Entity with unique ID '%s' already exists, skipping.",
-                entity_unique_id,
+                "SECTOR_EVENT: Creating event entity for device: %s, Model: %s",
+                device_name,
+                device_model,
             )
-            continue
 
-        # Create a single entity to handle multiple event types for the device
-        entity = SectorAlarmEvent(coordinator, device_serial, device_info)
-        entities.append(entity)
-        _LOGGER.debug(
-            "SECTOR_EVENT: Created event entity: %s (unique_id=%s, name=%s)",
-            entity,
-            entity.unique_id,
-            entity.name,
-        )
+            # Define unique entity ID for each device, regardless of event type
+            entity_unique_id = f"{device_serial}_event"
+
+            # Check if the entity already exists by unique ID
+            if hass.states.get(f"event.{entity_unique_id}"):
+                _LOGGER.debug(
+                    "SECTOR_EVENT: Entity with unique ID '%s' already exists, skipping.",
+                    entity_unique_id,
+                )
+                continue
+
+            # Create a single entity to handle multiple event types for the device
+            entity = SectorAlarmEvent(coordinator, device_serial, device_info)
+            entities.append(entity)
+            _LOGGER.debug(
+                "SECTOR_EVENT: Created event entity: %s (unique_id=%s, name=%s)",
+                entity,
+                entity.unique_id,
+                entity.name,
+            )
 
     _LOGGER.debug("SECTOR_EVENT: Total event entities added: %d", len(entities))
     async_add_entities(entities)
 
 
 class SectorAlarmEvent(
-    SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], EventEntity
+    SectorAlarmBaseEntity[SectorDeviceDataUpdateCoordinator], EventEntity
 ):
     """Representation of a single event entity for a Sector Alarm device."""
 
@@ -77,7 +78,11 @@ class SectorAlarmEvent(
         """Initialize the single event entity for the device."""
         # Pass serial_no, device_name, and device_model to the parent class
         super().__init__(
-            coordinator, serial_no, serial_no, device_info["name"], device_info["model"]
+            coordinator,
+            serial_no,
+            device_info["name"],
+            device_info["model"],
+            device_info["model"],
         )
         self._device_name = device_info["name"]
         self._device_model = device_info["model"]

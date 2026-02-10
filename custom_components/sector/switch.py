@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.components.switch import (
     SwitchDeviceClass,
@@ -17,10 +17,11 @@ from homeassistant.exceptions import (
 )
 
 from custom_components.sector.client import ApiError, AuthenticationError, LoginError
+from custom_components.sector.const import RUNTIME_DATA
 from .coordinator import (
-    SectorActionDataUpdateCoordinator,
+    DeviceRegistry,
+    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
-    SectorCoordinatorType,
 )
 from .entity import SectorAlarmBaseEntity
 
@@ -33,26 +34,35 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Sector Alarm switches."""
-    coordinator = cast(
-        SectorActionDataUpdateCoordinator,
-        entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
-    )
-    devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
-    entities = []
+    entities: list[SectorAlarmSwitch] = []
+    coordinators: list[SectorDeviceDataUpdateCoordinator] = entry.runtime_data[
+        RUNTIME_DATA.DEVICE_COORDINATORS
+    ]
 
-    for serial_no, device_info in devices.items():
-        if device_info.get("model") == "Smart Plug":
-            device_name: str = device_info["name"]
-            plug_id = device_info["id"]
-            model = device_info["model"]
-            entities.append(
-                SectorAlarmSwitch(coordinator, plug_id, serial_no, device_name, model)
-            )
-            _LOGGER.debug(
-                "Added switch entity with serial: %s and name: %s",
-                serial_no,
-                device_name,
-            )
+    for coordinator in coordinators:
+        device_registry: DeviceRegistry = coordinator.data.get(
+            "device_registry", DeviceRegistry()
+        )
+        devices: dict[str, dict[str, Any]] = (
+            device_registry.fetch_devices_by_coordinator(coordinator.name)
+        )
+        for serial_no, device in devices.items():
+            device_name: str = device["name"]
+            device_model = device["model"]
+            for entity_model, entity in device.get("entities", {}).items():
+                if entity_model == "Smart Plug":
+                    plug_id = entity["id"]
+                    entities.append(
+                        SectorAlarmSwitch(
+                            coordinator,
+                            plug_id,
+                            serial_no,
+                            device_name,
+                            device_model,
+                            entity_model,
+                        )
+                    )
+                    _LOGGER.debug("Added smart plug for device %s", serial_no)
 
     if entities:
         async_add_entities(entities)
@@ -61,7 +71,7 @@ async def async_setup_entry(
 
 
 class SectorAlarmSwitch(
-    SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], SwitchEntity
+    SectorAlarmBaseEntity[SectorDeviceDataUpdateCoordinator], SwitchEntity
 ):
     """
     Sector Alarm smart plug switch.
@@ -83,22 +93,18 @@ class SectorAlarmSwitch(
 
     def __init__(
         self,
-        coordinator: SectorActionDataUpdateCoordinator,
+        coordinator: SectorDeviceDataUpdateCoordinator,
         plug_id: str,
         serial_no: str,
-        name: str,
-        model: str,
+        device_name: str,
+        device_model: str,
+        entity_model: str,
     ) -> None:
         """Initialize the switch."""
         self._id = plug_id
         super().__init__(
-            coordinator,
-            serial_no,
-            serial_no,
-            name,
-            model,
+            coordinator, serial_no, device_name, device_model, entity_model
         )
-
         self._attr_unique_id = f"{self._serial_no}_switch"
         self._attr_is_on: bool | None = None
 
@@ -115,21 +121,14 @@ class SectorAlarmSwitch(
             return self._attr_is_on
 
         # Fall back to coordinator data
-        device = self.coordinator.data["devices"].get(self._device_id)
-        if device:
-            status = device.get("sensors", {}).get("plug_status", "Unknown")
-            _LOGGER.debug(
-                "Switch %s coordinator status: %s",
-                self._serial_no,
-                status,
-            )
-            return str(status).lower() == "on"
-
-        _LOGGER.warning(
-            "No switch status found for plug %s",
+        entity = self.entity_data or {}
+        status = entity.get("sensors", {}).get("plug_status", "Unknown")
+        _LOGGER.debug(
+            "Switch %s coordinator status: %s",
             self._serial_no,
+            status,
         )
-        return False
+        return str(status).lower() == "on"
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn the switch on."""
