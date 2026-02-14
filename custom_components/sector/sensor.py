@@ -90,8 +90,6 @@ class SectorAlarmSensor(
 ):
     """Base class for a Sector Alarm sensor."""
 
-    _entity_description: SensorEntityDescription
-
     def __init__(
         self,
         coordinator: SectorDeviceDataUpdateCoordinator,
@@ -105,7 +103,7 @@ class SectorAlarmSensor(
         super().__init__(
             coordinator, serial_no, device_name, device_model, entity_model
         )
-        self._entity_description = entity_description
+        self.entity_description = entity_description
         self._attr_unique_id = f"{serial_no}_{entity_description.key}"
 
     @property
@@ -113,4 +111,4 @@ class SectorAlarmSensor(
         """Return the sensor value."""
         entity = self.entity_data or {}
         sensors: dict[str, Any] = entity.get("sensors", {})
-        return sensors.get(self._entity_description.key)
+        return sensors.get(self.entity_description.key)

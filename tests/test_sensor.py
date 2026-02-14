@@ -65,21 +65,21 @@ async def test_async_setup_entry_adds_sensors(hass: HomeAssistant, entry, coordi
     assert len(entities) == 2
 
     temp: SectorAlarmSensor = next(
-        e for e in entities if e._entity_description.key == "temperature"
+        e for e in entities if e.entity_description.key == "temperature"
     )
     hum: SectorAlarmSensor = next(
-        e for e in entities if e._entity_description.key == "humidity"
+        e for e in entities if e.entity_description.key == "humidity"
     )
 
-    assert temp._entity_description.device_class == SensorDeviceClass.TEMPERATURE
+    assert temp.entity_description.device_class == SensorDeviceClass.TEMPERATURE
     assert (
-        temp._entity_description.native_unit_of_measurement == UnitOfTemperature.CELSIUS
+        temp.entity_description.native_unit_of_measurement == UnitOfTemperature.CELSIUS
     )
     assert temp.unique_id == "SERIAL1_temperature"
     assert temp.native_value == 25
 
-    assert hum._entity_description.device_class == SensorDeviceClass.HUMIDITY
-    assert hum._entity_description.native_unit_of_measurement == PERCENTAGE
+    assert hum.entity_description.device_class == SensorDeviceClass.HUMIDITY
+    assert hum.entity_description.native_unit_of_measurement == PERCENTAGE
     assert hum.unique_id == "SERIAL1_humidity"
     assert hum.native_value == 45
 

@@ -143,8 +143,6 @@ def _proccess_coordinator(
 class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
     """Base class for a Sector Alarm binary sensor."""
 
-    _entity_description: BinarySensorEntityDescription
-
     def __init__(
         self,
         coordinator: DataUpdateCoordinator,
@@ -158,7 +156,7 @@ class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
         super().__init__(
             coordinator, serial_no, device_name, device_model, entity_model
         )
-        self._entity_description = entity_description
+        self.entity_description = entity_description
         self._sensor_type = entity_description.key
         self._attr_unique_id = f"{serial_no}_{entity_description.key}"
 
