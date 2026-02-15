@@ -997,6 +997,149 @@ async def test_async_update_data_should_override_device_if_endpoint_is_device(
     }
 
 
+async def test_async_update_data_should_create_synthetic_device_when_applicable(
+    hass: HomeAssistant,
+):
+    # Prepare
+    panel_status: PanelStatus = {
+        "Status": 1,
+        "IsOnline": True,
+    }
+    panel_info: PanelInfo = {
+        "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": False,
+        "Locks": [],
+        "Smartplugs": [],
+        "Temperatures": [],
+        "Capabilities": [],
+    }
+
+    temperature_component_keypad: Component = {
+        "SerialNo": "KEY_PAD_SERIAL",
+        "Label": "Bathroom Temperature",
+        "Name": "Bathroom Temperature",
+        "Type": "KeyPad",
+        "Temperature": 19.5,
+        "Humidity": None,
+        "LowBattery": False,
+    }
+    humidity_component_keypad: Component = {
+        "SerialNo": "KEY_PAD_SERIAL",
+        "Label": "Bathroom Humidity",
+        "Name": "Bathroom Humidity",
+        "Type": "KeyPad",
+        "Humidity": 34.0,
+        "Temperature": None,
+        "LowBattery": False,
+    }
+
+    mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.PANEL_STATUS: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data=panel_status,
+        ),
+        DataEndpointType.TEMPERATURE: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={
+                "Sections": [
+                    {
+                        "Places": [
+                            {
+                                "Components": [
+                                    temperature_component_keypad,
+                                ]
+                            }
+                        ]
+                    }
+                ],
+            },
+        ),
+        DataEndpointType.HUMIDITY: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={
+                "Sections": [
+                    {
+                        "Places": [
+                            {
+                                "Components": [
+                                    humidity_component_keypad,
+                                ]
+                            }
+                        ]
+                    }
+                ],
+            },
+        ),
+    }
+
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
+    mock_entity = _create_mock_config_entity()
+    mock_entity.add_to_hass(hass)
+
+    device_registry = DeviceRegistry()
+    device_coordinator = SectorDeviceDataUpdateCoordinator(
+        hass=hass,
+        entry=mock_entity,
+        sector_api=mock_api,
+        panel_info_coordinator=mock_panel_info_coordinator,
+        device_registry=device_registry,
+        coordinator_name=_DEVICE_COORDINATOR_NAME,
+        optional_endpoints=_OPTIONAL_ENDPOINTS,
+        mandatory_endpoints=_MANDATORY_ENDPOINTS,
+    )
+
+    # Act
+    coordinator_data = await device_coordinator._async_update_data()
+
+    # Assert
+    assert "device_registry" in coordinator_data
+    device_registry: DeviceRegistry = coordinator_data["device_registry"]
+    devices: dict[str, Any] = device_registry.fetch_devices()
+
+    # Leakage Detector
+    keypad_device = devices["KEY_PAD_SERIAL"]
+    keypad_entities = keypad_device["entities"]
+    temperature_entity = keypad_entities["Temperature Sensor V2"]
+    humidity_entity = keypad_entities["Humidity Sensor"]
+
+    assert len(keypad_entities.keys()) == 2
+    assert keypad_device["name"] == temperature_component_keypad["Label"]
+    assert keypad_device["serial_no"] == temperature_component_keypad["SerialNo"]
+    assert keypad_device["model"] == "Keypad"
+
+    # Temperature Sensor
+    temperature_entity = keypad_entities["Temperature Sensor V2"]
+
+    assert temperature_entity["name"] == temperature_component_keypad["Label"]
+    assert temperature_entity["model"] == "Temperature Sensor V2"
+    assert temperature_entity["last_updated"]
+    assert "failed_update_count" not in temperature_entity
+    assert temperature_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
+    assert temperature_entity["sensors"] == {
+        "low_battery": temperature_component_keypad.get("LowBattery"),
+        "temperature": temperature_component_keypad.get("Temperature"),
+    }
+
+    # Humidity Sensor
+    humidity_entity = keypad_entities["Humidity Sensor"]
+
+    assert humidity_entity["name"] == humidity_component_keypad["Name"]
+    assert humidity_entity["model"] == "Humidity Sensor"
+    assert humidity_entity["last_updated"]
+    assert "failed_update_count" not in humidity_entity
+    assert humidity_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
+    assert humidity_entity["sensors"] == {
+        "low_battery": humidity_component_keypad.get("LowBattery"),
+        "humidity": humidity_component_keypad.get("Humidity"),
+    }
+
+
 async def test_async_update_data_should_reset_count_failed_update_on_success(
     hass: HomeAssistant,
 ):

@@ -498,6 +498,7 @@ class _DeviceProcessor:
                 }
             else:
                 existing_device["entities"][endpoint_type.value] = entity
+                devices[serial_no] = existing_device
 
             _LOGGER.debug(
                 "Processed temperature sensor with serial_no %s: %s",
@@ -543,6 +544,7 @@ class _DeviceProcessor:
                 }
             else:
                 existing_device["entities"][endpoint_type.value] = entity
+                devices[serial_no] = existing_device
 
             _LOGGER.debug("Processed smart plug with Serial %s: %s", serial_no, entity)
 
@@ -591,6 +593,7 @@ class _DeviceProcessor:
                 }
             else:
                 existing_device["entities"][endpoint_type.value] = entity
+                devices[serial_no] = existing_device
 
             _LOGGER.debug("Processed lock with serial_no %s: %s", serial_no, entity)
 
@@ -686,10 +689,15 @@ class _DeviceProcessor:
 
         # Initialize or update device entry with sensors
         existing_device = devices.get(serial_no)
-        if not existing_device or endpoint_type._is_device:
-            existing_entities = (
-                existing_device["entities"] if existing_device else {}
+        existing_device = (
+            self._create_synthetic_device_if_applicable(
+                endpoint_type, serial_no, device_data
             )
+            if not existing_device
+            else existing_device
+        )
+        if not existing_device or endpoint_type._is_device:
+            existing_entities = existing_device["entities"] if existing_device else {}
             existing_entities[endpoint_type.value] = entity
             devices[serial_no] = {
                 "name": device_data.get("Label") or device_data.get("Name"),
@@ -699,12 +707,30 @@ class _DeviceProcessor:
             }
         else:
             existing_device["entities"][endpoint_type.value] = entity
+            devices[serial_no] = existing_device
 
         _LOGGER.debug(
             "Processed HouseCheck entity: category: %s, entity: %s",
             endpoint_type,
             entity,
         )
+
+    def _create_synthetic_device_if_applicable(
+        self,
+        endpoint_type: DataEndpointType,
+        serial_no: str,
+        device_data: dict[Any, Any],
+    ) -> dict[str, Any] | None:
+        if not endpoint_type.is_device and endpoint_type.is_house_check_endpoint:
+            type: str = device_data.get("Type", {})
+            if type.upper() == "KEYPAD":
+                return {
+                    "name": device_data.get("Label") or device_data.get("Name"),
+                    "serial_no": serial_no,
+                    "model": "Keypad",
+                    "entities": {},
+                }
+        return None
 
     async def process_event_logs(
         self,
