@@ -138,13 +138,23 @@ class SectorAlarmControlPanel(
         if self._pending_state is not None:
             return self._pending_state
 
+        # If not online, do not bother fetching the state from coordinator.
+        # This because Sector Alarm when not online, will for some reason return
+        # the state ARMED_AWAY. Only the gods knows why.
+        # This is a solution to reduce annoying switches of states that may confuse the user,
+        # by returning previous set state.
+        if not self._is_online():
+            return self._attr_alarm_state
+
         # Map status code to the appropriate Home Assistant state
         status_code = self._panel_alarm_status_property
         mapped_state = ALARM_STATE_TO_HA_STATE.get(status_code)
         _LOGGER.debug(
             "Alarm status_code: %s, Mapped state: %s", status_code, mapped_state
         )
-        return mapped_state
+
+        self._attr_alarm_state = mapped_state
+        return self._attr_alarm_state
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
         """Send arm away command."""
