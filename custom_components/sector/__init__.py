@@ -51,7 +51,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         optional_endpoints={
             DataEndpointType.LOCK_STATUS,
             DataEndpointType.SMART_PLUG_STATUS,
-            DataEndpointType.DOORS_AND_WINDOWS,
+            DataEndpointType.DOOR_AND_WINDOW,
             # DataEndpointType.SMOKE_DETECTORS,
             # DataEndpointType.LEAKAGE_DETECTORS,
             # DataEndpointType.CAMERAS,
@@ -68,8 +68,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         coordinator_name="SectorSensorDeviceDataUpdateCoordinator",
         optional_endpoints={
             DataEndpointType.HUMIDITY,
-            DataEndpointType.TEMPERATURES,
-            DataEndpointType.TEMPERATURES_LEGACY,
+            DataEndpointType.TEMPERATURE,
+            DataEndpointType.TEMPERATURE_LEGACY,
         },
         update_interval=timedelta(minutes=15),
     )

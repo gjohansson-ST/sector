@@ -10,13 +10,13 @@ class DataEndpointType(Enum):
     PANEL_STATUS = "Alarm panel", True, False
     SMART_PLUG_STATUS = "Smart Plug", True, False
     LOCK_STATUS = "Smart Lock", True, False
-    DOORS_AND_WINDOWS = "Door/Window Sensor", True, True
-    LEAKAGE_DETECTORS = "Leakage Detector", True, True
-    SMOKE_DETECTORS = "Smoke Detector", True, True
+    DOOR_AND_WINDOW = "Door/Window Sensor", True, True
+    LEAKAGE_DETECTOR = "Leakage Detector", True, True
+    SMOKE_DETECTOR = "Smoke Detector", True, True
     CAMERAS = "Camera", True, True
     HUMIDITY = "Humidity Sensor", False, True
-    TEMPERATURES = "Temperature Sensor V2", False, True
-    TEMPERATURES_LEGACY = "Temperature Sensor", False, False
+    TEMPERATURE = "Temperature Sensor V2", False, True
+    TEMPERATURE_LEGACY = "Temperature Sensor", False, False
 
     def __new__(cls, *args, **kwds):
         obj = object.__new__(cls)
@@ -122,12 +122,12 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/panel/GetLockStatus?panelId={{panelId}}",
     ),
     DataEndpoint(
-        type=DataEndpointType.TEMPERATURES_LEGACY,
+        type=DataEndpointType.TEMPERATURE_LEGACY,
         method="GET",
         uri=f"{API_URL}/api/Panel/GetTemperatures?panelId={{panelId}}",
     ),
     DataEndpoint(
-        type=DataEndpointType.TEMPERATURES,  # Seems not be used by Sector App
+        type=DataEndpointType.TEMPERATURE,  # Seems not be used by Sector App
         method="POST",
         uri=f"{API_URL}/api/housecheck/temperatures",
     ),
@@ -137,17 +137,17 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/housecheck/panels/{{panelId}}/humidity",
     ),
     DataEndpoint(
-        type=DataEndpointType.DOORS_AND_WINDOWS,
+        type=DataEndpointType.DOOR_AND_WINDOW,
         method="POST",
         uri=f"{API_URL}/api/housecheck/doorsandwindows",
     ),
     DataEndpoint(
-        type=DataEndpointType.LEAKAGE_DETECTORS,  # Seems not be used by Sector App
+        type=DataEndpointType.LEAKAGE_DETECTOR,  # Seems not be used by Sector App
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/leakagedetectors",
     ),
     DataEndpoint(
-        type=DataEndpointType.SMOKE_DETECTORS,  # Seems not be used by Sector App
+        type=DataEndpointType.SMOKE_DETECTOR,  # Seems not be used by Sector App
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/smokedetectors",
     ),

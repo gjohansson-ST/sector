@@ -32,13 +32,13 @@ _MANDATORY_ENDPOINTS = {DataEndpointType.PANEL_STATUS}
 _OPTIONAL_ENDPOINTS = {
     DataEndpointType.LOCK_STATUS,
     DataEndpointType.SMART_PLUG_STATUS,
-    DataEndpointType.DOORS_AND_WINDOWS,
-    DataEndpointType.SMOKE_DETECTORS,
-    DataEndpointType.LEAKAGE_DETECTORS,
+    DataEndpointType.DOOR_AND_WINDOW,
+    DataEndpointType.SMOKE_DETECTOR,
+    DataEndpointType.LEAKAGE_DETECTOR,
     DataEndpointType.CAMERAS,
     DataEndpointType.HUMIDITY,
-    DataEndpointType.TEMPERATURES,
-    DataEndpointType.TEMPERATURES_LEGACY,
+    DataEndpointType.TEMPERATURE,
+    DataEndpointType.TEMPERATURE_LEGACY,
 }
 
 
@@ -139,7 +139,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints(
 
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.return_value = {
-        DataEndpointType.DOORS_AND_WINDOWS: APIResponse(
+        DataEndpointType.DOOR_AND_WINDOW: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
@@ -148,21 +148,21 @@ async def test_async_setup_should_calculate_supported_optional_endpoints(
                 ],
             },
         ),
-        DataEndpointType.SMOKE_DETECTORS: APIResponse(
+        DataEndpointType.SMOKE_DETECTOR: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
                 "Floors": [{"Rooms": [{"Devices": [smoke_detector_component]}]}],
             },
         ),
-        DataEndpointType.LEAKAGE_DETECTORS: APIResponse(
+        DataEndpointType.LEAKAGE_DETECTOR: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
                 "Floors": [{"Rooms": [{"Devices": [leakage_detector_component]}]}],
             },
         ),
-        DataEndpointType.TEMPERATURES: APIResponse(
+        DataEndpointType.TEMPERATURE: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
@@ -207,12 +207,12 @@ async def test_async_setup_should_calculate_supported_optional_endpoints(
         DataEndpointType.PANEL_STATUS,
         DataEndpointType.LOCK_STATUS,
         DataEndpointType.SMART_PLUG_STATUS,
-        DataEndpointType.DOORS_AND_WINDOWS,
-        DataEndpointType.SMOKE_DETECTORS,
-        DataEndpointType.LEAKAGE_DETECTORS,
+        DataEndpointType.DOOR_AND_WINDOW,
+        DataEndpointType.SMOKE_DETECTOR,
+        DataEndpointType.LEAKAGE_DETECTOR,
         # DataEndpointType.CAMERAS, <---- not yet supported
         DataEndpointType.HUMIDITY,
-        DataEndpointType.TEMPERATURES,
+        DataEndpointType.TEMPERATURE,
         # DataEndpointType.LOGS, <--- disabled for now TODO repair events
     }
 
@@ -299,7 +299,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_legacy(
 
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.return_value = {
-        DataEndpointType.DOORS_AND_WINDOWS: APIResponse(
+        DataEndpointType.DOOR_AND_WINDOW: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
@@ -308,21 +308,21 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_legacy(
                 ],
             },
         ),
-        DataEndpointType.SMOKE_DETECTORS: APIResponse(
+        DataEndpointType.SMOKE_DETECTOR: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
                 "Floors": [{"Rooms": [{"Devices": [smoke_detector_component]}]}],
             },
         ),
-        DataEndpointType.LEAKAGE_DETECTORS: APIResponse(
+        DataEndpointType.LEAKAGE_DETECTOR: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
                 "Floors": [{"Rooms": [{"Devices": [leakage_detector_component]}]}],
             },
         ),
-        DataEndpointType.TEMPERATURES: APIResponse(
+        DataEndpointType.TEMPERATURE: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
@@ -366,7 +366,7 @@ async def test_async_setup_should_calculate_supported_optional_endpoints_legacy(
         DataEndpointType.PANEL_STATUS,
         DataEndpointType.LOCK_STATUS,
         DataEndpointType.SMART_PLUG_STATUS,
-        DataEndpointType.TEMPERATURES_LEGACY,
+        DataEndpointType.TEMPERATURE_LEGACY,
         # DataEndpointType.LOGS, <--- disabled for now TODO repair events
     }
 
@@ -564,7 +564,7 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
             response_is_json=True,
             response_data=[smart_plug],
         ),
-        DataEndpointType.DOORS_AND_WINDOWS: APIResponse(
+        DataEndpointType.DOOR_AND_WINDOW: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
@@ -573,21 +573,21 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
                 ],
             },
         ),
-        DataEndpointType.SMOKE_DETECTORS: APIResponse(
+        DataEndpointType.SMOKE_DETECTOR: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
                 "Floors": [{"Rooms": [{"Devices": [smoke_detector_component]}]}],
             },
         ),
-        DataEndpointType.LEAKAGE_DETECTORS: APIResponse(
+        DataEndpointType.LEAKAGE_DETECTOR: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
                 "Floors": [{"Rooms": [{"Devices": [leakage_detector_component]}]}],
             },
         ),
-        DataEndpointType.TEMPERATURES: APIResponse(
+        DataEndpointType.TEMPERATURE: APIResponse(
             response_code=200,
             response_is_json=True,
             response_data={
@@ -780,6 +780,175 @@ async def test_async_update_data_should_proccess_PanelInfo_and_HouseCheck_device
         "low_battery": humidity_component_smoke.get("LowBattery"),
         "humidity": humidity_component_smoke.get("Humidity"),
     }
+
+    # Leakage Detector
+    leakage_device = devices["LEAK_SERIAL"]
+    leakage_entities = leakage_device["entities"]
+    leakage_entity = leakage_entities["Leakage Detector"]
+
+    assert len(leakage_entities.keys()) == 3
+    assert leakage_device["name"] == leakage_detector_component["Label"]
+    assert leakage_device["serial_no"] == leakage_detector_component["SerialString"]
+    assert leakage_device["model"] == "Leakage Detector"
+
+    assert leakage_entity["name"] == leakage_detector_component["Label"]
+    assert leakage_entity["model"] == "Leakage Detector"
+    assert leakage_entity["last_updated"]
+    assert "failed_update_count" not in leakage_entity
+    assert leakage_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
+    assert leakage_entity["sensors"] == {
+        "low_battery": leakage_detector_component.get("LowBattery"),
+        "alarm": leakage_detector_component.get("Alarm"),
+    }
+
+    # Temperature Sensor
+    temperature_entity = leakage_entities["Temperature Sensor V2"]
+
+    assert temperature_entity["name"] == temperature_component_leakage["Label"]
+    assert temperature_entity["model"] == "Temperature Sensor V2"
+    assert temperature_entity["last_updated"]
+    assert "failed_update_count" not in temperature_entity
+    assert temperature_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
+    assert temperature_entity["sensors"] == {
+        "low_battery": temperature_component_leakage.get("LowBattery"),
+        "temperature": temperature_component_leakage.get("Temperature"),
+    }
+
+    # Humidity Sensor
+    humidity_entity = leakage_entities["Humidity Sensor"]
+
+    assert humidity_entity["name"] == humidity_component_leakage["Name"]
+    assert humidity_entity["model"] == "Humidity Sensor"
+    assert humidity_entity["last_updated"]
+    assert "failed_update_count" not in humidity_entity
+    assert humidity_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
+    assert humidity_entity["sensors"] == {
+        "low_battery": humidity_component_leakage.get("LowBattery"),
+        "humidity": humidity_component_leakage.get("Humidity"),
+    }
+
+
+async def test_async_update_data_should_override_device_if_endpoint_is_device(
+    hass: HomeAssistant,
+):
+    # Prepare
+    panel_status: PanelStatus = {
+        "Status": 1,
+        "IsOnline": True,
+    }
+    panel_info: PanelInfo = {
+        "PanelId": "1234",
+        "PanelCodeLength": 6,
+        "QuickArmEnabled": True,
+        "CanPartialArm": False,
+        "Locks": [],
+        "Smartplugs": [],
+        "Temperatures": [],
+        "Capabilities": [],
+    }
+
+    leakage_detector_component: Device = {
+        "SerialString": "LEAK_SERIAL",
+        "Label": "Bathroom leak detector",
+        "Name": "Bathroom leak Sensor",
+        "Type": "Leakage Detectors",
+        "Alarm": False,
+        "LowBattery": False,
+        "Closed": None,
+    }
+    temperature_component_leakage: Component = {
+        "SerialNo": "LEAK_SERIAL",
+        "Label": "Bathroom Temperature",
+        "Name": "Bathroom Temperature",
+        "Type": "Temperatures",
+        "Temperature": 19.5,
+        "Humidity": None,
+        "LowBattery": False,
+    }
+    humidity_component_leakage: Component = {
+        "SerialNo": "LEAK_SERIAL",
+        "Label": "Bathroom Humidity",
+        "Name": "Bathroom Humidity",
+        "Type": "Humidity",
+        "Humidity": 34.0,
+        "Temperature": None,
+        "LowBattery": False,
+    }
+
+    # Intentionally retrun non devices results first, so that they are proccessed first
+    mock_api = AsyncMock()
+    mock_api.retrieve_all_data.return_value = {
+        DataEndpointType.PANEL_STATUS: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data=panel_status,
+        ),
+        DataEndpointType.TEMPERATURE: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={
+                "Sections": [
+                    {
+                        "Places": [
+                            {
+                                "Components": [
+                                    temperature_component_leakage,
+                                ]
+                            }
+                        ]
+                    }
+                ],
+            },
+        ),
+        DataEndpointType.HUMIDITY: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={
+                "Sections": [
+                    {
+                        "Places": [
+                            {
+                                "Components": [
+                                    humidity_component_leakage,
+                                ]
+                            }
+                        ]
+                    }
+                ],
+            },
+        ),
+        DataEndpointType.LEAKAGE_DETECTOR: APIResponse(
+            response_code=200,
+            response_is_json=True,
+            response_data={
+                "Floors": [{"Rooms": [{"Devices": [leakage_detector_component]}]}],
+            },
+        ),
+    }
+
+    mock_panel_info_coordinator = _create_mock_sector_panel_info(panel_info)
+    mock_entity = _create_mock_config_entity()
+    mock_entity.add_to_hass(hass)
+
+    device_registry = DeviceRegistry()
+    device_coordinator = SectorDeviceDataUpdateCoordinator(
+        hass=hass,
+        entry=mock_entity,
+        sector_api=mock_api,
+        panel_info_coordinator=mock_panel_info_coordinator,
+        device_registry=device_registry,
+        coordinator_name=_DEVICE_COORDINATOR_NAME,
+        optional_endpoints=_OPTIONAL_ENDPOINTS,
+        mandatory_endpoints=_MANDATORY_ENDPOINTS,
+    )
+
+    # Act
+    coordinator_data = await device_coordinator._async_update_data()
+
+    # Assert
+    assert "device_registry" in coordinator_data
+    device_registry: DeviceRegistry = coordinator_data["device_registry"]
+    devices: dict[str, Any] = device_registry.fetch_devices()
 
     # Leakage Detector
     leakage_device = devices["LEAK_SERIAL"]

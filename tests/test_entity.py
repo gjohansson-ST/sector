@@ -19,13 +19,13 @@ _MANDATORY_ENDPOINTS = {DataEndpointType.PANEL_STATUS}
 _OPTIONAL_ENDPOINTS = {
     DataEndpointType.LOCK_STATUS,
     DataEndpointType.SMART_PLUG_STATUS,
-    DataEndpointType.DOORS_AND_WINDOWS,
-    DataEndpointType.SMOKE_DETECTORS,
-    DataEndpointType.LEAKAGE_DETECTORS,
+    DataEndpointType.DOOR_AND_WINDOW,
+    DataEndpointType.SMOKE_DETECTOR,
+    DataEndpointType.LEAKAGE_DETECTOR,
     DataEndpointType.CAMERAS,
     DataEndpointType.HUMIDITY,
-    DataEndpointType.TEMPERATURES,
-    DataEndpointType.TEMPERATURES_LEGACY,
+    DataEndpointType.TEMPERATURE,
+    DataEndpointType.TEMPERATURE_LEGACY,
 }
 
 

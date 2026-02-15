@@ -172,7 +172,6 @@ class SectorPanelInfoDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
 
 
 class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
-
     def __init__(
         self,
         hass: HomeAssistant,
@@ -228,7 +227,7 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
             if plugs.__len__() == 0:
                 discard_list.append(DataEndpointType.SMART_PLUG_STATUS)
             if not is_legacy or temperatures_legacy.__len__() == 0:
-                discard_list.append(DataEndpointType.TEMPERATURES_LEGACY)
+                discard_list.append(DataEndpointType.TEMPERATURE_LEGACY)
 
             # Legacy do not support HouseCheck devices
             if is_legacy:
@@ -413,7 +412,7 @@ class _DeviceProcessor:
                 self.process_smart_plugs(
                     endpoint_type, response_data, proccess_time, devices
                 )
-            elif endpoint_type == DataEndpointType.TEMPERATURES_LEGACY:
+            elif endpoint_type == DataEndpointType.TEMPERATURE_LEGACY:
                 self.process_legacy_temperatures(
                     endpoint_type, response_data, proccess_time, devices
                 )
@@ -487,11 +486,15 @@ class _DeviceProcessor:
 
             existing_device = devices.get(serial_no)
             if not existing_device or endpoint_type._is_device:
+                existing_entities = (
+                    existing_device["entities"] if existing_device else {}
+                )
+                existing_entities[endpoint_type.value] = entity
                 devices[serial_no] = {
                     "name": temp.get("Label"),
                     "serial_no": serial_no,
                     "model": f"{endpoint_type.value}",
-                    "entities": {endpoint_type.value: entity},
+                    "entities": existing_entities,
                 }
             else:
                 existing_device["entities"][endpoint_type.value] = entity
@@ -528,11 +531,15 @@ class _DeviceProcessor:
 
             existing_device = devices.get(serial_no)
             if not existing_device or endpoint_type._is_device:
+                existing_entities = (
+                    existing_device["entities"] if existing_device else {}
+                )
+                existing_entities[endpoint_type.value] = entity
                 devices[serial_no] = {
                     "name": smart_plug.get("Label"),
                     "serial_no": serial_no,
                     "model": f"{endpoint_type.value}",
-                    "entities": {endpoint_type.value: entity},
+                    "entities": existing_entities,
                 }
             else:
                 existing_device["entities"][endpoint_type.value] = entity
@@ -572,11 +579,15 @@ class _DeviceProcessor:
 
             existing_device = devices.get(serial_no)
             if not existing_device or endpoint_type._is_device:
+                existing_entities = (
+                    existing_device["entities"] if existing_device else {}
+                )
+                existing_entities[endpoint_type.value] = entity
                 devices[serial_no] = {
                     "name": name,
                     "serial_no": serial_no,
                     "model": f"{endpoint_type.value}",
-                    "entities": {endpoint_type.value: entity},
+                    "entities": existing_entities,
                 }
             else:
                 existing_device["entities"][endpoint_type.value] = entity
@@ -676,11 +687,15 @@ class _DeviceProcessor:
         # Initialize or update device entry with sensors
         existing_device = devices.get(serial_no)
         if not existing_device or endpoint_type._is_device:
+            existing_entities = (
+                existing_device["entities"] if existing_device else {}
+            )
+            existing_entities[endpoint_type.value] = entity
             devices[serial_no] = {
                 "name": device_data.get("Label") or device_data.get("Name"),
                 "serial_no": serial_no,
                 "model": f"{endpoint_type.value}",
-                "entities": {endpoint_type.value: entity},
+                "entities": existing_entities,
             }
         else:
             existing_device["entities"][endpoint_type.value] = entity
