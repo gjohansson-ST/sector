@@ -722,7 +722,7 @@ class _DeviceProcessor:
         device_data: dict[Any, Any],
     ) -> dict[str, Any] | None:
         if not endpoint_type.is_device and endpoint_type.is_house_check_endpoint:
-            type: str = device_data.get("Type", {})
+            type: str = device_data.get("Type", "")
             if type.upper() == "KEYPAD":
                 return {
                     "name": device_data.get("Label") or device_data.get("Name"),
