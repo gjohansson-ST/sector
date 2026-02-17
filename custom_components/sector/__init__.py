@@ -41,6 +41,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     )
 
     device_registry = DeviceRegistry()
+    alarm_panel_device_coordinator = SectorDeviceDataUpdateCoordinator(
+        hass=hass,
+        entry=entry,
+        sector_api=sector_api,
+        panel_info_coordinator=panel_info_coordinator,
+        device_registry=device_registry,
+        coordinator_name="SectorAlarmPanelDeviceDataUpdateCoordinator",
+        mandatory_endpoints={DataEndpointType.PANEL_STATUS},
+        update_interval=timedelta(seconds=60),
+    )
+    smart_plug_device_coordinator = SectorDeviceDataUpdateCoordinator(
+        hass=hass,
+        entry=entry,
+        sector_api=sector_api,
+        panel_info_coordinator=panel_info_coordinator,
+        device_registry=device_registry,
+        coordinator_name="SectorSmartPlugDeviceDataUpdateCoordinator",
+        optional_endpoints={DataEndpointType.SMART_PLUG_STATUS},
+        update_interval=timedelta(seconds=60),
+    )
     action_device_coordinator = SectorDeviceDataUpdateCoordinator(
         hass=hass,
         entry=entry,
@@ -49,14 +69,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         device_registry=device_registry,
         coordinator_name="SectorActionDeviceDataUpdateCoordinator",
         optional_endpoints={
-            DataEndpointType.LOCK_STATUS,
-            DataEndpointType.SMART_PLUG_STATUS,
             DataEndpointType.DOOR_AND_WINDOW,
             DataEndpointType.SMOKE_DETECTOR,
             DataEndpointType.LEAKAGE_DETECTOR,
             # DataEndpointType.CAMERAS, <-- broken, do not enable
         },
-        mandatory_endpoints={DataEndpointType.PANEL_STATUS},
         update_interval=timedelta(seconds=60),
     )
     sensor_device_coordinators = SectorDeviceDataUpdateCoordinator(
@@ -75,11 +92,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     )
 
     await panel_info_coordinator.async_config_entry_first_refresh()
+    await alarm_panel_device_coordinator.async_config_entry_first_refresh()
+    await smart_plug_device_coordinator.async_config_entry_first_refresh()
     await action_device_coordinator.async_config_entry_first_refresh()
     await sensor_device_coordinators.async_config_entry_first_refresh()
 
     entry.runtime_data = {
         RUNTIME_DATA.DEVICE_COORDINATORS: [
+            alarm_panel_device_coordinator,
+            smart_plug_device_coordinator,
             action_device_coordinator,
             sensor_device_coordinators,
         ],

@@ -184,7 +184,7 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
         panel_info_coordinator: SectorPanelInfoDataUpdateCoordinator,
         device_registry: DeviceRegistry,
         coordinator_name: str,
-        optional_endpoints: set[DataEndpointType],
+        optional_endpoints: set[DataEndpointType] = set(),
         mandatory_endpoints: set[DataEndpointType] = set(),
         update_interval: timedelta = timedelta(seconds=60),
     ) -> None:
