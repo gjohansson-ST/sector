@@ -127,9 +127,9 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/Panel/GetTemperatures?panelId={{panelId}}",
     ),
     DataEndpoint(
-        type=DataEndpointType.TEMPERATURE,  # Seems not be used by Sector App
+        type=DataEndpointType.DOOR_AND_WINDOW,
         method="POST",
-        uri=f"{API_URL}/api/housecheck/temperatures",
+        uri=f"{API_URL}/api/housecheck/doorsandwindows",
     ),
     DataEndpoint(
         type=DataEndpointType.HUMIDITY,
@@ -137,9 +137,9 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/housecheck/panels/{{panelId}}/humidity",
     ),
     DataEndpoint(
-        type=DataEndpointType.DOOR_AND_WINDOW,
+        type=DataEndpointType.TEMPERATURE,  # Seems not be used by Sector App
         method="POST",
-        uri=f"{API_URL}/api/housecheck/doorsandwindows",
+        uri=f"{API_URL}/api/v2/housecheck/temperatures",
     ),
     DataEndpoint(
         type=DataEndpointType.LEAKAGE_DETECTOR,  # Seems not be used by Sector App
