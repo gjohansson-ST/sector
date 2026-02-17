@@ -52,8 +52,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
             DataEndpointType.LOCK_STATUS,
             DataEndpointType.SMART_PLUG_STATUS,
             DataEndpointType.DOOR_AND_WINDOW,
-            # DataEndpointType.SMOKE_DETECTOR,
-            # DataEndpointType.LEAKAGE_DETECTOR,
+            DataEndpointType.SMOKE_DETECTOR,
+            DataEndpointType.LEAKAGE_DETECTOR,
             # DataEndpointType.CAMERAS, <-- broken, do not enable
         },
         mandatory_endpoints={DataEndpointType.PANEL_STATUS},

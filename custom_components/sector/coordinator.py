@@ -1,6 +1,7 @@
 """Sector Alarm coordinator."""
 
 import logging
+import copy
 from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -53,28 +54,31 @@ class DeviceRegistry:
 
     def register_device(self, device: dict[str, Any]):
         serial_no = device["serial_no"]
-        self._devices = {
-            **self._devices,
-            serial_no: device.copy(),
-        }
+        new_entities = (
+            self._devices.get(serial_no, {}).get("entities", {})
+        ) | device.get("entities", {})
+        new_device = copy.deepcopy(device)
+        new_device["entities"] = new_entities
+        self._devices[serial_no] = new_device
 
     def fetch_device(self, serial: str) -> dict[str, Any]:
         device = self._devices.get(serial)
-        return device.copy() if device else {}
+        return copy.deepcopy(device) if device else {}
 
     def fetch_devices(self) -> dict[str, Any]:
-        return self._devices.copy()
+        return copy.deepcopy(self._devices)
 
     def fetch_devices_by_coordinator(self, coordinator_name: str) -> dict[str, Any]:
-        devices: dict[str, Any] = self._devices.copy()
-        devices_by_coordinator: dict[str, Any] = {}
+        devices: dict[str, Any] = copy.deepcopy(self._devices)
 
-        for serial_no, device in devices.items():
-            for entity in device.get("entities", {}).values():
+        for device in devices.values():
+            coordinator_entities = {}
+            for entity_model, entity in device.get("entities", {}).items():
                 if coordinator_name == entity.get("coordinator_name"):
-                    devices_by_coordinator[serial_no] = device
+                    coordinator_entities[entity_model] = entity
+            device["entities"] = coordinator_entities
 
-        return devices_by_coordinator
+        return devices
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DeviceRegistry):
@@ -197,8 +201,8 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
         self._event_logs: dict[str, Any] = {}
         self._optional_endpoints = optional_endpoints.copy()
         self._mandatory_endpoints = mandatory_endpoints.copy()
-        self._device_proccessor = _DeviceProcessor(self._hass, self.panel_id, self.name)
         self._device_registry = device_registry
+        self._device_proccessor = _DeviceProcessor(self._hass, self.panel_id, self.name)
 
     @callback
     def _handle_parent_update(self):
@@ -261,16 +265,19 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
 
             for unsupported in discard_list:
                 self._optional_endpoints.discard(unsupported)
+                api_data.pop(unsupported, None)
 
             self._data_endpoints = self._mandatory_endpoints | self._optional_endpoints
             _LOGGER.debug("Supported endpoint types: %s", self._data_endpoints)
 
             # Process devices
-            devices = self._device_proccessor.process_devices(panel_info, api_data, {})
+            devices = self._device_proccessor.process_devices(
+                panel_info, api_data, self._device_registry.fetch_devices()
+            )
             for device in devices.values():
                 self._device_registry.register_device(device)
-            self.data = {"device_registry": self._device_registry, "logs": {}}
 
+            self.data = {"device_registry": self._device_registry, "logs": {}}
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
@@ -354,7 +361,10 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
 
 class _DeviceProcessor:
     def __init__(
-        self, hass: HomeAssistant, panel_id: str, coordinator_name: str
+        self,
+        hass: HomeAssistant,
+        panel_id: str,
+        coordinator_name: str,
     ) -> None:
         self._hass = hass
         self._panel_id = panel_id
@@ -696,6 +706,7 @@ class _DeviceProcessor:
             if not existing_device
             else existing_device
         )
+
         if not existing_device or endpoint_type._is_device:
             existing_entities = existing_device["entities"] if existing_device else {}
             existing_entities[endpoint_type.value] = entity
@@ -721,15 +732,27 @@ class _DeviceProcessor:
         serial_no: str,
         device_data: dict[Any, Any],
     ) -> dict[str, Any] | None:
-        if not endpoint_type.is_device and endpoint_type.is_house_check_endpoint:
-            type: str = device_data.get("Type", "")
-            if type.upper() == "KEYPAD":
-                return {
-                    "name": device_data.get("Label") or device_data.get("Name"),
-                    "serial_no": serial_no,
-                    "model": "Keypad",
-                    "entities": {},
-                }
+        if endpoint_type.is_device:
+            return None
+
+        type: str = device_data.get("Type", "")
+        if type.upper() == "KEYPAD":
+            return {
+                "name": device_data.get("Label") or device_data.get("Name"),
+                "serial_no": serial_no,
+                "model": "Keypad",
+                "entities": {},
+            }
+        elif (
+            endpoint_type == DataEndpointType.HUMIDITY
+            or endpoint_type == DataEndpointType.TEMPERATURE
+        ):
+            return {
+                "name": device_data.get("Label") or device_data.get("Name"),
+                "serial_no": serial_no,
+                "model": "Climate",
+                "entities": {},
+            }
         return None
 
     async def process_event_logs(

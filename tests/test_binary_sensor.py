@@ -13,7 +13,9 @@ from custom_components.sector.binary_sensor import (
 from custom_components.sector.const import RUNTIME_DATA
 from custom_components.sector.coordinator import DeviceRegistry
 
-_DEVICE_COORDINATOR_NAME = "device-coordinator"
+_DEVICE_COORDINATOR_NAME_A = "device-coordinator-a"
+_DEVICE_COORDINATOR_NAME_B = "device-coordinator-b"
+
 
 @pytest.fixture
 def coordinator():
@@ -27,7 +29,7 @@ def coordinator():
             "entities": {
                 "Door/Window Sensor": {
                     "model": "Door/Window Sensor",
-                    "coordinator_name": _DEVICE_COORDINATOR_NAME,
+                    "coordinator_name": _DEVICE_COORDINATOR_NAME_A,
                     "sensors": {
                         "closed": True,
                         "low_battery": False,
@@ -44,7 +46,7 @@ def coordinator():
             "entities": {
                 "Alarm Panel": {
                     "model": "Alarm Panel",
-                    "coordinator_name": _DEVICE_COORDINATOR_NAME,
+                    "coordinator_name": _DEVICE_COORDINATOR_NAME_A,
                     "sensors": {
                         "online": True,
                     },
@@ -53,7 +55,7 @@ def coordinator():
         }
     )
     coordinator.data = {"device_registry": device_registry}
-    coordinator.name = _DEVICE_COORDINATOR_NAME
+    coordinator.name = _DEVICE_COORDINATOR_NAME_A
     return coordinator
 
 
@@ -156,12 +158,83 @@ def test_panel_online_sensor(coordinator):
     assert entity.is_on is True
 
 
+async def test_async_setup_should_not_generate_duplicates(hass: HomeAssistant):
+    # Prepare
+    coordinator_A = Mock(spec=DataUpdateCoordinator)
+    coordinator_B = Mock(spec=DataUpdateCoordinator)
+    device_registry = DeviceRegistry()
+    device_registry.register_device(
+        {
+            "serial_no": "SERIAL_500",
+            "name": "Duplicated sensor, keep the device sensor (Smoke Detector)",
+            "model": "Smoke Detector",
+            "entities": {
+                "Temperature Sensor": {
+                    "model": "Temperature Sensor",
+                    "coordinator_name": _DEVICE_COORDINATOR_NAME_A,
+                    "sensors": {
+                        "temperature": "25",
+                        "low_battery": False,
+                    },
+                },
+                "Humidity Sensor": {
+                    "model": "Temperature Sensor",
+                    "coordinator_name": _DEVICE_COORDINATOR_NAME_A,
+                    "sensors": {
+                        "temperature": "25",
+                        "low_battery": False,
+                    },
+                },
+                "Smoke Detector": {
+                    "model": "Smoke Detector",
+                    "coordinator_name": _DEVICE_COORDINATOR_NAME_B,
+                    "sensors": {
+                        "alarm": False,
+                        "low_battery": False,
+                    },
+                },
+            },
+        }
+    )
+
+    coordinator_A.data = {"device_registry": device_registry}
+    coordinator_B.data = {"device_registry": device_registry}
+    coordinator_A.name = _DEVICE_COORDINATOR_NAME_A
+    coordinator_B.name = _DEVICE_COORDINATOR_NAME_B
+
+    entry = Mock()
+    entry.runtime_data = {
+        RUNTIME_DATA.DEVICE_COORDINATORS: [coordinator_A, coordinator_B],
+    }
+
+    entities = []
+
+    def async_add_entities(new_entities, update_before_add=False):
+        entities.extend(new_entities)
+
+    # Act
+    await async_setup_entry(hass, entry, async_add_entities)
+
+    # Assert
+    assert len(entities) == 2
+
+    assert all(isinstance(e, SectorAlarmBinarySensor) for e in entities)
+
+    for e in entities:
+        if e.entity_description.key == "low_battery":
+            assert e._attr_unique_id == "SERIAL_500_low_battery"
+            assert e._entity_model == "Smoke Detector"
+        if e.entity_description.key == "alarm":
+            assert e._attr_unique_id == "SERIAL_500_alarm"
+            assert e._entity_model == "Smoke Detector"
+
+
 async def test_async_setup_entry_no_entities(hass: HomeAssistant):
     # Prepare
     device_registry = DeviceRegistry()
     coordinator = Mock(spec=DataUpdateCoordinator)
     coordinator.data = {"device_registry": device_registry}
-    coordinator.name = _DEVICE_COORDINATOR_NAME
+    coordinator.name = _DEVICE_COORDINATOR_NAME_A
 
     entry = Mock()
     entry.runtime_data = {RUNTIME_DATA.DEVICE_COORDINATORS: [coordinator]}

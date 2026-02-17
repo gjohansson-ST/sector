@@ -1001,10 +1001,6 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
     hass: HomeAssistant,
 ):
     # Prepare
-    panel_status: PanelStatus = {
-        "Status": 1,
-        "IsOnline": True,
-    }
     panel_info: PanelInfo = {
         "PanelId": "1234",
         "PanelCodeLength": 6,
@@ -1016,6 +1012,15 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
         "Capabilities": [],
     }
 
+    temperature_component_climate: Component = {
+        "SerialNo": "CLIMATE_SERIAL",
+        "Label": "Entrance Temperature",
+        "Name": "Entrance Temperature",
+        "Type": "",
+        "Temperature": 19.5,
+        "Humidity": None,
+        "LowBattery": False,
+    }
     temperature_component_keypad: Component = {
         "SerialNo": "KEY_PAD_SERIAL",
         "Label": "Bathroom Temperature",
@@ -1037,11 +1042,6 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
 
     mock_api = AsyncMock()
     mock_api.retrieve_all_data.return_value = {
-        DataEndpointType.PANEL_STATUS: APIResponse(
-            response_code=200,
-            response_is_json=True,
-            response_data=panel_status,
-        ),
         DataEndpointType.TEMPERATURE: APIResponse(
             response_code=200,
             response_is_json=True,
@@ -1052,6 +1052,7 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
                             {
                                 "Components": [
                                     temperature_component_keypad,
+                                    temperature_component_climate,
                                 ]
                             }
                         ]
@@ -1102,7 +1103,27 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
     device_registry: DeviceRegistry = coordinator_data["device_registry"]
     devices: dict[str, Any] = device_registry.fetch_devices()
 
-    # Leakage Detector
+    # Climate
+    climate_device = devices["CLIMATE_SERIAL"]
+    climate_entities = climate_device["entities"]
+    climate_entity = climate_entities["Temperature Sensor V2"]
+
+    assert len(climate_entities.keys()) == 1
+    assert climate_device["name"] == temperature_component_climate["Label"]
+    assert climate_device["serial_no"] == temperature_component_climate["SerialNo"]
+    assert climate_device["model"] == "Climate"
+
+    # Climate Temperature Sensor
+    assert climate_entity["name"] == temperature_component_climate["Label"]
+    assert climate_entity["model"] == "Temperature Sensor V2"
+    assert climate_entity["last_updated"]
+    assert climate_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
+    assert climate_entity["sensors"] == {
+        "low_battery": temperature_component_climate.get("LowBattery"),
+        "temperature": temperature_component_climate.get("Temperature"),
+    }
+
+    # Keypad
     keypad_device = devices["KEY_PAD_SERIAL"]
     keypad_entities = keypad_device["entities"]
     temperature_entity = keypad_entities["Temperature Sensor V2"]
@@ -1113,26 +1134,20 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
     assert keypad_device["serial_no"] == temperature_component_keypad["SerialNo"]
     assert keypad_device["model"] == "Keypad"
 
-    # Temperature Sensor
-    temperature_entity = keypad_entities["Temperature Sensor V2"]
-
+    # Keypad Temperature Sensor
     assert temperature_entity["name"] == temperature_component_keypad["Label"]
     assert temperature_entity["model"] == "Temperature Sensor V2"
     assert temperature_entity["last_updated"]
-    assert "failed_update_count" not in temperature_entity
     assert temperature_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
     assert temperature_entity["sensors"] == {
         "low_battery": temperature_component_keypad.get("LowBattery"),
         "temperature": temperature_component_keypad.get("Temperature"),
     }
 
-    # Humidity Sensor
-    humidity_entity = keypad_entities["Humidity Sensor"]
-
+    # Keypad Humidity Sensor
     assert humidity_entity["name"] == humidity_component_keypad["Name"]
     assert humidity_entity["model"] == "Humidity Sensor"
     assert humidity_entity["last_updated"]
-    assert "failed_update_count" not in humidity_entity
     assert humidity_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
     assert humidity_entity["sensors"] == {
         "low_battery": humidity_component_keypad.get("LowBattery"),

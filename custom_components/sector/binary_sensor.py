@@ -13,10 +13,13 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-
 from custom_components.sector.const import RUNTIME_DATA
 
-from .coordinator import DeviceRegistry, SectorAlarmConfigEntry, SectorDeviceDataUpdateCoordinator
+from .coordinator import (
+    DeviceRegistry,
+    SectorAlarmConfigEntry,
+    SectorDeviceDataUpdateCoordinator,
+)
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,23 +63,37 @@ async def async_setup_entry(
     coordinators: list[SectorDeviceDataUpdateCoordinator] = entry.runtime_data[
         RUNTIME_DATA.DEVICE_COORDINATORS
     ]
-    for coordinator in coordinators:
-        _proccess_coordinator(coordinator, async_add_entities)
-
-
-def _proccess_coordinator(
-    coordinator: DataUpdateCoordinator, async_add_entities: AddEntitiesCallback
-):
-    device_registry: DeviceRegistry = coordinator.data.get(
-        "device_registry", DeviceRegistry()
-    )
-    devices: dict[str, Any] = device_registry.fetch_devices_by_coordinator(coordinator.name)
     entities: list[
         SectorAlarmBinarySensor
         | SectorAlarmPanelOnlineBinarySensor
         | SectorAlarmClosedSensor
     ] = []
 
+    for coordinator in coordinators:
+        _proccess_coordinator(coordinator, entities)
+
+    if entities:
+        async_add_entities(entities)
+    else:
+        _LOGGER.debug(
+            f"No binary sensor entities to add for '{coordinator.__class__.__name__}'"
+        )
+
+
+def _proccess_coordinator(
+    coordinator: DataUpdateCoordinator,
+    entities: list[
+        SectorAlarmBinarySensor
+        | SectorAlarmPanelOnlineBinarySensor
+        | SectorAlarmClosedSensor
+    ],
+):
+    device_registry: DeviceRegistry = coordinator.data.get(
+        "device_registry", DeviceRegistry()
+    )
+    devices: dict[str, Any] = device_registry.fetch_devices_by_coordinator(
+        coordinator.name
+    )
     for serial_no, device in devices.items():
         device_name: str = device["name"]
         device_model = device["model"]
@@ -88,7 +105,7 @@ def _proccess_coordinator(
                     continue
 
                 if description.key == "online":
-                    entities.append(
+                    _add_if_unique(
                         SectorAlarmPanelOnlineBinarySensor(
                             coordinator,
                             serial_no,
@@ -96,14 +113,14 @@ def _proccess_coordinator(
                             device_name,
                             device_model,
                             entity_model,
-                        )
+                        ),
+                        entities,
                     )
                     _LOGGER.debug(
                         "Added %s sensor for device %s", description.name, serial_no
                     )
-
                 elif description.key == "closed":
-                    entities.append(
+                    _add_if_unique(
                         SectorAlarmClosedSensor(
                             coordinator,
                             serial_no,
@@ -111,14 +128,14 @@ def _proccess_coordinator(
                             device_name,
                             device_model,
                             entity_model,
-                        )
+                        ),
+                        entities,
                     )
                     _LOGGER.debug(
                         "Added %s sensor for device %s", description.name, serial_no
                     )
-
                 else:
-                    entities.append(
+                    _add_if_unique(
                         SectorAlarmBinarySensor(
                             coordinator,
                             serial_no,
@@ -126,18 +143,30 @@ def _proccess_coordinator(
                             device_name,
                             device_model,
                             entity_model,
-                        )
+                        ),
+                        entities,
                     )
                     _LOGGER.debug(
                         "Added %s sensor for device %s", description.name, serial_no
                     )
 
-    if entities:
-        async_add_entities(entities)
-    else:
-        _LOGGER.debug(
-            f"No binary sensor entities to add for '{coordinator.__class__.__name__}'"
-        )
+
+def _add_if_unique(entity, entities):
+    for i, existing in enumerate(entities):
+        if (
+            existing._serial_no == entity._serial_no
+            and existing._attr_unique_id == entity._attr_unique_id
+        ):
+            # Always keep real device value
+            if existing._device_model == existing._entity_model:
+                return
+
+            if entity._device_model == entity._entity_model:
+                entities[i] = entity
+            return
+
+    # No duplicate found
+    entities.append(entity)
 
 
 class SectorAlarmBinarySensor(SectorAlarmBaseEntity, BinarySensorEntity):
