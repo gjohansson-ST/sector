@@ -51,6 +51,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         mandatory_endpoints={DataEndpointType.PANEL_STATUS},
         update_interval=timedelta(seconds=60),
     )
+    door_lock_device_coordinator = SectorDeviceDataUpdateCoordinator(
+        hass=hass,
+        entry=entry,
+        sector_api=sector_api,
+        panel_info_coordinator=panel_info_coordinator,
+        device_registry=device_registry,
+        coordinator_name="SectorDoorLockDeviceDataUpdateCoordinator",
+        optional_endpoints={DataEndpointType.LOCK_STATUS},
+        update_interval=timedelta(seconds=60),
+    )
     smart_plug_device_coordinator = SectorDeviceDataUpdateCoordinator(
         hass=hass,
         entry=entry,
@@ -93,6 +103,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
 
     await panel_info_coordinator.async_config_entry_first_refresh()
     await alarm_panel_device_coordinator.async_config_entry_first_refresh()
+    await door_lock_device_coordinator.async_config_entry_first_refresh()
     await smart_plug_device_coordinator.async_config_entry_first_refresh()
     await action_device_coordinator.async_config_entry_first_refresh()
     await sensor_device_coordinators.async_config_entry_first_refresh()
@@ -100,6 +111,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     entry.runtime_data = {
         RUNTIME_DATA.DEVICE_COORDINATORS: [
             alarm_panel_device_coordinator,
+            door_lock_device_coordinator,
             smart_plug_device_coordinator,
             action_device_coordinator,
             sensor_device_coordinators,
