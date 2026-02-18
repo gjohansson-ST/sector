@@ -735,25 +735,30 @@ class _DeviceProcessor:
         if endpoint_type.is_device:
             return None
 
+        device: dict[str, Any] = {
+            "name": device_data.get("Label") or device_data.get("Name"),
+            "serial_no": serial_no,
+            "entities": {},
+        }
         type: str = device_data.get("Type", "")
         if type.upper() == "KEYPAD":
-            return {
-                "name": device_data.get("Label") or device_data.get("Name"),
-                "serial_no": serial_no,
-                "model": "Keypad",
-                "entities": {},
-            }
+            device["model"] = "Keypad"
+            return device
+        elif type.upper() == "SMARTSIREN":
+            device["model"] = "Siren"
+            return device
+        elif type.upper() == "CAMERAPIR":
+            device["model"] = "Camera"
+            return device
         elif (
             endpoint_type == DataEndpointType.HUMIDITY
             or endpoint_type == DataEndpointType.TEMPERATURE
+            or endpoint_type == DataEndpointType.TEMPERATURE_LEGACY
         ):
-            return {
-                "name": device_data.get("Label") or device_data.get("Name"),
-                "serial_no": serial_no,
-                "model": "Climate",
-                "entities": {},
-            }
-        return None
+            device["model"] = "Climate"
+            return device
+        else:
+            return None
 
     async def process_event_logs(
         self,

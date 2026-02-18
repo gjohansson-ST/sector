@@ -1017,7 +1017,25 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
         "Label": "Entrance Temperature",
         "Name": "Entrance Temperature",
         "Type": "",
-        "Temperature": 19.5,
+        "Temperature": 19,
+        "Humidity": None,
+        "LowBattery": False,
+    }
+    temperature_component_siren: Component = {
+        "SerialNo": "SIREN_SERIAL",
+        "Label": "Entrance Temperature",
+        "Name": "Entrance Temperature",
+        "Type": "SmartSiren",
+        "Temperature": 19,
+        "Humidity": None,
+        "LowBattery": False,
+    }
+    temperature_component_camera: Component = {
+        "SerialNo": "CAMERA_SERIAL",
+        "Label": "Entrance Temperature",
+        "Name": "Entrance Temperature",
+        "Type": "CameraPir",
+        "Temperature": 20,
         "Humidity": None,
         "LowBattery": False,
     }
@@ -1026,7 +1044,7 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
         "Label": "Bathroom Temperature",
         "Name": "Bathroom Temperature",
         "Type": "KeyPad",
-        "Temperature": 19.5,
+        "Temperature": 21,
         "Humidity": None,
         "LowBattery": False,
     }
@@ -1051,8 +1069,10 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
                         "Places": [
                             {
                                 "Components": [
-                                    temperature_component_keypad,
+                                    temperature_component_siren,
+                                    temperature_component_camera,
                                     temperature_component_climate,
+                                    temperature_component_keypad,
                                 ]
                             }
                         ]
@@ -1102,6 +1122,41 @@ async def test_async_update_data_should_create_synthetic_device_when_applicable(
     assert "device_registry" in coordinator_data
     device_registry: DeviceRegistry = coordinator_data["device_registry"]
     devices: dict[str, Any] = device_registry.fetch_devices()
+
+    # Camera
+    camera_device = devices["CAMERA_SERIAL"]
+    camera_entities = camera_device["entities"]
+    camera_entity = camera_entities["Temperature Sensor V2"]
+
+    # Camera Temperature Sensor
+    assert camera_entity["name"] == temperature_component_camera["Label"]
+    assert camera_entity["model"] == "Temperature Sensor V2"
+    assert camera_entity["last_updated"]
+    assert camera_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
+    assert camera_entity["sensors"] == {
+        "low_battery": temperature_component_camera.get("LowBattery"),
+        "temperature": temperature_component_camera.get("Temperature"),
+    }
+
+    # Siren
+    siren_device = devices["SIREN_SERIAL"]
+    siren_entities = siren_device["entities"]
+    siren_entity = siren_entities["Temperature Sensor V2"]
+
+    assert len(siren_entities.keys()) == 1
+    assert siren_device["name"] == temperature_component_siren["Label"]
+    assert siren_device["serial_no"] == temperature_component_siren["SerialNo"]
+    assert siren_device["model"] == "Siren"
+
+    # Siren Temperature Sensor
+    assert siren_entity["name"] == temperature_component_siren["Label"]
+    assert siren_entity["model"] == "Temperature Sensor V2"
+    assert siren_entity["last_updated"]
+    assert siren_entity["coordinator_name"] == _DEVICE_COORDINATOR_NAME
+    assert siren_entity["sensors"] == {
+        "low_battery": temperature_component_siren.get("LowBattery"),
+        "temperature": temperature_component_siren.get("Temperature"),
+    }
 
     # Climate
     climate_device = devices["CLIMATE_SERIAL"]
