@@ -6,17 +6,37 @@ API_URL = "https://mypagesapi.sectoralarm.net"
 
 
 class DataEndpointType(Enum):
-    LOGS = "Logs"
-    PANEL_STATUS = "Sector Alarm Control Panel"
-    SMART_PLUG_STATUS = "Smart Plug"
-    LOCK_STATUS = "Smart Lock"
-    HUMIDITY = "Humidity Sensor"
-    DOORS_AND_WINDOWS = "Door/Window Sensor"
-    LEAKAGE_DETECTORS = "Leakage Detector"
-    SMOKE_DETECTORS = "Smoke Detector"
-    CAMERAS = "Camera"
-    TEMPERATURES = "Temperature Sensor V2"
-    TEMPERATURES_LEGACY = "Temperature Sensor"
+    LOGS = "Logs", True, False
+    PANEL_STATUS = "Alarm panel", True, False
+    SMART_PLUG_STATUS = "Smart Plug", True, False
+    LOCK_STATUS = "Smart Lock", True, False
+    DOOR_AND_WINDOW = "Door/Window Sensor", True, True
+    LEAKAGE_DETECTOR = "Leakage Detector", True, True
+    SMOKE_DETECTOR = "Smoke Detector", True, True
+    CAMERAS = "Camera", True, True
+    HUMIDITY = "Humidity Sensor", False, True
+    TEMPERATURE = "Temperature Sensor V2", False, True
+    TEMPERATURE_LEGACY = "Temperature Sensor", False, False
+
+    def __new__(cls, *args, **kwds):
+        obj = object.__new__(cls)
+        obj._value_ = args[0]
+        return obj
+
+    def __init__(self, _: str, is_device: bool, is_house_check_endpoint: bool):
+        self._is_device = is_device
+        self._is_house_check_endpoint = is_house_check_endpoint
+
+    def __str__(self):
+        return self.value
+
+    @property
+    def is_device(self):
+        return self._is_device
+
+    @property
+    def is_house_check_endpoint(self):
+        return self._is_house_check_endpoint
 
 
 class ActionEndpointType(Enum):
@@ -102,14 +122,14 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/panel/GetLockStatus?panelId={{panelId}}",
     ),
     DataEndpoint(
-        type=DataEndpointType.TEMPERATURES_LEGACY,
+        type=DataEndpointType.TEMPERATURE_LEGACY,
         method="GET",
         uri=f"{API_URL}/api/Panel/GetTemperatures?panelId={{panelId}}",
     ),
     DataEndpoint(
-        type=DataEndpointType.TEMPERATURES,  # Seems not be used by Sector App
+        type=DataEndpointType.DOOR_AND_WINDOW,
         method="POST",
-        uri=f"{API_URL}/api/housecheck/temperatures",
+        uri=f"{API_URL}/api/housecheck/doorsandwindows",
     ),
     DataEndpoint(
         type=DataEndpointType.HUMIDITY,
@@ -117,17 +137,17 @@ DATA_ENDPOINTS: set[DataEndpoint] = {
         uri=f"{API_URL}/api/housecheck/panels/{{panelId}}/humidity",
     ),
     DataEndpoint(
-        type=DataEndpointType.DOORS_AND_WINDOWS,
+        type=DataEndpointType.TEMPERATURE,  # Seems not be used by Sector App
         method="POST",
-        uri=f"{API_URL}/api/housecheck/doorsandwindows",
+        uri=f"{API_URL}/api/v2/housecheck/temperatures",
     ),
     DataEndpoint(
-        type=DataEndpointType.LEAKAGE_DETECTORS,  # Seems not be used by Sector App
+        type=DataEndpointType.LEAKAGE_DETECTOR,  # Seems not be used by Sector App
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/leakagedetectors",
     ),
     DataEndpoint(
-        type=DataEndpointType.SMOKE_DETECTORS,  # Seems not be used by Sector App
+        type=DataEndpointType.SMOKE_DETECTOR,  # Seems not be used by Sector App
         method="POST",
         uri=f"{API_URL}/api/v2/housecheck/smokedetectors",
     ),

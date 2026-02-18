@@ -1,14 +1,10 @@
 from typing import Optional, TypedDict
 
+
 class PanelStatus(TypedDict):
     IsOnline: bool
-    StatusTime: str
-    StatusTimeUtc: str
-    PanelTimeZoneOffset: int
-    TimeZoneName: str
     Status: int
-    AnnexStatus: int
-    ReadyToArm: bool
+
 
 class Lock(TypedDict):
     Label: str
@@ -17,6 +13,7 @@ class Lock(TypedDict):
     BatteryLow: Optional[bool]
     Status: str
 
+
 class SmartPlug(TypedDict):
     Id: str
     Label: str
@@ -24,11 +21,13 @@ class SmartPlug(TypedDict):
     SerialNo: str
     Status: str
 
+
 class Temperature(TypedDict):
     Label: str
     SerialNo: str
     Serial: str
     Temperature: str
+
 
 class LogRecord(TypedDict):
     User: str
@@ -37,11 +36,14 @@ class LogRecord(TypedDict):
     EventType: str
     LockName: str
 
+
 class LogRecords(TypedDict):
     Records: list[LogRecord]
 
+
 class PanelInfo(TypedDict):
     PanelId: str
+    Capabilities: list[str]
     PanelCodeLength: int
     QuickArmEnabled: bool
     CanPartialArm: bool
@@ -49,24 +51,43 @@ class PanelInfo(TypedDict):
     Temperatures: list[Temperature]
     Smartplugs: list[SmartPlug]
 
+
 class Component(TypedDict):
     SerialNo: str
-    Serial: str
     Label: str
     Name: str
     Type: str
-    Closed: Optional[bool]
     LowBattery: Optional[bool]
-    BatteryLow: Optional[bool]
-    Alarm: Optional[bool]
     Temperature: Optional[float]
     Humidity: Optional[float]
+
+
+class Device(TypedDict):
+    Label: str
+    Name: str
+    SerialString: str
+    Type: str
+    LowBattery: Optional[bool]
+    Alarm: Optional[bool]
+    Closed: Optional[bool]
+
 
 class Place(TypedDict):
     Components: list[Component]
 
+
 class Section(TypedDict):
     Places: list[Place]
 
+
+class Room(TypedDict):
+    Devices: list[Device]
+
+
+class Floor(TypedDict):
+    Rooms: list[Room]
+
+
 class HouseCheck(TypedDict):
     Sections: list[Section]
+    Floors: list[Floor]

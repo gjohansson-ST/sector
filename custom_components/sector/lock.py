@@ -1,7 +1,7 @@
 """Locks for Sector Alarm."""
 
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.lock import LockEntity
 from homeassistant.components.lock.const import LockState
@@ -13,11 +13,12 @@ from homeassistant.exceptions import (
     ConfigEntryAuthFailed,
 )
 from custom_components.sector.client import ApiError, AuthenticationError, LoginError
+from custom_components.sector.const import RUNTIME_DATA
 
 from .coordinator import (
-    SectorActionDataUpdateCoordinator,
+    DeviceRegistry,
+    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
-    SectorCoordinatorType,
 )
 from .entity import SectorAlarmBaseEntity
 
@@ -30,24 +31,37 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Sector Alarm locks."""
-    coordinator = cast(
-        SectorActionDataUpdateCoordinator,
-        entry.runtime_data[SectorCoordinatorType.ACTION_DEVICES],
-    )
+    entities: list[SectorAlarmLock] = []
+    coordinators: list[SectorDeviceDataUpdateCoordinator] = entry.runtime_data[
+        RUNTIME_DATA.DEVICE_COORDINATORS
+    ]
 
-    devices: dict[str, dict[str, Any]] = coordinator.data.get("devices", {})
-    entities = []
-
-    for serial_no, device_info in devices.items():
-        model: str = device_info.get("model", "")
-        if model == "Smart Lock":
-            device_name: str = device_info["name"]
-            entities.append(SectorAlarmLock(coordinator, serial_no, device_name, model))
-            _LOGGER.debug(
-                "Added lock entity with serial: %s and name: %s",
-                serial_no,
-                device_name,
-            )
+    for coordinator in coordinators:
+        device_registry: DeviceRegistry = coordinator.data.get(
+            "device_registry", DeviceRegistry()
+        )
+        devices: dict[str, dict[str, Any]] = (
+            device_registry.fetch_devices_by_coordinator(coordinator.name)
+        )
+        for serial_no, device in devices.items():
+            device_name: str = device["name"]
+            device_model = device["model"]
+            for entity_model in device.get("entities", {}).keys():
+                if entity_model == "Smart Lock":
+                    entities.append(
+                        SectorAlarmLock(
+                            coordinator,
+                            serial_no,
+                            device_name,
+                            device_model,
+                            entity_model,
+                        )
+                    )
+                    _LOGGER.debug(
+                        "Added lock entity with serial: %s and name: %s",
+                        serial_no,
+                        device_name,
+                    )
 
     if entities:
         async_add_entities(entities)
@@ -56,7 +70,7 @@ async def async_setup_entry(
 
 
 class SectorAlarmLock(
-    SectorAlarmBaseEntity[SectorActionDataUpdateCoordinator], LockEntity
+    SectorAlarmBaseEntity[SectorDeviceDataUpdateCoordinator], LockEntity
 ):
     """
     Sector Alarm Lock.
@@ -70,13 +84,16 @@ class SectorAlarmLock(
 
     def __init__(
         self,
-        coordinator: SectorActionDataUpdateCoordinator,
+        coordinator: SectorDeviceDataUpdateCoordinator,
         serial_no: str,
         device_name: str,
-        device_model: str | None,
+        device_model: str,
+        entity_model: str,
     ) -> None:
         """Initialize the lock with device info."""
-        super().__init__(coordinator, serial_no, serial_no, device_name, device_model)
+        super().__init__(
+            coordinator, serial_no, device_name, device_model, entity_model
+        )
         self._pending_state: LockState | None = None
         self._attr_code_format = rf"^\d{{{self._panel_code_length_property}}}$"
         self._attr_unique_id = f"{serial_no}_lock"
@@ -127,9 +144,13 @@ class SectorAlarmLock(
                     "Failed to lock door - authentication failed"
                 ) from err
             except ApiError as err:
-                raise HomeAssistantError("Failed to lock door - API related error") from err
+                raise HomeAssistantError(
+                    "Failed to lock door - API related error"
+                ) from err
             except Exception as err:
-                raise HomeAssistantError("Failed to lock door - unexpected error") from err
+                raise HomeAssistantError(
+                    "Failed to lock door - unexpected error"
+                ) from err
         except Exception as err:
             # Clear pending state on failure, resets UI
             self._pending_state = None
@@ -148,7 +169,9 @@ class SectorAlarmLock(
 
         try:
             try:
-                await self.coordinator.sector_api.unlock_door(self._serial_no, code=code)
+                await self.coordinator.sector_api.unlock_door(
+                    self._serial_no, code=code
+                )
                 await self.coordinator.async_request_refresh()
             except LoginError as err:
                 raise ConfigEntryAuthFailed from err
@@ -178,14 +201,10 @@ class SectorAlarmLock(
 
     @property
     def _panel_code_length_property(self) -> int:
-        lock_device = self._lock_device
+        lock_device = self.entity_data or {}
         return lock_device.get("panel_code_length", 0)
 
     @property
     def _lock_status_property(self) -> str:
-        lock_device = self._lock_device
+        lock_device = self.entity_data or {}
         return lock_device.get("sensors", {}).get("lock_status", "unknown")
-
-    @property
-    def _lock_device(self) -> dict[str, Any]:
-        return self.coordinator.data.get("devices", {}).get(self._device_id, {})
