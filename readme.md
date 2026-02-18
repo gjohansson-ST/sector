@@ -30,7 +30,7 @@ On alarm installations which are not wired, make sure you take the binary sensor
 
 ## Installation ##
 
-**Minimum Required Home Assistant version:** 2025.12.0
+**Minimum Required Home Assistant version:** 2026.1.0
 
 ### Option 1: HACS (recommended)
 
