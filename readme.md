@@ -1,12 +1,12 @@
 [![Sector Alarm](https://github.com/gjohansson-ST/sector/blob/master/logos/logo.png)](https://www.sectoralarm.se/)
 
-[![HACS](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge&cacheSeconds=3600)](https://github.com/hacs/integration)
-[![Repo size](https://img.shields.io/github/repo-size/gjohansson-ST/sector?style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector)
-[![Latest release](https://img.shields.io/github/v/release/gjohansson-ST/sector?label=Latest%20release&style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/gjohansson-ST/sector/total?style=for-the-badge&cacheSeconds=3600)](https://github.com/gjohansson-ST/sector/releases/latest)
-![Stars](https://img.shields.io/github/stars/gjohansson-ST/sector?style=for-the-badge&cacheSeconds=3600)
-![Issues or Pull Requests](https://img.shields.io/github/issues/gjohansson-ST/sector?style=for-the-badge&cacheSeconds=3600)
-![License](https://img.shields.io/github/license/gjohansson-ST/sector?label=license&style=for-the-badge&cacheSeconds=3600)
+[![HACS](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![Repo size](https://img.shields.io/github/repo-size/gjohansson-ST/sector?style=for-the-badge)](https://github.com/gjohansson-ST/sector)
+[![Latest release](https://img.shields.io/github/release/gjohansson-ST/sector?style=for-the-badge)](https://github.com/gjohansson-ST/sector/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/gjohansson-ST/sector/total?style=for-the-badge)](https://github.com/gjohansson-ST/sector/releases/latest)
+![Stars](https://img.shields.io/github/stars/gjohansson-ST/sector?style=for-the-badge)
+![Issues or Pull Requests](https://img.shields.io/github/issues/gjohansson-ST/sector?style=for-the-badge)
+[![License](https://img.shields.io/github/license/gjohansson-ST/sector?style=for-the-badge)](LICENSE)
 
 [![Made for Home Assistant](https://img.shields.io/badge/Made_for-Home%20Assistant-blue?style=for-the-badge&logo=homeassistant)](https://github.com/home-assistant)
 
