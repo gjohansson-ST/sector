@@ -71,6 +71,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         optional_endpoints={DataEndpointType.SMART_PLUG_STATUS},
         update_interval=timedelta(seconds=60),
     )
+    door_window_device_coordinator = SectorDeviceDataUpdateCoordinator(
+        hass=hass,
+        entry=entry,
+        sector_api=sector_api,
+        panel_info_coordinator=panel_info_coordinator,
+        device_registry=device_registry,
+        coordinator_name="SectorDoorAndWindowDeviceDataUpdateCoordinator",
+        optional_endpoints={
+            DataEndpointType.DOOR_AND_WINDOW,
+        },
+        update_interval=timedelta(seconds=60),
+    )
     action_device_coordinator = SectorDeviceDataUpdateCoordinator(
         hass=hass,
         entry=entry,
@@ -79,7 +91,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         device_registry=device_registry,
         coordinator_name="SectorActionDeviceDataUpdateCoordinator",
         optional_endpoints={
-            DataEndpointType.DOOR_AND_WINDOW,
             DataEndpointType.SMOKE_DETECTOR,
             DataEndpointType.LEAKAGE_DETECTOR,
             # DataEndpointType.CAMERAS, <-- broken, do not enable
@@ -105,6 +116,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     await alarm_panel_device_coordinator.async_config_entry_first_refresh()
     await door_lock_device_coordinator.async_config_entry_first_refresh()
     await smart_plug_device_coordinator.async_config_entry_first_refresh()
+    await door_window_device_coordinator.async_config_entry_first_refresh()
     await action_device_coordinator.async_config_entry_first_refresh()
     await sensor_device_coordinators.async_config_entry_first_refresh()
 
@@ -113,6 +125,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
             alarm_panel_device_coordinator,
             door_lock_device_coordinator,
             smart_plug_device_coordinator,
+            door_window_device_coordinator,
             action_device_coordinator,
             sensor_device_coordinators,
         ],
