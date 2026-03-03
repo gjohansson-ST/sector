@@ -51,7 +51,7 @@ After installation:
 1. Download the [latest release](https://github.com/gjohansson-ST/sector/releases/latest)
 2. In your Home Assistant configuration directory, create folder `custom_components` if it doesn’t already exist
 3. Inside `custom_components`, create a folder named `sector`
-4. Copy all files from `custom_components/sector` in the release into `homeassistant/custom_components/sector`.
+4. Copy all release files from `custom_components/sector` into `homeassistant/custom_components/sector`.
 5. Restart Home Assistant
 
 The file structure should look like below when completed:
@@ -64,7 +64,6 @@ homeassistant/
 
 ```
 
-
 ## Configuration options ##
 | Configuration        | Required | Description                   |
 |----------------------| -------- | ----------------------------- |
@@ -76,7 +75,7 @@ homeassistant/
 
 This integration is actively maintained, and help and ideas are always welcome.
 
-If you encounter any issues, bugs, or unexpected behavior, please don’t hesitate to open an issue on GitHub, or make a post in the [discord](https://discord.gg/EG7cWFQMGW) channel.
+If you encounter any issues, bugs, or unexpected behavior, please don’t hesitate to open an [issue](https://github.com/gjohansson-ST/sector/issues) on GitHub, or make a post in the [discord](https://discord.gg/EG7cWFQMGW) channel.
 
 ## Maintainers
 
