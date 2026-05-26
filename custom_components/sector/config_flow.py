@@ -11,6 +11,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlowWit
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -50,7 +51,7 @@ def build_data_schema(default_email: str = "") -> vol.Schema:
 def build_data_options_schema() -> vol.Schema:
     return vol.Schema(
         {
-            vol.Optional(CONF_IGNORE_QUICK_ARM, default=False): bool,
+            vol.Optional(CONF_IGNORE_QUICK_ARM, default=False): BooleanSelector(),
         }
     )
 
