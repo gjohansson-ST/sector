@@ -32,6 +32,9 @@
                     "email": "E-mail address",
                     "password": "Password",
                     "ignore_quick_arm": "Ignore ”Quick Arming”"
+                },
+                "data_description": {
+                    "ignore_quick_arm": "Ignore the ”Quick Arming” Sector alarm setting and always require PIN-code when arming."
                 }
             },
             "select_panel": {
@@ -47,6 +50,9 @@
                 "title": "Sector Alarm options",
                 "data": {
                     "ignore_quick_arm": "Ignore ”Quick Arming”"
+                },
+                "data_description": {
+                    "ignore_quick_arm": "Ignore the ”Quick Arming” Sector alarm setting and always require PIN-code when arming."
                 }
             }
         }

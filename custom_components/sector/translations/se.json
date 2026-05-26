@@ -14,7 +14,7 @@
                 "title": "Konfigurera om Sector Alarm",
                 "description": "Uppdatera dina inloggningsuppgifter.",
                 "data": {
-                    "email": "E-postadress",
+                    "email": "E-mail address",
                     "password": "Lösenord"
                 }
             },
@@ -22,16 +22,19 @@
                 "title": "Konfigurera om Sector Alarm",
                 "description": "Uppdatera dina inloggningsuppgifter.",
                 "data": {
-                    "email": "Epost adress",
+                    "email": "E-mail adress",
                     "password": "Lösenord"
                 }
             },
             "user": {
                 "title": "Sector Alarm konfiguration",
                 "data": {
-                    "email": "Epost adress",
+                    "email": "E-mail adress",
                     "password": "Lösenord",
                     "ignore_quick_arm": "Ignorera inställningen ”Snabbarmering”"
+                },
+                "data_description": {
+                    "ignore_quick_arm": "Ignorera Sector alarm inställning för ”Snabbarmering” och kräv alltid PIN-kod vid armering."
                 }
             },
             "select_panel": {
@@ -47,6 +50,9 @@
                 "title": "Sector Alarm alternativ",
                 "data": {
                     "ignore_quick_arm": "Ignorera inställningen ”Snabbarmering”"
+                },
+                "data_description": {
+                    "ignore_quick_arm": "Ignorera Sector alarm inställning för ”Snabbarmering” och kräv alltid PIN-kod vid armering."
                 }
             }
         }
