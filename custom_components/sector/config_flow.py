@@ -52,6 +52,7 @@ def build_data_options_schema() -> vol.Schema:
     return vol.Schema(
         {
             vol.Optional(CONF_IGNORE_QUICK_ARM, default=False): BooleanSelector(),
+            vol.Optional("scan_interval", default=30): vol.Coerce(int),
         }
     )
 

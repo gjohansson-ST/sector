@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from .const import CONFIG_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 import logging
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -12,7 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from custom_components.sector.endpoints import DataEndpointType
 
 from .client import AsyncTokenProvider, SectorAlarmAPI
-from .const import CONF_PANEL_ID, PLATFORMS, RUNTIME_DATA
+from .const import CONF_PANEL_ID, PLATFORMS, RUNTIME_DATA, CONFIG_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 from .coordinator import (
     DeviceRegistry,
     SectorDeviceDataUpdateCoordinator,
@@ -59,7 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         device_registry=device_registry,
         coordinator_name="SectorDoorLockDeviceDataUpdateCoordinator",
         optional_endpoints={DataEndpointType.LOCK_STATUS},
-        update_interval=timedelta(seconds=60),
+        update_interval=entry.options.get(CONFIG_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
     smart_plug_device_coordinator = SectorDeviceDataUpdateCoordinator(
         hass=hass,
@@ -69,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         device_registry=device_registry,
         coordinator_name="SectorSmartPlugDeviceDataUpdateCoordinator",
         optional_endpoints={DataEndpointType.SMART_PLUG_STATUS},
-        update_interval=timedelta(seconds=60),
+        update_interval=entry.options.get(CONFIG_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
     action_device_coordinator = SectorDeviceDataUpdateCoordinator(
         hass=hass,
@@ -84,7 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
             DataEndpointType.LEAKAGE_DETECTOR,
             # DataEndpointType.CAMERAS, <-- broken, do not enable
         },
-        update_interval=timedelta(seconds=60),
+        update_interval=entry.options.get(CONFIG_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
     sensor_device_coordinators = SectorDeviceDataUpdateCoordinator(
         hass=hass,
@@ -98,7 +99,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
             DataEndpointType.TEMPERATURE,
             DataEndpointType.TEMPERATURE_LEGACY,
         },
-        update_interval=timedelta(minutes=15),
+        update_interval=entry.options.get(CONFIG_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
     )
 
     await panel_info_coordinator.async_config_entry_first_refresh()

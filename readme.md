@@ -69,7 +69,8 @@ homeassistant/
 |----------------------| -------- | ----------------------------- |
 | Username             | **Yes**  | Sets the e-mail user address for your Sector alarm account.|
 | Password             | **Yes**  | Sets the password for your Sector alarm account.|
-| Ignore ”Quick Arming”| No       | *Default: false* <br> Ignore the "Quick Arming" Sector alarm setting and always require PIN-code when arming.|
+| Ignore “Quick Arming”| No       | *Default: false* <br> Ignore the "Quick Arming" Sector alarm setting and always require PIN-code when arming.|
+| Scan interval (seconds) | No | *Default: 30* – Interval between data updates. Configurable via the integration options.|
 
 ## Contributing & Support ##
 
