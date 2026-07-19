@@ -1,0 +1,60 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Le compte est déjà configuré",
+            "reauth_successful": "Ré-authentification réussie",
+            "reconfigure_successful": "Configuration mise à jour avec succès"
+        },
+        "error": {
+            "authentication_failed": "Nom d'utilisateur et/ou mot de passe incorrect",
+            "unknown_error": "Échec de la connexion"
+        },
+        "step": {
+            "reconfigure": {
+                "title": "Reconfigurer Sector Alarm",
+                "description": "Mettre à jour vos identifiants de connexion.",
+                "data": {
+                    "email": "Adresse e-mail",
+                    "password": "Mot de passe"
+                }
+            },
+            "reauth_confirm": {
+                "title": "Reconfigurer Sector Alarm",
+                "description": "Mettre à jour vos identifiants de connexion.",
+                "data": {
+                    "email": "Adresse e-mail",
+                    "password": "Mot de passe"
+                }
+            },
+            "user": {
+                "title": "Configuration de Sector Alarm",
+                "data": {
+                    "email": "Adresse e-mail",
+                    "password": "Mot de passe",
+                    "ignore_quick_arm": "Ignorer « Quick Arming »"
+                },
+                "data_description": {
+                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement."
+                }
+            },
+            "select_panel": {
+                "data": {
+                    "panel_id": "ID du panneau"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Options de Sector Alarm",
+                "data": {
+                    "ignore_quick_arm": "Ignorer « Quick Arming »"
+                },
+                "data_description": {
+                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement."
+                }
+            }
+        }
+    }
+}
