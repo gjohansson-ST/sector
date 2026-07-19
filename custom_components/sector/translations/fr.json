@@ -31,12 +31,10 @@
                 "data": {
                     "email": "Adresse e-mail",
                     "password": "Mot de passe",
-                    "ignore_quick_arm": "Ignorer « Quick Arming »",
-                    "scan_interval": "Intervalle de mise à jour (secondes)"
+                    "ignore_quick_arm": "Ignorer « Quick Arming »"
                 },
                 "data_description": {
-                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement.",
-                    "scan_interval": "Valeur par défaut : 30 secondes – intervalle entre les rafraîchissements des données."
+                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement."
                 }
             },
             "select_panel": {
@@ -51,12 +49,10 @@
             "init": {
                 "title": "Options de Sector Alarm",
                 "data": {
-                    "ignore_quick_arm": "Ignorer « Quick Arming »",
-                    "scan_interval": "Intervalle de mise à jour (secondes)"
+                    "ignore_quick_arm": "Ignorer « Quick Arming »"
                 },
                 "data_description": {
-                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement.",
-                    "scan_interval": "Valeur par défaut : 30 secondes – intervalle entre les rafraîchissements des données."
+                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement."
                 }
             }
         }
