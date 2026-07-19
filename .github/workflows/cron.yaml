@@ -8,16 +8,16 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    name: Validate HA integration
+    name: ✅ Validate HA integration
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
-      - name: Cache pip
+      - name: 📦 Cache pip
         uses: actions/cache@v5
         with:
           path: ~/.cache/pip
@@ -25,20 +25,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install dependencies
+      - name: 📥 Install dependencies
         run: |
           ./scripts/setup.sh
+          pip install pytest-cov ruff
 
-      - name: Run unit tests
+      - name: 🧹 Lint with ruff
         run: |
-          pytest -vv
+          ruff check custom_components/ tests/ --output-format=github
 
-      - name: HACS validation
+      - name: 🧪 Run unit tests with coverage
+        run: |
+          pytest -vv --cov=custom_components/sector --cov-report=term-missing
+
+      - name: 🏠 HACS validation
         uses: hacs/action@main
         with:
           category: integration
 
-      - name: Hassfest validation
+      - name: 🏠 Hassfest validation
         uses: home-assistant/actions/hassfest@master
 
   stale:

@@ -75,7 +75,69 @@ homeassistant/
 
 This integration is actively maintained, and help and ideas are always welcome.
 
-If you encounter any issues, bugs, or unexpected behavior, please don’t hesitate to open an [issue](https://github.com/gjohansson-ST/sector/issues) on GitHub, or make a post in the [discord](https://discord.gg/EG7cWFQMGW) channel.
+If you encounter any issues, bugs, or unexpected behavior, please don't hesitate to open an [issue](https://github.com/gjohansson-ST/sector/issues) on GitHub, or make a post in the [discord](https://discord.gg/EG7cWFQMGW) channel.
+
+## Debugging ##
+
+To enable debug logging for this integration, add the following to your `configuration.yaml`:
+
+```yaml
+logger:
+  default: info
+  logs:
+    custom_components.sector: debug
+```
+
+This will output detailed information about API requests, responses, and retry attempts.
+
+## Translations ##
+
+This integration is available in the following languages:
+
+| Language | File |
+|----------|------|
+| 🇬🇧 English | `translations/en.json` |
+| 🇸🇪 Swedish | `translations/se.json` |
+| 🇫🇷 French  | `translations/fr.json` |
+
+Want to add a translation? Copy `translations/en.json`, translate the strings, and submit a pull request.
+
+## Development ##
+
+### Prerequisites
+
+```bash
+./scripts/setup.sh
+pip install pytest-cov ruff
+```
+
+### Running tests
+
+```bash
+pytest -vv --cov=custom_components/sector --cov-report=term-missing
+```
+
+### Linting
+
+This project uses [ruff](https://docs.astral.sh/ruff/) for linting and code quality checks:
+
+```bash
+ruff check custom_components/ tests/
+```
+
+### CI/CD
+
+The following GitHub Actions workflows run automatically:
+
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| `tests.yaml` | Push / PR to `main`/`master` | Runs tests (Python 3.13 & 3.14), lint with ruff, and generates coverage reports |
+| `push.yaml` | Every push | HACS validation, Hassfest validation, label sync, release drafter |
+| `cron.yaml` | Daily (00:00 UTC) | Full validation (tests + lint + coverage + HACS + Hassfest), stale issue cleanup |
+
+## API rate-limit ##
+
+The Sector Alarm API may enforce rate-limiting on frequent requests. The integration includes built-in retry logic with exponential back-off to handle transient failures gracefully. If you experience frequent timeouts, consider increasing the `scan_interval` option (default: 30 seconds).
 
 ## Maintainers
 

@@ -1,0 +1,27 @@
+# Ruff linter configuration for Sector Alarm integration
+# https://docs.astral.sh/ruff/
+
+target-version = "py313"
+line-length = 120
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "LOG",    # flake8-logging
+    "ASYNC",  # flake8-async
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["B011", "B017"]  # allow assert True/False and broad except in tests
+
+[lint.isort]
+known-first-party = ["custom_components.sector"]
