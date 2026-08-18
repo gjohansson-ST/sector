@@ -82,8 +82,15 @@ class AsyncTokenProvider:
 
     async def _renew_token(self):
         uri = fetch_action_endpoint(ActionEndpointType.LOGIN).uri()
-        message_headers = {"Content-Type": "application/json"}
-        json_data = {"UserId": f"{self._email}", "Password": f"{self._password}"}
+        message_headers = {
+            "Content-Type": "application/json",
+            "Connection": "keep-alive",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        }
+        json_data = {
+            "UserId": f"{self._email}",
+            "Password": f"{self._password}"
+        }
 
         try:
             async with asyncio.timeout(15):
@@ -165,6 +172,10 @@ class SectorAlarmAPI:
         return {
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
+            "Platform": "mypage_web",
+            "Version": "2.53.2",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Connection": "keep-alive",
         }
 
     def _handle_exception(self, err: Exception, method: str, url: str) -> Exception:
