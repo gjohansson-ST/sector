@@ -9,7 +9,7 @@ import logging
 import time
 from builtins import ExceptionGroup
 from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from typing import Any, ClassVar, TypeVar
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientSession
@@ -79,13 +79,13 @@ class AsyncTokenProvider:
         self._session = client_session
         self._email = email
         self._password = password
+        self._user_agent_rotor = UserAgentRotor()
 
     async def _renew_token(self):
         uri = fetch_action_endpoint(ActionEndpointType.LOGIN).uri()
         message_headers = {
             "Content-Type": "application/json",
-            "Connection": "keep-alive",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "User-Agent": self._user_agent_rotor.get_user_agent(),
         }
         json_data = {"UserId": f"{self._email}", "Password": f"{self._password}"}
 
@@ -126,6 +126,8 @@ class AsyncTokenProvider:
                 raise ApiError(
                     "Unable to authenticate user - broken API support (HTTP BAD_REQUEST 400)"
                 )
+            if error.status == 429:
+                self._user_agent_rotor.rotate()
 
             raise ApiError(
                 f"Unable to authenticate user - unexpected HTTP error occurred (HTTP {error.status} - {error.message})"
@@ -164,15 +166,13 @@ class SectorAlarmAPI:
         self._session = client_session
         self._token_provider = token_provider
         self._action_endpoints = ACTION_ENDPOINTS
+        self._user_agent_rotor = UserAgentRotor()
 
     def _build_headers(self, token):
         return {
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
-            "Platform": "mypage_web",
-            "Version": "2.53.2",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Connection": "keep-alive",
+            "User-Agent": self._user_agent_rotor.get_user_agent(),
         }
 
     def _handle_exception(self, err: Exception, method: str, url: str) -> Exception:
@@ -310,13 +310,20 @@ class SectorAlarmAPI:
                             f"Bad request failure during GET request to '{url}', this may indicate broken Sector API support - (HTTP {response.status})"
                         )
                     else:
-                        text = await response.text()
+                        if response.status == 429:
+                            self._user_agent_rotor.rotate()
+
                         return APIResponse(
                             response_code=response.status,
-                            response_data=text,
+                            response_data=await response.text(),
                             response_is_json=False,
                         )
-        except (TimeoutError, aiohttp.ClientError, ApiError, AuthenticationError) as err:
+        except (
+            TimeoutError,
+            aiohttp.ClientError,
+            ApiError,
+            AuthenticationError,
+        ) as err:
             raise self._handle_exception(err=err, method="GET", url=url)
 
     async def _post_with_retry(self, url, payload) -> APIResponse:
@@ -361,13 +368,20 @@ class SectorAlarmAPI:
                             f"Bad request failure during POST request to '{url}', this may indicate broken Sector API support - (HTTP {response.status})"
                         )
                     else:
-                        text = await response.text()
+                        if response.status == 429:
+                            self._user_agent_rotor.rotate()
+
                         return APIResponse(
                             response_code=response.status,
-                            response_data=text,
+                            response_data=await response.text(),
                             response_is_json=False,
                         )
-        except (TimeoutError, aiohttp.ClientError, ApiError, AuthenticationError) as err:
+        except (
+            TimeoutError,
+            aiohttp.ClientError,
+            ApiError,
+            AuthenticationError,
+        ) as err:
             raise self._handle_exception(err=err, method="POST", url=url)
 
     async def arm_system(self, mode: str, code: str | None) -> None:
@@ -474,6 +488,29 @@ class SectorAlarmAPI:
 
 T = TypeVar("T")
 
+class UserAgentRotor:
+    USER_AGENTS: ClassVar[list[str]] = [
+        "okhttp/5.1.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+        "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063",
+    ]
+
+    def __init__(self) -> None:
+        self._agent_list: list = []
+        self._current_agent: str = ""
+
+    def get_user_agent(self) -> str:
+        if len(self._current_agent) == 0:
+            self.rotate()
+        return self._current_agent
+
+    def rotate(self):
+        if len(self._agent_list) == 0:
+            self._agent_list: list = self.USER_AGENTS.copy()
+        self._current_agent: str = self._agent_list.pop()
 
 class Retryable:
     """Simple async retry class with exponential backoff."""
