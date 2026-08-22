@@ -1,35 +1,35 @@
 """Sector Alarm coordinator."""
 
-import logging
 import copy
+import logging
 from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from homeassistant.components.recorder import history
-from homeassistant.helpers.recorder import get_instance
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.recorder import get_instance
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
 from .api_model import (
+    HouseCheck,
+    Lock,
+    LogRecords,
     PanelInfo,
     PanelStatus,
     SmartPlug,
     Temperature,
-    Lock,
-    HouseCheck,
-    LogRecords,
 )
 from .client import (
     ApiError,
-    AuthenticationError,
-    SectorAlarmAPI,
     APIResponse,
+    AuthenticationError,
     LoginError,
+    SectorAlarmAPI,
 )
 from .const import CONF_PANEL_ID, RUNTIME_DATA
 from .endpoints import (

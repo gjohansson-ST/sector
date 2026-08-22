@@ -1,15 +1,15 @@
 from typing import Any
-import pytest
 from unittest.mock import Mock
 
+import pytest
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from custom_components.sector.const import RUNTIME_DATA
-from custom_components.sector.sensor import async_setup_entry, SectorAlarmSensor
 from custom_components.sector.coordinator import DeviceRegistry
+from custom_components.sector.sensor import SectorAlarmSensor, async_setup_entry
 
 _DEVICE_COORDINATOR_NAME = "device-coordinator"
 

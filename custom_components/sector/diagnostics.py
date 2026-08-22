@@ -8,8 +8,8 @@ from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
-from custom_components.sector.client import SectorAlarmAPI
-from custom_components.sector.const import RUNTIME_DATA
+from .client import SectorAlarmAPI
+from .const import RUNTIME_DATA
 from .coordinator import (
     DeviceRegistry,
     SectorDeviceDataUpdateCoordinator,

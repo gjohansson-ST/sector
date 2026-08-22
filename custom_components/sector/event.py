@@ -12,8 +12,8 @@ from homeassistant.util import dt as dt_util
 from custom_components.sector.const import RUNTIME_DATA
 
 from .coordinator import (
-    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
+    SectorDeviceDataUpdateCoordinator,
 )
 from .entity import SectorAlarmBaseEntity
 

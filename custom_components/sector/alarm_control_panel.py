@@ -8,17 +8,16 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
 )
-
-from homeassistant.core import HomeAssistant, callback
 from homeassistant.components.alarm_control_panel.const import (
     AlarmControlPanelEntityFeature,
     AlarmControlPanelState,
     CodeFormat,
 )
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import (
-    ServiceValidationError,
-    HomeAssistantError,
     ConfigEntryAuthFailed,
+    HomeAssistantError,
+    ServiceValidationError,
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -27,11 +26,10 @@ from custom_components.sector.const import CONF_IGNORE_QUICK_ARM, RUNTIME_DATA
 
 from .coordinator import (
     DeviceRegistry,
-    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
+    SectorDeviceDataUpdateCoordinator,
 )
 from .entity import SectorAlarmBaseEntity
-
 
 _LOGGER = logging.getLogger(__name__)
 

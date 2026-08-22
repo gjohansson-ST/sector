@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
 import logging
+from datetime import timedelta
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
@@ -15,8 +15,8 @@ from .client import AsyncTokenProvider, SectorAlarmAPI
 from .const import CONF_PANEL_ID, PLATFORMS, RUNTIME_DATA
 from .coordinator import (
     DeviceRegistry,
-    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
+    SectorDeviceDataUpdateCoordinator,
     SectorPanelInfoDataUpdateCoordinator,
 )
 
