@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from collections.abc import Awaitable, Callable
 import json
 import logging
 import time
 from builtins import ExceptionGroup
-from typing import Any, Tuple, Type, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientSession
@@ -87,10 +87,7 @@ class AsyncTokenProvider:
             "Connection": "keep-alive",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         }
-        json_data = {
-            "UserId": f"{self._email}",
-            "Password": f"{self._password}"
-        }
+        json_data = {"UserId": f"{self._email}", "Password": f"{self._password}"}
 
         try:
             async with asyncio.timeout(15):
@@ -150,7 +147,7 @@ class AsyncTokenProvider:
     def invalidate_token(self):
         self._token = None
         self._expires_at = 0
-        logging.info("Invalidating token, new token needs to be requested")
+        _LOGGER.info("Invalidating token, new token needs to be requested")
 
 
 class SectorAlarmAPI:
@@ -181,17 +178,17 @@ class SectorAlarmAPI:
     def _handle_exception(self, err: Exception, method: str, url: str) -> Exception:
         if isinstance(err, TimeoutError):
             return ApiError(
-                f"Timeout occurred during {method} request to '{url}': {str(err)}",
+                f"Timeout occurred during {method} request to '{url}': {err!s}",
                 err,
             )
         elif isinstance(err, aiohttp.ClientError):
             return ApiError(
-                f"Network connection error during {method} request to '{url}': {str(err)}",
+                f"Network connection error during {method} request to '{url}': {err!s}",
                 err,
             )
-        elif isinstance(err, Exception):
+        else:
             _LOGGER.error(
-                f"Unexpected error during {method} request to '{url}': {str(err)}"
+                f"Unexpected error during {method} request to '{url}': {err!s}"
             )
 
         # fall through LoginError, APIError, AuthenticationError
@@ -319,7 +316,7 @@ class SectorAlarmAPI:
                             response_data=text,
                             response_is_json=False,
                         )
-        except Exception as err:
+        except (TimeoutError, aiohttp.ClientError, ApiError, AuthenticationError) as err:
             raise self._handle_exception(err=err, method="GET", url=url)
 
     async def _post_with_retry(self, url, payload) -> APIResponse:
@@ -370,7 +367,7 @@ class SectorAlarmAPI:
                             response_data=text,
                             response_is_json=False,
                         )
-        except Exception as err:
+        except (TimeoutError, aiohttp.ClientError, ApiError, AuthenticationError) as err:
             raise self._handle_exception(err=err, method="POST", url=url)
 
     async def arm_system(self, mode: str, code: str | None) -> None:
@@ -485,7 +482,7 @@ class Retryable:
         self,
         *,
         attempts: int = 3,
-        retry_exceptions: Tuple[Type[BaseException], ...] = (Exception,),
+        retry_exceptions: tuple[type[BaseException], ...] = (Exception,),
         initial_delay: float = 1.0,
         max_delay: float = 10.0,
         backoff: float = 2.0,
@@ -504,9 +501,9 @@ class Retryable:
                 return await func()
             except Exception as ex:
                 if not isinstance(ex, self._retry_exceptions):
-                    raise ex
+                    raise
                 if attempt >= self._attempts:
-                    raise ex
+                    raise
 
                 last_exception = ex
                 await asyncio.sleep(delay)
