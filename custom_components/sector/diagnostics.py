@@ -49,10 +49,12 @@ async def async_get_config_entry_diagnostics(
     if len(coordinators) == 0:
         return {}
 
+    user_agent: str = sector_api.get_user_agent()
     request_metrics: dict[str, Any] = sector_api.get_request_metrics()
     device_registry: DeviceRegistry = coordinators[0].data["device_registry"]
 
     return {
+        "user_agent": user_agent,
         "request_metrics": request_metrics,
         "devices": async_redact_data(
             device_registry.fetch_devices(),

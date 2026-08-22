@@ -222,6 +222,10 @@ class SectorAlarmAPI:
         self._user_agent_rotor = UserAgentRotor()
         self._request_metrics = RequestMetrics()
 
+    def get_user_agent(self) -> str:
+        """Return current user agent used in requests."""
+        return self._user_agent_rotor.get_user_agent()
+
     def get_request_metrics(self) -> dict[str, Any]:
         """Return current request-per-minute and request-per-hour metrics."""
         return self._request_metrics.get()
