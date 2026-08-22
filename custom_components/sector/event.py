@@ -33,7 +33,7 @@ async def async_setup_entry(
 
     for coordinator in coordinators:
         grouped_events = coordinator.get_processed_events()
-        for device_serial in grouped_events.keys():
+        for device_serial in grouped_events:
             device_info = coordinator.get_device_info(device_serial)
             device_name = device_info["name"]
             device_model = device_info["model"]
