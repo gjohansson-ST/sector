@@ -109,6 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     await sensor_device_coordinators.async_config_entry_first_refresh()
 
     entry.runtime_data = {
+        RUNTIME_DATA.SECTOR_ALARM_API: sector_api,
         RUNTIME_DATA.DEVICE_COORDINATORS: [
             alarm_panel_device_coordinator,
             door_lock_device_coordinator,

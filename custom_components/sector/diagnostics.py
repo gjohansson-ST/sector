@@ -8,6 +8,7 @@ from homeassistant.components.diagnostics.util import async_redact_data
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
+from custom_components.sector.client import SectorAlarmAPI
 from custom_components.sector.const import RUNTIME_DATA
 from .coordinator import (
     DeviceRegistry,
@@ -40,6 +41,7 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for Sensibo config entry."""
+    sector_api: SectorAlarmAPI = entry.runtime_data[RUNTIME_DATA.SECTOR_ALARM_API]
     coordinators: list[SectorDeviceDataUpdateCoordinator] = entry.runtime_data[
         RUNTIME_DATA.DEVICE_COORDINATORS
     ]
@@ -47,8 +49,13 @@ async def async_get_config_entry_diagnostics(
     if len(coordinators) == 0:
         return {}
 
+    request_metrics: dict[str, Any] = sector_api.get_request_metrics()
     device_registry: DeviceRegistry = coordinators[0].data["device_registry"]
-    return async_redact_data(
-        device_registry.fetch_devices(),
-        TO_REDACT,
-    )
+
+    return {
+        "request_metrics": request_metrics,
+        "devices": async_redact_data(
+            device_registry.fetch_devices(),
+            TO_REDACT,
+        ),
+    }

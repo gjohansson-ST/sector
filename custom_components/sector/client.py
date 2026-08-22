@@ -8,6 +8,7 @@ import json
 import logging
 import time
 from builtins import ExceptionGroup
+from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
 from typing import Any, ClassVar, TypeVar
 
@@ -38,6 +39,58 @@ class LoginError(HomeAssistantError):
 
 class ApiError(HomeAssistantError):
     """Raised when the API returns an unexpected result."""
+
+
+class RequestMetrics:
+    """Track requests made during the last hour."""
+
+    def __init__(self) -> None:
+        self._request_times: deque[float] = deque()
+        self._request_times_by_endpoint: defaultdict[str, deque[float]] = defaultdict(
+            deque
+        )
+
+    def record(self, endpoint: str | None = None) -> None:
+        """Record one HTTP request."""
+        now = time.monotonic()
+        self._request_times.append(now)
+        if endpoint is not None:
+            self._request_times_by_endpoint[endpoint].append(now)
+
+    def get(self) -> dict[str, Any]:
+        """Return requests per second and per hour for each endpoint."""
+        now = time.monotonic()
+        self._remove_expired(now)
+        second_cutoff = now - 1
+        requests_per_second_by_endpoint = {
+            endpoint: sum(timestamp > second_cutoff for timestamp in request_times)
+            for endpoint, request_times in self._request_times_by_endpoint.items()
+        }
+        return {
+            "requests_per_second_total": sum(
+                timestamp > second_cutoff for timestamp in self._request_times
+            ),
+            "requests_per_second_by_endpoint": {
+                endpoint: count
+                for endpoint, count in requests_per_second_by_endpoint.items()
+                if count
+            },
+            "requests_per_hour_total": len(self._request_times),
+            "requests_per_hour_by_endpoint": {
+                endpoint: len(request_times)
+                for endpoint, request_times in self._request_times_by_endpoint.items()
+                if request_times
+            },
+        }
+
+    def _remove_expired(self, now: float) -> None:
+        cutoff = now - 3600
+        while self._request_times and self._request_times[0] <= cutoff:
+            self._request_times.popleft()
+
+        for request_times in self._request_times_by_endpoint.values():
+            while request_times and request_times[0] <= cutoff:
+                request_times.popleft()
 
 
 class APIResponse:
@@ -167,6 +220,11 @@ class SectorAlarmAPI:
         self._token_provider = token_provider
         self._action_endpoints = ACTION_ENDPOINTS
         self._user_agent_rotor = UserAgentRotor()
+        self._request_metrics = RequestMetrics()
+
+    def get_request_metrics(self) -> dict[str, Any]:
+        """Return current request-per-second metrics."""
+        return self._request_metrics.get()
 
     def _build_headers(self, token):
         return {
@@ -198,7 +256,7 @@ class SectorAlarmAPI:
         """Retrieve available panels from the API."""
         data = {}
         panellist_url = f"{API_URL}/api/account/GetPanelList"
-        response: APIResponse = await self._get(panellist_url)
+        response: APIResponse = await self._get(panellist_url, "get_panel_list")
         _LOGGER.debug(f"panel_payload: {response.response_data}")
 
         if response.is_ok() and response.is_json():
@@ -218,7 +276,7 @@ class SectorAlarmAPI:
     async def get_panel_info(self) -> APIResponse:
         """Retrieve available panels from the API."""
         uri = f"{API_URL}/api/Panel/GetPanel?panelId={self._panel_id}"
-        response: APIResponse = await self._get(uri)
+        response: APIResponse = await self._get(uri, "get_panel_info")
         _LOGGER.debug(f"panel_payload: {response}")
         return response
 
@@ -256,11 +314,15 @@ class SectorAlarmAPI:
         """Retrieve data from the target endpoint."""
         url = endpoint.uri(self._panel_id)
         if endpoint.method() == "GET":
-            response: APIResponse = await self._get_with_retry(url)
+            response: APIResponse = await self._get_with_retry(
+                url, str(endpoint.type())
+            )
         elif endpoint.method() == "POST":
             # For POST requests, we need to provide the panel ID in the payload
             payload = {"PanelId": self._panel_id}
-            response: APIResponse = await self._post_with_retry(url, payload)
+            response: APIResponse = await self._post_with_retry(
+                url, payload, str(endpoint.type())
+            )
         else:
             _LOGGER.error(
                 f"Unsupported HTTP method {endpoint.method()} for endpoint {url}"
@@ -270,18 +332,19 @@ class SectorAlarmAPI:
         if response:
             data[endpoint.type()] = response
 
-    async def _get_with_retry(self, url) -> APIResponse:
+    async def _get_with_retry(self, url, endpoint: str | None = None) -> APIResponse:
         retry = Retryable(
             attempts=2,
             retry_exceptions=(ApiError, AuthenticationError),
         )
-        return await retry.run(lambda: self._get(url))
+        return await retry.run(lambda: self._get(url, endpoint))
 
-    async def _get(self, url) -> APIResponse:
+    async def _get(self, url, endpoint: str | None = None) -> APIResponse:
         """Helper method to perform GET requests with timeout."""
         try:
             headers = self._build_headers(await self._token_provider.get_token())
             async with asyncio.timeout(15):
+                self._request_metrics.record(endpoint)
                 async with self._session.get(url, headers=headers) as response:
                     if response.status == 200:
                         content_type = response.headers.get("Content-Type", "")
@@ -326,18 +389,21 @@ class SectorAlarmAPI:
         ) as err:
             raise self._handle_exception(err=err, method="GET", url=url)
 
-    async def _post_with_retry(self, url, payload) -> APIResponse:
+    async def _post_with_retry(
+        self, url, payload, endpoint: str | None = None
+    ) -> APIResponse:
         retry = Retryable(
             attempts=2,
             retry_exceptions=(ApiError, AuthenticationError),
         )
-        return await retry.run(lambda: self._post(url, payload))
+        return await retry.run(lambda: self._post(url, payload, endpoint))
 
-    async def _post(self, url, payload) -> APIResponse:
+    async def _post(self, url, payload, endpoint: str | None = None) -> APIResponse:
         """Helper method to perform POST requests with timeout."""
         try:
             headers = self._build_headers(await self._token_provider.get_token())
             async with asyncio.timeout(15):
+                self._request_metrics.record(endpoint)
                 async with self._session.post(
                     url, json=payload, headers=headers
                 ) as response:
@@ -488,6 +554,7 @@ class SectorAlarmAPI:
 
 T = TypeVar("T")
 
+
 class UserAgentRotor:
     USER_AGENTS: ClassVar[list[str]] = [
         "okhttp/5.1.0",
@@ -510,7 +577,13 @@ class UserAgentRotor:
     def rotate(self):
         if len(self._agent_list) == 0:
             self._agent_list: list = self.USER_AGENTS.copy()
-        self._current_agent: str = self._agent_list.pop()
+
+        newAgent = self._agent_list.pop()
+        _LOGGER.info(
+            "Rotating from user agent '%s' to '%s'", self._current_agent, newAgent
+        )
+        self._current_agent = newAgent
+
 
 class Retryable:
     """Simple async retry class with exponential backoff."""
