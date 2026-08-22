@@ -58,21 +58,21 @@ class RequestMetrics:
             self._request_times_by_endpoint[endpoint].append(now)
 
     def get(self) -> dict[str, Any]:
-        """Return requests per second and per hour for each endpoint."""
+        """Return requests per minute and per hour for each endpoint."""
         now = time.monotonic()
         self._remove_expired(now)
-        second_cutoff = now - 1
-        requests_per_second_by_endpoint = {
-            endpoint: sum(timestamp > second_cutoff for timestamp in request_times)
+        minute_cutoff = now - 60
+        requests_per_minute_by_endpoint = {
+            endpoint: sum(timestamp > minute_cutoff for timestamp in request_times)
             for endpoint, request_times in self._request_times_by_endpoint.items()
         }
         return {
-            "requests_per_second_total": sum(
-                timestamp > second_cutoff for timestamp in self._request_times
+            "requests_per_minute_total": sum(
+                timestamp > minute_cutoff for timestamp in self._request_times
             ),
-            "requests_per_second_by_endpoint": {
+            "requests_per_minute_by_endpoint": {
                 endpoint: count
-                for endpoint, count in requests_per_second_by_endpoint.items()
+                for endpoint, count in requests_per_minute_by_endpoint.items()
                 if count
             },
             "requests_per_hour_total": len(self._request_times),
@@ -223,7 +223,7 @@ class SectorAlarmAPI:
         self._request_metrics = RequestMetrics()
 
     def get_request_metrics(self) -> dict[str, Any]:
-        """Return current request-per-second metrics."""
+        """Return current request-per-minute and request-per-hour metrics."""
         return self._request_metrics.get()
 
     def _build_headers(self, token):
@@ -256,7 +256,7 @@ class SectorAlarmAPI:
         """Retrieve available panels from the API."""
         data = {}
         panellist_url = f"{API_URL}/api/account/GetPanelList"
-        response: APIResponse = await self._get(panellist_url, "get_panel_list")
+        response: APIResponse = await self._get(panellist_url, "Panel List")
         _LOGGER.debug(f"panel_payload: {response.response_data}")
 
         if response.is_ok() and response.is_json():
@@ -276,7 +276,7 @@ class SectorAlarmAPI:
     async def get_panel_info(self) -> APIResponse:
         """Retrieve available panels from the API."""
         uri = f"{API_URL}/api/Panel/GetPanel?panelId={self._panel_id}"
-        response: APIResponse = await self._get(uri, "get_panel_info")
+        response: APIResponse = await self._get(uri, "Panel data")
         _LOGGER.debug(f"panel_payload: {response}")
         return response
 
