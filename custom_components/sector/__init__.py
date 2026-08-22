@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
 import logging
+from datetime import timedelta
 
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
@@ -15,8 +15,8 @@ from .client import AsyncTokenProvider, SectorAlarmAPI
 from .const import CONF_PANEL_ID, PLATFORMS, RUNTIME_DATA
 from .coordinator import (
     DeviceRegistry,
-    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
+    SectorDeviceDataUpdateCoordinator,
     SectorPanelInfoDataUpdateCoordinator,
 )
 
@@ -109,6 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
     await sensor_device_coordinators.async_config_entry_first_refresh()
 
     entry.runtime_data = {
+        RUNTIME_DATA.SECTOR_ALARM_API: sector_api,
         RUNTIME_DATA.DEVICE_COORDINATORS: [
             alarm_panel_device_coordinator,
             door_lock_device_coordinator,

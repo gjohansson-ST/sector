@@ -42,7 +42,7 @@ async def async_setup_entry(
         for serial_no, device in devices.items():
             device_name: str = device["name"]
             device_model = device["model"]
-            for entity_model, entity in device.get("entities", {}).items():
+            for entity_model in device.get("entities", {}):
                 if entity_model == "Camera":
                     entities.append(
                         SectorAlarmCamera(

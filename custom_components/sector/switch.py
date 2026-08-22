@@ -10,18 +10,19 @@ from homeassistant.components.switch import (
     SwitchEntity,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.exceptions import (
-    HomeAssistantError,
     ConfigEntryAuthFailed,
+    HomeAssistantError,
 )
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.sector.client import ApiError, AuthenticationError, LoginError
 from custom_components.sector.const import RUNTIME_DATA
+
 from .coordinator import (
     DeviceRegistry,
-    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
+    SectorDeviceDataUpdateCoordinator,
 )
 from .entity import SectorAlarmBaseEntity
 

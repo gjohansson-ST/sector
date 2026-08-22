@@ -1,4 +1,5 @@
 from typing import Any
+
 from custom_components.sector.coordinator import DeviceRegistry
 
 
