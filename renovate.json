@@ -16,8 +16,7 @@
       "rangeStrategy": "pin"
     },
     {
-      "matchManagers": ["pep621"],
-      "rangeStrategy": "pin"
+      "matchManagers": ["homeassistant-manifest"]
     },
     {
       "matchManagers": ["github-actions"],
