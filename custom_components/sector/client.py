@@ -376,10 +376,12 @@ class SectorAlarmAPI:
                         raise ApiError(
                             f"Bad request failure during GET request to '{url}', this may indicate broken Sector API support - (HTTP {response.status})"
                         )
+                    elif response.status == 429:
+                        self._user_agent_rotor.rotate()
+                        raise ApiError(
+                            f"Too many requests failure during GET request to '{url}' - (HTTP {response.status})"
+                        )
                     else:
-                        if response.status == 429:
-                            self._user_agent_rotor.rotate()
-
                         return APIResponse(
                             response_code=response.status,
                             response_data=await response.text(),
@@ -437,10 +439,12 @@ class SectorAlarmAPI:
                         raise ApiError(
                             f"Bad request failure during POST request to '{url}', this may indicate broken Sector API support - (HTTP {response.status})"
                         )
+                    elif response.status == 429:
+                        self._user_agent_rotor.rotate()
+                        raise ApiError(
+                            f"Too many requests failure during GET request to '{url}' - (HTTP {response.status})"
+                        )
                     else:
-                        if response.status == 429:
-                            self._user_agent_rotor.rotate()
-
                         return APIResponse(
                             response_code=response.status,
                             response_data=await response.text(),
@@ -562,11 +566,14 @@ T = TypeVar("T")
 class UserAgentRotor:
     USER_AGENTS: ClassVar[list[str]] = [
         "okhttp/5.1.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
+        "Mozilla/5.0 (iPhone17,5; CPU iPhone OS 18_3_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 FireKeepers/1.7.0",
+        "Mozilla/5.0 (Linux; Android 14; Pixel 9 Pro Build/AD1A.240418.003; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.54 Mobile Safari/537.36",
+        "Mozilla/5.0 (Linux; Android 15; SM-S931B Build/AP3A.240905.015.A2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/127.0.6533.103 Mobile Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
-        "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063",
     ]
 
     def __init__(self) -> None:
