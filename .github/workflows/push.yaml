@@ -45,7 +45,7 @@ jobs:
     if: github.ref == 'refs/heads/master'
     steps:
       - name: ⤵️ Check out code from GitHub
-        uses: actions/checkout@v6.1.0
+        uses: actions/checkout@v7.0.1
       - name: 🚀 Run Label Syncer
         uses: micnncim/action-label-syncer@v1.3.0
         env:
