@@ -332,3 +332,45 @@ class SectorAlarmControlPanel(
         alarm_panel = self.entity_data or {}
         sensors: dict[str, Any] = alarm_panel.get("sensors", {})
         return sensors.get("alarm_status", 0)
+
+    @property
+    def changed_by(self) -> str | None:
+        """Return the last user who triggered or changed the alarm state."""
+        entity_data = self.entity_data
+        if entity_data:
+            return entity_data.get("changed_by")
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return optional state attributes."""
+        attrs: dict[str, Any] = {}
+        entity_data = self.entity_data
+        if entity_data:
+            channel = entity_data.get("changed_by_channel")
+            if channel:
+                attrs["changed_by_channel"] = channel
+        return attrs
+
+    def _get_entity_data(self) -> dict[str, Any] | None:
+        """Helper pour récupérer les données de l'entité dans le coordinator."""
+        if not self.coordinator.data:
+            return None
+
+        registry = self.coordinator.data.get("device_registry")
+        if not registry:
+            return None
+
+        device = registry.fetch_device(self._serial_no)
+        if not device or "entities" not in device:
+            return None
+
+        entities = device["entities"]
+
+        if self._entity_model in entities:
+            return entities[self._entity_model]
+
+        if "panel_status" in entities:
+            return entities["panel_status"]
+
+        return next(iter(entities.values()), None)

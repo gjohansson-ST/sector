@@ -56,5 +56,20 @@
                 }
             }
         }
+    },
+    "entity": {
+        "sensor": {
+            "changed_by": {
+                "name": "Senast ändrad av"
+            },
+            "changed_by_channel": {
+                "name": "Ändringskanal",
+                "state": {
+                    "keytag_channel": "Nybricka",
+                    "App": "Mobilapp",
+                    "": "Knappsats"
+                }
+            }
+        }
     }
 }

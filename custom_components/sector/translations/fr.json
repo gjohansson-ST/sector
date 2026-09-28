@@ -31,10 +31,10 @@
                 "data": {
                     "email": "Adresse e-mail",
                     "password": "Mot de passe",
-                    "ignore_quick_arm": "Ignorer « Quick Arming »"
+                    "ignore_quick_arm": "Ignorer « Quick Arming »"
                 },
                 "data_description": {
-                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement."
+                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement."
                 }
             },
             "select_panel": {
@@ -49,10 +49,25 @@
             "init": {
                 "title": "Options de Sector Alarm",
                 "data": {
-                    "ignore_quick_arm": "Ignorer « Quick Arming »"
+                    "ignore_quick_arm": "Ignorer « Quick Arming »"
                 },
                 "data_description": {
-                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement."
+                    "ignore_quick_arm": "Ignorer le paramètre « Quick Arming » du système d’alarme et toujours exiger le code PIN lors de l’armement."
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "changed_by": {
+                "name": "Dernier utilisateur"
+            },
+            "changed_by_channel": {
+                "name": "Canal de modification",
+                "state": {
+                    "keytag_channel": "Badge",
+                    "App": "Application mobile",
+                    "": "Clavier"
                 }
             }
         }
