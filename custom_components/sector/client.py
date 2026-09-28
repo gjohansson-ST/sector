@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from collections.abc import Awaitable, Callable
 import json
 import logging
 import time
 from builtins import ExceptionGroup
-from typing import Any, Tuple, Type, TypeVar
+from collections import defaultdict, deque
+from collections.abc import Awaitable, Callable
+from typing import Any, ClassVar, TypeVar
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientSession
@@ -38,6 +39,58 @@ class LoginError(HomeAssistantError):
 
 class ApiError(HomeAssistantError):
     """Raised when the API returns an unexpected result."""
+
+
+class RequestMetrics:
+    """Track requests made during the last hour."""
+
+    def __init__(self) -> None:
+        self._request_times: deque[float] = deque()
+        self._request_times_by_endpoint: defaultdict[str, deque[float]] = defaultdict(
+            deque
+        )
+
+    def record(self, endpoint: str | None = None) -> None:
+        """Record one HTTP request."""
+        now = time.monotonic()
+        self._request_times.append(now)
+        if endpoint is not None:
+            self._request_times_by_endpoint[endpoint].append(now)
+
+    def get(self) -> dict[str, Any]:
+        """Return requests per minute and per hour for each endpoint."""
+        now = time.monotonic()
+        self._remove_expired(now)
+        minute_cutoff = now - 60
+        requests_per_minute_by_endpoint = {
+            endpoint: sum(timestamp > minute_cutoff for timestamp in request_times)
+            for endpoint, request_times in self._request_times_by_endpoint.items()
+        }
+        return {
+            "requests_per_minute_total": sum(
+                timestamp > minute_cutoff for timestamp in self._request_times
+            ),
+            "requests_per_minute_by_endpoint": {
+                endpoint: count
+                for endpoint, count in requests_per_minute_by_endpoint.items()
+                if count
+            },
+            "requests_per_hour_total": len(self._request_times),
+            "requests_per_hour_by_endpoint": {
+                endpoint: len(request_times)
+                for endpoint, request_times in self._request_times_by_endpoint.items()
+                if request_times
+            },
+        }
+
+    def _remove_expired(self, now: float) -> None:
+        cutoff = now - 3600
+        while self._request_times and self._request_times[0] <= cutoff:
+            self._request_times.popleft()
+
+        for request_times in self._request_times_by_endpoint.values():
+            while request_times and request_times[0] <= cutoff:
+                request_times.popleft()
 
 
 class APIResponse:
@@ -79,10 +132,14 @@ class AsyncTokenProvider:
         self._session = client_session
         self._email = email
         self._password = password
+        self._user_agent_rotor = UserAgentRotor()
 
     async def _renew_token(self):
         uri = fetch_action_endpoint(ActionEndpointType.LOGIN).uri()
-        message_headers = {"Content-Type": "application/json"}
+        message_headers = {
+            "Content-Type": "application/json",
+            "User-Agent": self._user_agent_rotor.get_user_agent(),
+        }
         json_data = {"UserId": f"{self._email}", "Password": f"{self._password}"}
 
         try:
@@ -122,6 +179,8 @@ class AsyncTokenProvider:
                 raise ApiError(
                     "Unable to authenticate user - broken API support (HTTP BAD_REQUEST 400)"
                 )
+            if error.status == 429:
+                self._user_agent_rotor.rotate()
 
             raise ApiError(
                 f"Unable to authenticate user - unexpected HTTP error occurred (HTTP {error.status} - {error.message})"
@@ -143,7 +202,7 @@ class AsyncTokenProvider:
     def invalidate_token(self):
         self._token = None
         self._expires_at = 0
-        logging.info("Invalidating token, new token needs to be requested")
+        _LOGGER.info("Invalidating token, new token needs to be requested")
 
 
 class SectorAlarmAPI:
@@ -160,27 +219,38 @@ class SectorAlarmAPI:
         self._session = client_session
         self._token_provider = token_provider
         self._action_endpoints = ACTION_ENDPOINTS
+        self._user_agent_rotor = UserAgentRotor()
+        self._request_metrics = RequestMetrics()
+
+    def get_user_agent(self) -> str:
+        """Return current user agent used in requests."""
+        return self._user_agent_rotor.get_user_agent()
+
+    def get_request_metrics(self) -> dict[str, Any]:
+        """Return current request-per-minute and request-per-hour metrics."""
+        return self._request_metrics.get()
 
     def _build_headers(self, token):
         return {
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
+            "User-Agent": self._user_agent_rotor.get_user_agent(),
         }
 
     def _handle_exception(self, err: Exception, method: str, url: str) -> Exception:
         if isinstance(err, TimeoutError):
             return ApiError(
-                f"Timeout occurred during {method} request to '{url}': {str(err)}",
+                f"Timeout occurred during {method} request to '{url}': {err!s}",
                 err,
             )
         elif isinstance(err, aiohttp.ClientError):
             return ApiError(
-                f"Network connection error during {method} request to '{url}': {str(err)}",
+                f"Network connection error during {method} request to '{url}': {err!s}",
                 err,
             )
-        elif isinstance(err, Exception):
+        else:
             _LOGGER.error(
-                f"Unexpected error during {method} request to '{url}': {str(err)}"
+                f"Unexpected error during {method} request to '{url}': {err!s}"
             )
 
         # fall through LoginError, APIError, AuthenticationError
@@ -190,7 +260,7 @@ class SectorAlarmAPI:
         """Retrieve available panels from the API."""
         data = {}
         panellist_url = f"{API_URL}/api/account/GetPanelList"
-        response: APIResponse = await self._get(panellist_url)
+        response: APIResponse = await self._get(panellist_url, "Panel List")
         _LOGGER.debug(f"panel_payload: {response.response_data}")
 
         if response.is_ok() and response.is_json():
@@ -210,7 +280,7 @@ class SectorAlarmAPI:
     async def get_panel_info(self) -> APIResponse:
         """Retrieve available panels from the API."""
         uri = f"{API_URL}/api/Panel/GetPanel?panelId={self._panel_id}"
-        response: APIResponse = await self._get(uri)
+        response: APIResponse = await self._get(uri, "Panel data")
         _LOGGER.debug(f"panel_payload: {response}")
         return response
 
@@ -248,11 +318,15 @@ class SectorAlarmAPI:
         """Retrieve data from the target endpoint."""
         url = endpoint.uri(self._panel_id)
         if endpoint.method() == "GET":
-            response: APIResponse = await self._get_with_retry(url)
+            response: APIResponse = await self._get_with_retry(
+                url, str(endpoint.type())
+            )
         elif endpoint.method() == "POST":
             # For POST requests, we need to provide the panel ID in the payload
             payload = {"PanelId": self._panel_id}
-            response: APIResponse = await self._post_with_retry(url, payload)
+            response: APIResponse = await self._post_with_retry(
+                url, payload, str(endpoint.type())
+            )
         else:
             _LOGGER.error(
                 f"Unsupported HTTP method {endpoint.method()} for endpoint {url}"
@@ -262,18 +336,19 @@ class SectorAlarmAPI:
         if response:
             data[endpoint.type()] = response
 
-    async def _get_with_retry(self, url) -> APIResponse:
+    async def _get_with_retry(self, url, endpoint: str | None = None) -> APIResponse:
         retry = Retryable(
             attempts=2,
             retry_exceptions=(ApiError, AuthenticationError),
         )
-        return await retry.run(lambda: self._get(url))
+        return await retry.run(lambda: self._get(url, endpoint))
 
-    async def _get(self, url) -> APIResponse:
+    async def _get(self, url, endpoint: str | None = None) -> APIResponse:
         """Helper method to perform GET requests with timeout."""
         try:
             headers = self._build_headers(await self._token_provider.get_token())
             async with asyncio.timeout(15):
+                self._request_metrics.record(endpoint)
                 async with self._session.get(url, headers=headers) as response:
                     if response.status == 200:
                         content_type = response.headers.get("Content-Type", "")
@@ -301,28 +376,40 @@ class SectorAlarmAPI:
                         raise ApiError(
                             f"Bad request failure during GET request to '{url}', this may indicate broken Sector API support - (HTTP {response.status})"
                         )
+                    elif response.status == 429:
+                        self._user_agent_rotor.rotate()
+                        raise ApiError(
+                            f"Too many requests failure during GET request to '{url}' - (HTTP {response.status})"
+                        )
                     else:
-                        text = await response.text()
                         return APIResponse(
                             response_code=response.status,
-                            response_data=text,
+                            response_data=await response.text(),
                             response_is_json=False,
                         )
-        except Exception as err:
+        except (
+            TimeoutError,
+            aiohttp.ClientError,
+            ApiError,
+            AuthenticationError,
+        ) as err:
             raise self._handle_exception(err=err, method="GET", url=url)
 
-    async def _post_with_retry(self, url, payload) -> APIResponse:
+    async def _post_with_retry(
+        self, url, payload, endpoint: str | None = None
+    ) -> APIResponse:
         retry = Retryable(
             attempts=2,
             retry_exceptions=(ApiError, AuthenticationError),
         )
-        return await retry.run(lambda: self._post(url, payload))
+        return await retry.run(lambda: self._post(url, payload, endpoint))
 
-    async def _post(self, url, payload) -> APIResponse:
+    async def _post(self, url, payload, endpoint: str | None = None) -> APIResponse:
         """Helper method to perform POST requests with timeout."""
         try:
             headers = self._build_headers(await self._token_provider.get_token())
             async with asyncio.timeout(15):
+                self._request_metrics.record(endpoint)
                 async with self._session.post(
                     url, json=payload, headers=headers
                 ) as response:
@@ -352,14 +439,23 @@ class SectorAlarmAPI:
                         raise ApiError(
                             f"Bad request failure during POST request to '{url}', this may indicate broken Sector API support - (HTTP {response.status})"
                         )
+                    elif response.status == 429:
+                        self._user_agent_rotor.rotate()
+                        raise ApiError(
+                            f"Too many requests failure during GET request to '{url}' - (HTTP {response.status})"
+                        )
                     else:
-                        text = await response.text()
                         return APIResponse(
                             response_code=response.status,
-                            response_data=text,
+                            response_data=await response.text(),
                             response_is_json=False,
                         )
-        except Exception as err:
+        except (
+            TimeoutError,
+            aiohttp.ClientError,
+            ApiError,
+            AuthenticationError,
+        ) as err:
             raise self._handle_exception(err=err, method="POST", url=url)
 
     async def arm_system(self, mode: str, code: str | None) -> None:
@@ -467,6 +563,39 @@ class SectorAlarmAPI:
 T = TypeVar("T")
 
 
+class UserAgentRotor:
+    USER_AGENTS: ClassVar[list[str]] = [
+        "okhttp/5.1.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
+        "Mozilla/5.0 (iPhone17,5; CPU iPhone OS 18_3_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 FireKeepers/1.7.0",
+        "Mozilla/5.0 (Linux; Android 14; Pixel 9 Pro Build/AD1A.240418.003; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.54 Mobile Safari/537.36",
+        "Mozilla/5.0 (Linux; Android 15; SM-S931B Build/AP3A.240905.015.A2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/127.0.6533.103 Mobile Safari/537.36",
+        "Mozilla/5.0 (X11; Linux x86_64; rv:154.0) Gecko/20100101 Firefox/154.0",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
+    ]
+
+    def __init__(self) -> None:
+        self._agent_list: list = []
+        self._current_agent: str = ""
+
+    def get_user_agent(self) -> str:
+        if len(self._current_agent) == 0:
+            self.rotate()
+        return self._current_agent
+
+    def rotate(self):
+        if len(self._agent_list) == 0:
+            self._agent_list: list = self.USER_AGENTS.copy()
+
+        newAgent = self._agent_list.pop()
+        _LOGGER.info(
+            "Rotating from user agent '%s' to '%s'", self._current_agent, newAgent
+        )
+        self._current_agent = newAgent
+
+
 class Retryable:
     """Simple async retry class with exponential backoff."""
 
@@ -474,7 +603,7 @@ class Retryable:
         self,
         *,
         attempts: int = 3,
-        retry_exceptions: Tuple[Type[BaseException], ...] = (Exception,),
+        retry_exceptions: tuple[type[BaseException], ...] = (Exception,),
         initial_delay: float = 1.0,
         max_delay: float = 10.0,
         backoff: float = 2.0,
@@ -493,9 +622,9 @@ class Retryable:
                 return await func()
             except Exception as ex:
                 if not isinstance(ex, self._retry_exceptions):
-                    raise ex
+                    raise
                 if attempt >= self._attempts:
-                    raise ex
+                    raise
 
                 last_exception = ex
                 await asyncio.sleep(delay)

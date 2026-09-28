@@ -8,17 +8,16 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntity,
 )
-
-from homeassistant.core import HomeAssistant, callback
 from homeassistant.components.alarm_control_panel.const import (
     AlarmControlPanelEntityFeature,
     AlarmControlPanelState,
     CodeFormat,
 )
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import (
-    ServiceValidationError,
-    HomeAssistantError,
     ConfigEntryAuthFailed,
+    HomeAssistantError,
+    ServiceValidationError,
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -27,11 +26,10 @@ from custom_components.sector.const import CONF_IGNORE_QUICK_ARM, RUNTIME_DATA
 
 from .coordinator import (
     DeviceRegistry,
-    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
+    SectorDeviceDataUpdateCoordinator,
 )
 from .entity import SectorAlarmBaseEntity
-
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,7 +62,7 @@ async def async_setup_entry(
         for serial_no, device in devices.items():
             device_name: str = device["name"]
             device_model = device["model"]
-            for entity_model in device.get("entities", {}).keys():
+            for entity_model in device.get("entities", {}):
                 if entity_model == "Alarm panel":
                     entities.append(
                         SectorAlarmControlPanel(
@@ -185,11 +183,11 @@ class SectorAlarmControlPanel(
                 raise HomeAssistantError(
                     "Failed to arm (full) alarm - unexpected error"
                 ) from err
-        except Exception as err:
+        except Exception:
             # Clear pending state on failure, resets UI
             self._pending_state = None
             self.async_write_ha_state()
-            raise err
+            raise
 
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         """Send arm home command."""
@@ -220,11 +218,11 @@ class SectorAlarmControlPanel(
                 raise HomeAssistantError(
                     "Failed to arm (partial) alarm - unexpected error"
                 ) from err
-        except Exception as err:
+        except Exception:
             # Clear pending state on failure, resets UI
             self._pending_state = None
             self.async_write_ha_state()
-            raise err
+            raise
 
     async def async_alarm_disarm(self, code: str | None = None) -> None:
         """Send disarm command."""
@@ -257,11 +255,11 @@ class SectorAlarmControlPanel(
                 raise HomeAssistantError(
                     "Failed to disarm alarm - unexpected error"
                 ) from err
-        except Exception as err:
+        except Exception:
             # Clear pending state on failure, resets UI
             self._pending_state = None
             self.async_write_ha_state()
-            raise err
+            raise
 
     def _is_valid_arm_code(self, code: str | None) -> bool:
         quick_arm = not self._attr_code_arm_required

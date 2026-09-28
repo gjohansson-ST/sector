@@ -350,7 +350,7 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
             entity_id,
         )
 
-        if entity_id in history_data and history_data[entity_id]:
+        if history_data.get(entity_id):
             latest_state = history_data[entity_id][-1]
             _LOGGER.debug("SECTOR_EVENT: Latest known state: %s", latest_state)
             return datetime.fromisoformat(latest_state.last_changed.isoformat())
@@ -402,14 +402,14 @@ class _DeviceProcessor:
 
             if not endpoint_data.is_ok():
                 _LOGGER.warning(
-                    f"Unable to process data for category '{endpoint_type}' due to API error: data={str(endpoint_data)}"
+                    f"Unable to process data for category '{endpoint_type}' due to API error: data={endpoint_data!s}"
                 )
                 self._count_failed_entity(endpoint_type, devices)
                 continue
 
             if not endpoint_data.is_json():
                 _LOGGER.warning(
-                    f"Unable to process data for category '{endpoint_type}' due to unexpected response type: data={str(endpoint_data)}"
+                    f"Unable to process data for category '{endpoint_type}' due to unexpected response type: data={endpoint_data!s}"
                 )
                 self._count_failed_entity(endpoint_type, devices)
                 continue
@@ -786,13 +786,13 @@ class _DeviceProcessor:
         api_response = api_data[endpoint_type]
         if not api_response.is_ok():
             _LOGGER.warning(
-                f"Unable to process data for category '{endpoint_type}' due to API error: data={str(api_response)}"
+                f"Unable to process data for category '{endpoint_type}' due to API error: data={api_response!s}"
             )
             return {}
 
         if not api_response.is_json():
             _LOGGER.warning(
-                f"Unable to process data for category '{endpoint_type}' due to unexpected response type: data={str(api_response)}"
+                f"Unable to process data for category '{endpoint_type}' due to unexpected response type: data={api_response!s}"
             )
             return {}
 
@@ -813,7 +813,7 @@ class _DeviceProcessor:
         lock_names = {
             device["name"]: serial_no
             for serial_no, device in devices.items()
-            for entity_model in device["entities"].keys()
+            for entity_model in device["entities"]
             if entity_model == DataEndpointType.LOCK_STATUS.value
         }
 

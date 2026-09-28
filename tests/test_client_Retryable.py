@@ -1,6 +1,8 @@
-import pytest
-from custom_components.sector.client import Retryable, ApiError
 from collections import Counter
+
+import pytest
+
+from custom_components.sector.client import ApiError, Retryable
 
 
 async def counting_function(

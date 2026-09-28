@@ -1,10 +1,10 @@
 from typing import Any
 from unittest.mock import AsyncMock, Mock
 
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import UpdateFailed
-from homeassistant.exceptions import ConfigEntryAuthFailed
 import pytest
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import UpdateFailed
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
 )
@@ -15,11 +15,11 @@ from custom_components.sector.api_model import (
     Lock,
     LogRecords,
     PanelInfo,
+    PanelStatus,
     SmartPlug,
     Temperature,
-    PanelStatus,
 )
-from custom_components.sector.client import APIResponse, ApiError, LoginError
+from custom_components.sector.client import ApiError, APIResponse, LoginError
 from custom_components.sector.coordinator import (
     DeviceRegistry,
     SectorDeviceDataUpdateCoordinator,

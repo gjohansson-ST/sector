@@ -7,18 +7,19 @@ from homeassistant.components.lock import LockEntity
 from homeassistant.components.lock.const import LockState
 from homeassistant.const import ATTR_CODE
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.exceptions import (
-    HomeAssistantError,
     ConfigEntryAuthFailed,
+    HomeAssistantError,
 )
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
 from custom_components.sector.client import ApiError, AuthenticationError, LoginError
 from custom_components.sector.const import RUNTIME_DATA
 
 from .coordinator import (
     DeviceRegistry,
-    SectorDeviceDataUpdateCoordinator,
     SectorAlarmConfigEntry,
+    SectorDeviceDataUpdateCoordinator,
 )
 from .entity import SectorAlarmBaseEntity
 
@@ -46,7 +47,7 @@ async def async_setup_entry(
         for serial_no, device in devices.items():
             device_name: str = device["name"]
             device_model = device["model"]
-            for entity_model in device.get("entities", {}).keys():
+            for entity_model in device.get("entities", {}):
                 if entity_model == "Smart Lock":
                     entities.append(
                         SectorAlarmLock(
@@ -151,11 +152,11 @@ class SectorAlarmLock(
                 raise HomeAssistantError(
                     "Failed to lock door - unexpected error"
                 ) from err
-        except Exception as err:
+        except Exception:
             # Clear pending state on failure, resets UI
             self._pending_state = None
             self.async_write_ha_state()
-            raise err
+            raise
 
     async def async_unlock(self, **kwargs) -> None:
         """Unlock the device."""
@@ -187,11 +188,11 @@ class SectorAlarmLock(
                 raise HomeAssistantError(
                     "Failed to unlock door - unexpected error"
                 ) from err
-        except Exception as err:
+        except Exception:
             # Clear pending state on failure, resets UI
             self._pending_state = None
             self.async_write_ha_state()
-            raise err
+            raise
 
     @callback
     def _handle_coordinator_update(self) -> None:

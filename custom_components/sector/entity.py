@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from homeassistant.util import dt as dt_util
 import logging
+from datetime import datetime, timedelta
 from typing import Any, TypeVar
 
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
 )
+from homeassistant.util import dt as dt_util
 
 from custom_components.sector.coordinator import (
     DeviceRegistry,
