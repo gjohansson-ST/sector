@@ -179,7 +179,7 @@ class SectorAlarmChangedBySensor(
         entity = self.entity_data or {}
         attrs = {}
         channel = entity.get("changed_by_channel")
-        if channel:
+        if channel is not None:
             attrs["channel"] = channel
         return attrs
 

@@ -452,8 +452,16 @@ class _DeviceProcessor:
         existing_device = devices.get(serial_no, {})
         existing_entity = existing_device.get("entities", {}).get(endpoint_type.value, {})
 
-        changed_by = self._last_disarmed_by or existing_entity.get("changed_by")
-        changed_by_channel = self._last_disarmed_channel or existing_entity.get("changed_by_channel")
+        changed_by = (
+            self._last_disarmed_by 
+            if self._last_disarmed_by is not None 
+            else existing_entity.get("changed_by")
+        )
+        changed_by_channel = (
+            self._last_disarmed_channel 
+            if self._last_disarmed_channel is not None 
+            else existing_entity.get("changed_by_channel")
+        )
 
         entity = {
             "name": "Alarm Control Panel",
@@ -829,7 +837,7 @@ class _DeviceProcessor:
             # 1. Capture immédiate du désarmement (indépendamment de lock_name)
             if event_type == "disarmed" and user:
                 self._last_disarmed_by = str(user).strip()
-                self._last_disarmed_channel = str(channel).strip() if channel else None
+                self._last_disarmed_channel = str(channel).strip() if channel is not None else None
                 _LOGGER.debug(
                     "Captured disarm event: user=%s, channel=%s",
                     self._last_disarmed_by,
