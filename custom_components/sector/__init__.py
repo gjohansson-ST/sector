@@ -49,6 +49,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SectorAlarmConfigEntry) 
         device_registry=device_registry,
         coordinator_name="SectorAlarmPanelDeviceDataUpdateCoordinator",
         mandatory_endpoints={DataEndpointType.PANEL_STATUS},
+        optional_endpoints={DataEndpointType.LOGS},
         update_interval=timedelta(seconds=60),
     )
     door_lock_device_coordinator = SectorDeviceDataUpdateCoordinator(

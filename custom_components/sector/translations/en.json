@@ -56,5 +56,20 @@
                 }
             }
         }
+    },
+    "entity": {
+        "sensor": {
+            "changed_by": {
+                "name": "Last changed by"
+            },
+            "changed_by_channel": {
+                "name": "Change channel",
+                "state": {
+                    "keytag_channel": "Keytag",
+                    "App": "Mobile app",
+                    "": "Keypad"
+                }
+            }
+        }
     }
 }
