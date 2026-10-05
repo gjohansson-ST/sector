@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from homeassistant.components.recorder import history
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -32,9 +31,7 @@ from .client import (
     SectorAlarmAPI,
 )
 from .const import CONF_PANEL_ID, RUNTIME_DATA
-from .endpoints import (
-    DataEndpointType,
-)
+from .endpoints import DataEndpointType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -225,11 +222,11 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
             temperatures_legacy: list[Temperature] = panel_info.get("Temperatures", {})
 
             discard_list: list[DataEndpointType] = []
-            if locks.__len__() == 0:
+            if len(locks) == 0:
                 discard_list.append(DataEndpointType.LOCK_STATUS)
-            if plugs.__len__() == 0:
+            if len(plugs) == 0:
                 discard_list.append(DataEndpointType.SMART_PLUG_STATUS)
-            if not is_legacy or temperatures_legacy.__len__() == 0:
+            if not is_legacy or len(temperatures_legacy) == 0:
                 discard_list.append(DataEndpointType.TEMPERATURE_LEGACY)
 
             # Legacy do not support HouseCheck devices
@@ -250,16 +247,15 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
             for endpoint_type, response in api_data.items():
                 if not endpoint_type.is_house_check_endpoint:
                     continue
-                if response.response_code == 404:
+                if response.response_code in (404, 400):
                     discard_list.append(endpoint_type)
-                elif response.response_code == 400:
-                    discard_list.append(endpoint_type)
-                    _LOGGER.error(
-                        f"API Request for {endpoint_type} failed with HTTP BAD_REQUEST(400), this may indicate the API support is broken (ignoring API endpoint): data={response.response_data!s}"
-                    )
+                    if response.response_code == 400:
+                        _LOGGER.error(
+                            f"API Request for {endpoint_type} failed with HTTP BAD_REQUEST(400): data={str(response.response_data)}"
+                        )
                 elif not response.is_ok() or not response.is_json():
                     raise UpdateFailed(
-                        f"Failed to fetch data from {endpoint_type}: due to API error: data={response.response_data!s}"
+                        f"Failed to fetch data from {endpoint_type}: data={str(response.response_data)}"
                     )
 
             for unsupported in discard_list:
@@ -269,6 +265,12 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
             self._data_endpoints = self._mandatory_endpoints | self._optional_endpoints
             _LOGGER.debug("Supported endpoint types: %s", self._data_endpoints)
 
+            # Extraire les logs dès le démarrage initial pour populer changed_by et changed_by_channel
+            if DataEndpointType.LOGS in api_data:
+                self._event_logs = await self._device_proccessor.process_event_logs(
+                    api_data, self._device_registry.fetch_devices()
+                )
+
             # Process devices
             devices = self._device_proccessor.process_devices(
                 panel_info, api_data, self._device_registry.fetch_devices()
@@ -276,7 +278,7 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
             for device in devices.values():
                 self._device_registry.register_device(device)
 
-            self.data = {"device_registry": self._device_registry, "logs": {}}
+            self.data = {"device_registry": self._device_registry, "logs": self._event_logs}
         except LoginError as error:
             raise ConfigEntryAuthFailed from error
         except AuthenticationError as error:
@@ -305,7 +307,7 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
 
             # Process logs for event handling
             self._event_logs = await self._device_proccessor.process_event_logs(
-                api_data, devices
+                api_data, registered_devices
             )
 
             self._reset_update_error_counter()
@@ -334,6 +336,8 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
 
     async def get_last_event_timestamp(self, device_name):
         """Get last event timestamp for a device."""
+        from homeassistant.components.recorder import history
+
         entity_id = f"event.{device_name}_event_log"
         end_time = datetime.now(dt_util.UTC)
         start_time = end_time - timedelta(days=1)
@@ -368,6 +372,8 @@ class _DeviceProcessor:
         self._hass = hass
         self._panel_id = panel_id
         self._coordinator_name = coordinator_name
+        self._last_disarmed_by: str | None = getattr(self, "_last_disarmed_by", None)
+        self._last_disarmed_channel: str | None = getattr(self, "_last_disarmed_channel", None)
 
     def _count_failed_entity(
         self, endpoint_type: DataEndpointType, devices: dict[str, Any]
@@ -443,12 +449,28 @@ class _DeviceProcessor:
         """Process alarm panel status data and add to devices registry."""
         serial_no = self._panel_id
 
+        existing_device = devices.get(serial_no, {})
+        existing_entity = existing_device.get("entities", {}).get(endpoint_type.value, {})
+
+        changed_by = (
+            self._last_disarmed_by 
+            if self._last_disarmed_by is not None 
+            else existing_entity.get("changed_by")
+        )
+        changed_by_channel = (
+            self._last_disarmed_channel 
+            if self._last_disarmed_channel is not None 
+            else existing_entity.get("changed_by_channel")
+        )
+
         entity = {
             "name": "Alarm Control Panel",
             "sensors": {
                 "online": panel_status_data.get("IsOnline"),
                 "alarm_status": panel_status_data.get("Status"),
             },
+            "changed_by": changed_by,
+            "changed_by_channel": changed_by_channel,
             "panel_code_length": panel_info.get("PanelCodeLength", 0),
             "panel_quick_arm": panel_info.get("QuickArmEnabled", False),
             "panel_partial_arm": panel_info.get("CanPartialArm", False),
@@ -620,7 +642,7 @@ class _DeviceProcessor:
                     for device in room.get("Devices", []):
                         self._process_housecheck_device(
                             endpoint_type,
-                            device,  # type: ignore
+                            device, # type: ignore
                             proccess_time,
                             devices,
                         )
@@ -631,7 +653,7 @@ class _DeviceProcessor:
                     for component in place.get("Components", []):
                         self._process_housecheck_device(
                             endpoint_type,
-                            component,  # type: ignore
+                            component, # type: ignore
                             proccess_time,
                             devices,
                         )
@@ -739,25 +761,24 @@ class _DeviceProcessor:
             "serial_no": serial_no,
             "entities": {},
         }
-        type: str = device_data.get("Type", "")
-        if type.upper() == "KEYPAD":
+        dev_type: str = device_data.get("Type", "").upper()
+        if dev_type == "KEYPAD":
             device["model"] = "Keypad"
             return device
-        elif type.upper() == "SMARTSIREN":
+        elif dev_type == "SMARTSIREN":
             device["model"] = "Siren"
             return device
-        elif type.upper() == "CAMERAPIR":
+        elif dev_type == "CAMERAPIR":
             device["model"] = "Camera"
             return device
-        elif (
-            endpoint_type == DataEndpointType.HUMIDITY
-            or endpoint_type == DataEndpointType.TEMPERATURE
-            or endpoint_type == DataEndpointType.TEMPERATURE_LEGACY
+        elif endpoint_type in (
+            DataEndpointType.HUMIDITY,
+            DataEndpointType.TEMPERATURE,
+            DataEndpointType.TEMPERATURE_LEGACY,
         ):
             device["model"] = "Climate"
             return device
-        else:
-            return None
+        return None
 
     async def process_event_logs(
         self,
@@ -789,7 +810,7 @@ class _DeviceProcessor:
         # Get the user's configured timezone from Home Assistant
         user_time_zone = self._hass.config.time_zone or "UTC"
         try:
-            tz: ZoneInfo = ZoneInfo(self._hass.config.time_zone)
+            tz: ZoneInfo = ZoneInfo(user_time_zone)
         except Exception:
             _LOGGER.debug("Invalid timezone '%s', defaulting to UTC.", user_time_zone)
             tz: ZoneInfo = ZoneInfo("UTC")
@@ -809,14 +830,25 @@ class _DeviceProcessor:
                 _LOGGER.error("Skipping invalid log entry: %s", log_entry)
                 continue
 
-            lock_name = log_entry.get("LockName")
-            event_type = log_entry.get("EventType")
-            timestamp = log_entry.get("Time")
-            user = log_entry.get("User", "")
-            channel = log_entry.get("Channel", "")
+            event_type = str(log_entry.get("EventType") or "").lower()
+            user = log_entry.get("User")
+            channel = log_entry.get("Channel")
 
-            if not lock_name or not event_type or not timestamp:
-                _LOGGER.debug("Skipping incomplete log entry: %s", log_entry)
+            # 1. Capture immédiate du désarmement (indépendamment de lock_name)
+            if event_type == "disarmed" and user:
+                self._last_disarmed_by = str(user).strip()
+                self._last_disarmed_channel = str(channel).strip() if channel is not None else None
+                _LOGGER.debug(
+                    "Captured disarm event: user=%s, channel=%s",
+                    self._last_disarmed_by,
+                    self._last_disarmed_channel,
+                )
+
+            # 2. On filtre ensuite pour la suite du traitement propre aux serrures
+            lock_name = log_entry.get("LockName")
+            timestamp = log_entry.get("Time")
+
+            if not lock_name or not timestamp:
                 continue
 
             try:
