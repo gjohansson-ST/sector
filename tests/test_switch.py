@@ -1,9 +1,9 @@
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.core import HomeAssistant
 import pytest
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
 )
@@ -11,7 +11,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.sector.client import ApiError
 from custom_components.sector.const import RUNTIME_DATA
 from custom_components.sector.coordinator import DeviceRegistry
-from custom_components.sector.switch import async_setup_entry, SectorAlarmSwitch
+from custom_components.sector.switch import SectorAlarmSwitch, async_setup_entry
 
 _PANEL_ID = "1234"
 _DEVICE_COORDINATOR_NAME = "device-coordinator"

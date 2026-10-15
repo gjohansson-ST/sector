@@ -175,11 +175,11 @@ class SectorAlarmConfigFlow(ConfigFlow, domain=DOMAIN):
                 elif len(self._panel_ids) == 1:
                     # Only one panel_id found, directly save it
                     return self.async_create_entry(
-                        title=f"Sector Alarm {list(self._panel_ids.keys())[0]}",
+                        title=f"Sector Alarm {next(iter(self._panel_ids.keys()))}",
                         data={
                             CONF_EMAIL: self._email,
                             CONF_PASSWORD: self._password,
-                            CONF_PANEL_ID: list(self._panel_ids.keys())[0],
+                            CONF_PANEL_ID: next(iter(self._panel_ids.keys())),
                         },
                         options={
                             CONF_IGNORE_QUICK_ARM: self._ignore_quick_arm,

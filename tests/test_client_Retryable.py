@@ -1,6 +1,8 @@
-import pytest
-from custom_components.sector.client import Retryable, ApiError
 from collections import Counter
+
+import pytest
+
+from custom_components.sector.client import ApiError, RateLimitError, Retryable
 
 
 async def counting_function(
@@ -34,6 +36,19 @@ async def test_should_not_retry_on_non_retryable_exception():
     with pytest.raises(RuntimeError):
         await retry.run(
             lambda: counting_function(count, RuntimeError("Simulated API error"))
+        )
+    assert count["count"] == 1
+
+
+async def test_should_not_retry_on_rate_limit_error():
+    # Prepare
+    retry = Retryable(attempts=3, retry_exceptions=(ApiError,), max_delay=0)
+    count = Counter()
+
+    # Act & Assert
+    with pytest.raises(RateLimitError):
+        await retry.run(
+            lambda: counting_function(count, RateLimitError("Rate limit exceeded"))
         )
     assert count["count"] == 1
 

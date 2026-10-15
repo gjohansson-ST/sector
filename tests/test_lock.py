@@ -1,10 +1,11 @@
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock
-from homeassistant.core import HomeAssistant
-from homeassistant.const import ATTR_CODE
-from homeassistant.components.lock.const import LockState
-from homeassistant.exceptions import HomeAssistantError, ConfigEntryAuthFailed
+
 import pytest
+from homeassistant.components.lock.const import LockState
+from homeassistant.const import ATTR_CODE
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
 )
@@ -12,7 +13,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.sector.client import ApiError, AuthenticationError, LoginError
 from custom_components.sector.const import RUNTIME_DATA
 from custom_components.sector.coordinator import DeviceRegistry
-from custom_components.sector.lock import async_setup_entry, SectorAlarmLock
+from custom_components.sector.lock import SectorAlarmLock, async_setup_entry
 
 _PANEL_ID = "1234"
 _DEVICE_COORDINATOR_NAME = "device-coordinator"

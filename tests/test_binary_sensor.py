@@ -1,14 +1,14 @@
-import pytest
 from unittest.mock import Mock
 
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from custom_components.sector.binary_sensor import (
-    async_setup_entry,
     SectorAlarmBinarySensor,
     SectorAlarmClosedSensor,
     SectorAlarmPanelOnlineBinarySensor,
+    async_setup_entry,
 )
 from custom_components.sector.const import RUNTIME_DATA
 from custom_components.sector.coordinator import DeviceRegistry
