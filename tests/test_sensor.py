@@ -165,4 +165,4 @@ async def test_changed_by_and_channel_sensors(hass: HomeAssistant):
     channel = next(
         e for e in entities if isinstance(e, SectorAlarmChangedByChannelSensor)
     )
-    assert channel.native_value == ""
+    assert channel.native_value == "keypad"

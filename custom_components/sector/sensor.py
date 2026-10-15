@@ -222,7 +222,9 @@ class SectorAlarmChangedByChannelSensor(
     def native_value(self) -> str | None:
         """Return the channel used to change the alarm state."""
         entity = self.entity_data or {}
-        return entity.get("changed_by_channel")
+        channel = entity.get("changed_by_channel")
+        if channel is None:
+            return None
 
         if channel == "":
             return "keypad"
