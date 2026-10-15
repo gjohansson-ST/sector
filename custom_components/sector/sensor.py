@@ -200,7 +200,7 @@ class SectorAlarmChangedByChannelSensor(
     _attr_options = [
         "keytag_channel",
         "app",
-        "",
+        "keypad",
     ]  # Ajoute ici toutes les valeurs brutes renvoyées par l'API Sector
     _attr_translation_key = "changed_by_channel"
     _attr_icon = "mdi:remote"
@@ -223,6 +223,9 @@ class SectorAlarmChangedByChannelSensor(
         """Return the channel used to change the alarm state."""
         entity = self.entity_data or {}
         return entity.get("changed_by_channel")
+
+        if channel == "":
+            return "keypad"
 
         normalized = channel.lower()
         return normalized if normalized in self._attr_options else channel

@@ -67,7 +67,7 @@
                 "state": {
                     "keytag_channel": "Keytag",
                     "app": "Mobile app",
-                    "": "Keypad"
+                    "keypad": "Keypad"
                 }
             }
         }

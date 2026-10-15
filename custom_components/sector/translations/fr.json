@@ -67,7 +67,7 @@
                 "state": {
                     "keytag_channel": "Badge",
                     "app": "Application mobile",
-                    "": "Clavier"
+                    "keypad": "Clavier"
                 }
             }
         }
