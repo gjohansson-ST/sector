@@ -22,6 +22,7 @@ from .coordinator import (
     SectorAlarmConfigEntry,
     SectorDeviceDataUpdateCoordinator,
 )
+from .endpoints import DataEndpointType
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Sector Alarm sensors."""
-    entities: list[SectorAlarmSensor] = []
+    entities: list[SensorEntity] = []
     coordinators: list[SectorDeviceDataUpdateCoordinator] = entry.runtime_data[
         RUNTIME_DATA.DEVICE_COORDINATORS
     ]
@@ -83,8 +84,39 @@ async def async_setup_entry(
                             )
                         )
                         _LOGGER.debug(
-                            "Added temperature sensor for device %s", serial_no
+                            "Added %s sensor for device %s",
+                            description.key,
+                            serial_no,
                         )
+
+                if (
+                    "changed_by" in entity
+                    or entity_model in ("panel_status", DataEndpointType.PANEL_STATUS.value)
+                ):
+                    entities.append(
+                        SectorAlarmChangedBySensor(
+                            coordinator,
+                            serial_no,
+                            device_name,
+                            device_model,
+                            entity_model,
+                        )
+                    )
+
+                # 3. Ajouter "Change channel" en dernier
+                if (
+                    "changed_by" in entity
+                    or entity_model in ("panel_status", DataEndpointType.PANEL_STATUS.value)
+                ):
+                    entities.append(
+                        SectorAlarmChangedByChannelSensor(
+                            coordinator,
+                            serial_no,
+                            device_name,
+                            device_model,
+                            entity_model,
+                        )
+                    )
 
     if entities:
         async_add_entities(entities)
@@ -119,3 +151,83 @@ class SectorAlarmSensor(
         entity = self.entity_data or {}
         sensors: dict[str, Any] = entity.get("sensors", {})
         return sensors.get(self.entity_description.key)
+
+
+class SectorAlarmChangedBySensor(
+    SectorAlarmBaseEntity[SectorDeviceDataUpdateCoordinator], SensorEntity
+):
+    """Sensor tracking who changed the alarm state."""
+
+    _attr_translation_key = "changed_by"
+    _attr_icon = "mdi:account-clock"
+
+    def __init__(
+        self,
+        coordinator: SectorDeviceDataUpdateCoordinator,
+        serial_no: str,
+        device_name: str,
+        device_model: str,
+        entity_model: str,
+    ) -> None:
+        super().__init__(
+            coordinator, serial_no, device_name, device_model, entity_model
+        )
+        self._attr_unique_id = f"{serial_no}_changed_by"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the user who last changed the alarm state."""
+        entity = self.entity_data or {}
+        return entity.get("changed_by")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra attributes like the channel."""
+        entity = self.entity_data or {}
+        attrs = {}
+        channel = entity.get("changed_by_channel")
+        if channel is not None:
+            attrs["channel"] = channel
+        return attrs
+
+
+class SectorAlarmChangedByChannelSensor(
+    SectorAlarmBaseEntity[SectorDeviceDataUpdateCoordinator], SensorEntity
+):
+    """Sensor tracking the channel used to change the alarm state."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [
+        "keytag_channel",
+        "app",
+        "keypad",
+    ]  # Ajoute ici toutes les valeurs brutes renvoyées par l'API Sector
+    _attr_translation_key = "changed_by_channel"
+    _attr_icon = "mdi:remote"
+
+    def __init__(
+        self,
+        coordinator: SectorDeviceDataUpdateCoordinator,
+        serial_no: str,
+        device_name: str,
+        device_model: str,
+        entity_model: str,
+    ) -> None:
+        super().__init__(
+            coordinator, serial_no, device_name, device_model, entity_model
+        )
+        self._attr_unique_id = f"{serial_no}_changed_by_channel"
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the channel used to change the alarm state."""
+        entity = self.entity_data or {}
+        channel = entity.get("changed_by_channel")
+        if channel is None:
+            return None
+
+        if channel == "":
+            return "keypad"
+
+        normalized = channel.lower()
+        return normalized if normalized in self._attr_options else channel
