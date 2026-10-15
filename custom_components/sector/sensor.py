@@ -199,7 +199,7 @@ class SectorAlarmChangedByChannelSensor(
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = [
         "keytag_channel",
-        "App",
+        "app",
         "",
     ]  # Ajoute ici toutes les valeurs brutes renvoyées par l'API Sector
     _attr_translation_key = "changed_by_channel"
@@ -223,3 +223,6 @@ class SectorAlarmChangedByChannelSensor(
         """Return the channel used to change the alarm state."""
         entity = self.entity_data or {}
         return entity.get("changed_by_channel")
+
+        normalized = channel.lower()
+        return normalized if normalized in self._attr_options else channel
