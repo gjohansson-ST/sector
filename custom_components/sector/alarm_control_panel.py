@@ -346,7 +346,7 @@ class SectorAlarmControlPanel(
         entity_data = self.entity_data
         if entity_data:
             channel = entity_data.get("changed_by_channel")
-            if channel:
+            if channel is not None:
                 attrs["changed_by_channel"] = channel
         return attrs
 

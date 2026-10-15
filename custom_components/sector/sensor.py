@@ -22,6 +22,7 @@ from .coordinator import (
     SectorAlarmConfigEntry,
     SectorDeviceDataUpdateCoordinator,
 )
+from .endpoints import DataEndpointType
 from .entity import SectorAlarmBaseEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,7 +89,10 @@ async def async_setup_entry(
                             serial_no,
                         )
 
-                if "changed_by" in entity or entity_model == "panel_status":
+                if (
+                    "changed_by" in entity
+                    or entity_model in ("panel_status", DataEndpointType.PANEL_STATUS.value)
+                ):
                     entities.append(
                         SectorAlarmChangedBySensor(
                             coordinator,
@@ -100,7 +104,10 @@ async def async_setup_entry(
                     )
 
                 # 3. Ajouter "Change channel" en dernier
-                if "changed_by" in entity or entity_model == "panel_status":
+                if (
+                    "changed_by" in entity
+                    or entity_model in ("panel_status", DataEndpointType.PANEL_STATUS.value)
+                ):
                     entities.append(
                         SectorAlarmChangedByChannelSensor(
                             coordinator,

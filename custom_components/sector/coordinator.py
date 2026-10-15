@@ -300,14 +300,14 @@ class SectorDeviceDataUpdateCoordinator(SectorBaseDataUpdateCoordinator):
             ] = await self.sector_api.retrieve_all_data(self._data_endpoints)
             _LOGGER.debug("API ALL DATA: %s", str(api_data))
 
+            # Process logs for event handling first to update changed_by and changed_by_channel
+            self._event_logs = await self._device_proccessor.process_event_logs(
+                api_data, registered_devices
+            )
+
             # Process devices
             devices = self._device_proccessor.process_devices(
                 panel_info, api_data, registered_devices
-            )
-
-            # Process logs for event handling
-            self._event_logs = await self._device_proccessor.process_event_logs(
-                api_data, registered_devices
             )
 
             self._reset_update_error_counter()
@@ -837,7 +837,7 @@ class _DeviceProcessor:
             # 1. Capture immédiate du désarmement (indépendamment de lock_name)
             if event_type == "disarmed" and user:
                 self._last_disarmed_by = str(user).strip()
-                self._last_disarmed_channel = str(channel).strip() if channel is not None else None
+                self._last_disarmed_channel = str(channel).strip() if channel else ""
                 _LOGGER.debug(
                     "Captured disarm event: user=%s, channel=%s",
                     self._last_disarmed_by,
