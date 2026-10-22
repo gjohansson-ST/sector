@@ -15,7 +15,9 @@ from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from custom_components.sector.const import AlarmStatus, RUNTIME_DATA
+from custom_components.sector.const import RUNTIME_DATA
+
+from .alarm_control_panel import ALARM_STATE_TO_HA_STATE
 
 from .coordinator import (
     DeviceRegistry,
@@ -129,13 +131,6 @@ class SectorAlarmSensor(
         if self.entity_description.key == "garage_alarm_status":
             if value is None:
                 return None
-            try:
-                status = AlarmStatus(value)
-            except (ValueError, TypeError):
-                return "unknown"
-            return {
-                AlarmStatus.DISARMED: "disarmed",
-                AlarmStatus.ARMED_STAY: "armed_home",
-                AlarmStatus.ARMED_AWAY: "armed_away",
-            }[status]
+            state = ALARM_STATE_TO_HA_STATE.get(value)
+            return state.value if state is not None else "unknown"
         return value
