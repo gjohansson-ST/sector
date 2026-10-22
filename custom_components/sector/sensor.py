@@ -17,6 +17,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.sector.const import RUNTIME_DATA
 
+from .alarm_control_panel import ALARM_STATE_TO_HA_STATE
+
 from .coordinator import (
     DeviceRegistry,
     SectorAlarmConfigEntry,
@@ -27,6 +29,13 @@ from .entity import SectorAlarmBaseEntity
 _LOGGER = logging.getLogger(__name__)
 
 SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
+    SensorEntityDescription(
+        key="garage_alarm_status",
+        name="Garage Alarm Status",
+        icon="mdi:garage",
+        device_class=SensorDeviceClass.ENUM,
+        options=["disarmed", "armed_home", "armed_away", "unknown"],
+    ),
     SensorEntityDescription(
         key="temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
@@ -114,8 +123,14 @@ class SectorAlarmSensor(
         self._attr_unique_id = f"{serial_no}_{entity_description.key}"
 
     @property
-    def native_value(self) -> float | None:
+    def native_value(self) -> float | str | None:
         """Return the sensor value."""
         entity = self.entity_data or {}
         sensors: dict[str, Any] = entity.get("sensors", {})
-        return sensors.get(self.entity_description.key)
+        value = sensors.get(self.entity_description.key)
+        if self.entity_description.key == "garage_alarm_status":
+            if value is None:
+                return None
+            state = ALARM_STATE_TO_HA_STATE.get(value)
+            return state.value if state is not None else "unknown"
+        return value
