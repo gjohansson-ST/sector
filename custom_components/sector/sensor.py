@@ -28,6 +28,11 @@ _LOGGER = logging.getLogger(__name__)
 
 SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
+        key="garage_alarm_status",
+        name="Garage Alarm Status",
+        icon="mdi:garage",
+    ),
+    SensorEntityDescription(
         key="temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
