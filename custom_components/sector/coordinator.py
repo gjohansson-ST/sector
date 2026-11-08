@@ -448,6 +448,7 @@ class _DeviceProcessor:
             "sensors": {
                 "online": panel_status_data.get("IsOnline"),
                 "alarm_status": panel_status_data.get("Status"),
+                "garage_alarm_status": panel_status_data.get("AnnexStatus"),
             },
             "panel_code_length": panel_info.get("PanelCodeLength", 0),
             "panel_quick_arm": panel_info.get("QuickArmEnabled", False),
