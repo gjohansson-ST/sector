@@ -9,7 +9,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from custom_components.sector.const import RUNTIME_DATA
 from custom_components.sector.coordinator import DeviceRegistry
-from custom_components.sector.sensor import SectorAlarmSensor, async_setup_entry
+from custom_components.sector.sensor import (
+    SectorAlarmChangedByChannelSensor,
+    SectorAlarmChangedBySensor,
+    SectorAlarmSensor,
+    async_setup_entry,
+)
 
 _DEVICE_COORDINATOR_NAME = "device-coordinator"
 
@@ -116,3 +121,48 @@ async def test_async_setup_entry_no_entities(hass: HomeAssistant):
     await async_setup_entry(hass, entry, add)
 
     add.assert_not_called()
+
+
+async def test_changed_by_and_channel_sensors(hass: HomeAssistant):
+    device_registry = DeviceRegistry()
+    device_registry.register_device(
+        {
+            "serial_no": "PANEL1",
+            "name": "Alarm Panel",
+            "model": "Alarm panel",
+            "entities": {
+                "Alarm panel": {
+                    "name": "Alarm Control Panel",
+                    "model": "Alarm panel",
+                    "coordinator_name": _DEVICE_COORDINATOR_NAME,
+                    "changed_by": "John Doe",
+                    "changed_by_channel": "",
+                    "sensors": {},
+                }
+            },
+        }
+    )
+    coordinator = Mock(spec=DataUpdateCoordinator)
+    coordinator.data = {"device_registry": device_registry}
+    coordinator.name = _DEVICE_COORDINATOR_NAME
+
+    entry = Mock()
+    entry.runtime_data = {RUNTIME_DATA.DEVICE_COORDINATORS: [coordinator]}
+
+    entities = []
+
+    def async_add_entities(new_entities, update_before_add=False):
+        entities.extend(new_entities)
+
+    await async_setup_entry(hass, entry, async_add_entities)
+
+    assert len(entities) == 2
+
+    changed_by = next(e for e in entities if isinstance(e, SectorAlarmChangedBySensor))
+    assert changed_by.native_value == "John Doe"
+    assert changed_by.extra_state_attributes == {"channel": ""}
+
+    channel = next(
+        e for e in entities if isinstance(e, SectorAlarmChangedByChannelSensor)
+    )
+    assert channel.native_value == "keypad"
