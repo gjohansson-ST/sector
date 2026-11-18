@@ -24,6 +24,11 @@
       "rangeStrategy": "pin"
     },
     {
+      "matchDepTypes": ["uses-with"],
+      "matchDepNames": ["python"],
+      "enabled": false
+    },
+    {
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true
