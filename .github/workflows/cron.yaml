@@ -33,10 +33,26 @@ jobs:
         run: |
           pytest -vv
 
+      - name: Run Sector API faker tests
+        run: |
+          python -m unittest sector_api_faker.tests -v
+
+  hacs:
+    runs-on: ubuntu-latest
+    name: HACS validation
+    steps:
+      - uses: actions/checkout@v7.0.1
+
       - name: HACS validation
         uses: hacs/action@main
         with:
           category: integration
+
+  hassfest:
+    runs-on: ubuntu-latest
+    name: Hassfest validation
+    steps:
+      - uses: actions/checkout@v7.0.1
 
       - name: Hassfest validation
         uses: home-assistant/actions/hassfest@master
