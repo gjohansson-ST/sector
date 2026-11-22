@@ -31,6 +31,10 @@ jobs:
         run: |
           pytest -vv
 
+      - name: Run Sector API faker tests
+        run: |
+          python -m unittest sector_api_faker.tests -v
+
       - name: HACS validation
         uses: "hacs/action@main"
         with:

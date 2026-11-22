@@ -1,7 +1,21 @@
 {
     "version": "0.2.0",
     "configurations": [
-        
+        {
+            "name": "Run Sector API faker",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "sector_api_faker",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "SECTOR_API_USER": "${input:sectorApiUser}",
+                "SECTOR_API_PASSWORD": "${input:sectorApiPassword}",
+                "PANEL_ID": "${input:sectorPanelId}",
+                "TIME_ZONE": "${input:sectorTimeZone}",
+                "LEGACY_MODE": "${input:sectorLegacyMode}"
+            }
+        },
         {
             "name": "Debug pytest (HA)",
             "type": "debugpy",
@@ -16,6 +30,40 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "justMyCode": false
+        }
+    ],
+    "inputs": [
+        {
+            "id": "sectorApiUser",
+            "type": "promptString",
+            "description": "Sector API user"
+        },
+        {
+            "id": "sectorApiPassword",
+            "type": "promptString",
+            "description": "Sector API password",
+            "password": true
+        },
+        {
+            "id": "sectorPanelId",
+            "type": "promptString",
+            "description": "Alarm panel ID"
+        },
+        {
+            "id": "sectorTimeZone",
+            "type": "promptString",
+            "description": "Home Assistant IANA time zone",
+            "default": "Europe/Stockholm"
+        },
+        {
+            "id": "sectorLegacyMode",
+            "type": "pickString",
+            "description": "Run faker as a legacy Sector system?",
+            "options": [
+                "false",
+                "true"
+            ],
+            "default": "false"
         }
     ]
 }
