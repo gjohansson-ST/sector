@@ -5,10 +5,10 @@ on:
 
 jobs:
   validate:
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-latest
     name: Validate HA integration
     steps:
-      - uses: "actions/checkout@v7.0.1"
+      - uses: actions/checkout@v7.0.1
 
       - name: Set up Python
         uses: actions/setup-python@v7.1.0
@@ -35,13 +35,25 @@ jobs:
         run: |
           python -m unittest sector_api_faker.tests -v
 
+  hacs:
+    runs-on: ubuntu-latest
+    name: HACS validation
+    steps:
+      - uses: actions/checkout@v7.0.1
+
       - name: HACS validation
-        uses: "hacs/action@main"
+        uses: hacs/action@main
         with:
-          category: "integration"
+          category: integration
+
+  hassfest:
+    runs-on: ubuntu-latest
+    name: Hassfest validation
+    steps:
+      - uses: actions/checkout@v7.0.1
 
       - name: Hassfest validation
-        uses: "home-assistant/actions/hassfest@master"
+        uses: home-assistant/actions/hassfest@master
 
   labels:
     name: ♻️ Sync labels
