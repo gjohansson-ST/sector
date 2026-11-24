@@ -29,6 +29,7 @@ This integration connects Home Assistant with the Sector Alarm system allowing m
 On alarm installations which are not wired, make sure you take the binary sensor `Online` into account to ensure the alarm state is a trusted state. The entity for alarm panel can only be armed/disarmed on alarms which are online.
 
 <!-- ha-marketplace:exclude-start -->
+
 ## Installation ##
 
 **Minimum Required Home Assistant version:** 2026.1.0
@@ -63,8 +64,6 @@ homeassistant/
         ├── __init__.py
         ├── ...
 
-```
-<!-- ha-marketplace:exclude-end -->
 
 ## Configuration options ##
 | Configuration        | Required | Description                   |
