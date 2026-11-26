@@ -63,7 +63,9 @@ homeassistant/
     └── sector/
         ├── __init__.py
         ├── ...
+```
 
+<!-- ha-marketplace:exclude-end -->
 
 ## Configuration options ##
 | Configuration        | Required | Description                   |
