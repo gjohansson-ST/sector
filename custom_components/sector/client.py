@@ -41,6 +41,10 @@ class ApiError(HomeAssistantError):
     """Raised when the API returns an unexpected result."""
 
 
+class RateLimitError(ApiError):
+    """Raised when the API returns HTTP 429 Too Many Requests."""
+
+
 class RequestMetrics:
     """Track requests made during the last hour."""
 
@@ -290,20 +294,11 @@ class SectorAlarmAPI:
         """Retrieve all relevant data from the API."""
         data = {}
         data_endpoints = fetch_data_endpoints(data_endpoint_types)
-        try:
-            async with asyncio.TaskGroup() as tg:
-                for endpoint in data_endpoints:
-                    tg.create_task(self._retrieve_data(endpoint, data))
-            return data
-        except ExceptionGroup as eg:
-            relevant_errors = [
-                e
-                for e in self._flatten_exception_group(eg)
-                if not isinstance(e, asyncio.CancelledError)
-            ]
-            if relevant_errors:
-                raise relevant_errors[0] from None
-            raise
+        for endpoint in data_endpoints:
+            await self._retrieve_data(endpoint, data)
+            if len(data_endpoints) > 1:
+                await asyncio.sleep(0.1)
+        return data
 
     def _flatten_exception_group(self, eg: ExceptionGroup):
         for exc in eg.exceptions:
@@ -378,7 +373,7 @@ class SectorAlarmAPI:
                         )
                     elif response.status == 429:
                         self._user_agent_rotor.rotate()
-                        raise ApiError(
+                        raise RateLimitError(
                             f"Too many requests failure during GET request to '{url}' - (HTTP {response.status})"
                         )
                     else:
@@ -441,8 +436,8 @@ class SectorAlarmAPI:
                         )
                     elif response.status == 429:
                         self._user_agent_rotor.rotate()
-                        raise ApiError(
-                            f"Too many requests failure during GET request to '{url}' - (HTTP {response.status})"
+                        raise RateLimitError(
+                            f"Too many requests failure during POST request to '{url}' - (HTTP {response.status})"
                         )
                     else:
                         return APIResponse(
@@ -620,6 +615,8 @@ class Retryable:
         for attempt in range(1, self._attempts + 1):
             try:
                 return await func()
+            except RateLimitError:
+                raise
             except Exception as ex:
                 if not isinstance(ex, self._retry_exceptions):
                     raise
